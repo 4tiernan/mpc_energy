@@ -10,8 +10,11 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
     """Set up MPC Energy from YAML (not used)."""
     return True
 
-async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Set up MPC Energy from a config entry."""
+async def async_setup_entry(hass, entry):
+    # Forward setup to the sensor platform
+    hass.async_create_task(
+        hass.config_entries.async_forward_entry_setup(entry, "sensor")
+    )
     return True
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -22,7 +25,3 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 ##### LOGGGING !!!!!!!
 
-def setup(hass, config):
-    hass.states.set("mpc_energy.effective_price", "31")
-    
-    return True # True lets HA know the integration setup succesfully.

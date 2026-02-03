@@ -1,7 +1,7 @@
 import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.helpers import config_validation as cv
-from .const import DOMAIN
+from const import DOMAIN
 
 class MPCEnergyFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
     """Config flow for MPC Energy."""

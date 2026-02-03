@@ -8,5 +8,6 @@
   "integration_type": "hub",
   "iot_class": "local_polling",
   "requirements": [],
+  "config_flow": true,
   "version": "0.1.1"
 }

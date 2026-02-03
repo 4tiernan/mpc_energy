@@ -3,9 +3,10 @@
   "name": "MPC Energy",
   "codeowners": ["@4tiernan"],
   "dependencies": [],
-  "documentation": "https://github.com/4tiernan/mpc_energy",
+  "documentation": "https://github.com/4tiernan/mpc_energy#readme",
+  "issue_tracker": "https://github.com/4tiernan/mpc_energy/issues",
   "integration_type": "hub",
-  "iot_class": "cloud_polling",
+  "iot_class": "local_polling",
   "requirements": [],
   "version": "0.1.0"
 }

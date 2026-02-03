@@ -6,5 +6,6 @@
   "documentation": "https://github.com/4tiernan/mpc_energy",
   "integration_type": "hub",
   "iot_class": "cloud_polling",
-  "requirements": []
+  "requirements": [],
+  "version": "0.1.0"
 }

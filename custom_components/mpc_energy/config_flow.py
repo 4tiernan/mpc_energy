@@ -13,17 +13,36 @@ schema = vol.Schema( # Define all inputs to the integration.
                 mode=selector.NumberSelectorMode.BOX,
             )),
 
-        vol.Required("Battery Rated Capacity"): selector.EntitySelector(),
-        vol.Optional("Backup Buffer SOC"): selector.EntitySelector(),
-        vol.Required("Charge Cut-Off SOC"): selector.EntitySelector(),
-        vol.Required("Battery Charge Power Limit"): selector.EntitySelector(),
-        vol.Required("Battery Discharge Power Limit"): selector.EntitySelector(),
-        vol.Required("Battery SOC"): selector.EntitySelector(),
+        vol.Required("EMS Controlled By Home Assistant Switch (switch)"): selector.EntitySelector(),
+        vol.Required("EMS Control Mode (dropdown)"): selector.EntitySelector(),
+        vol.Required("Discharge Limiter (number input)"): selector.EntitySelector(),
+        vol.Required("Charge Limiter (number input)"): selector.EntitySelector(),
+        vol.Required("PV Limiter (number input)"): selector.EntitySelector(),
+        vol.Required("Export Limiter (number input)"): selector.EntitySelector(),
+        vol.Required("Import Limiter (number input)"): selector.EntitySelector(),
 
-        vol.Required("Solar MPPT DC Power Limit"): selector.EntitySelector(),
-        vol.Required("Inverter AC Power Limit"): selector.EntitySelector(),
-        vol.Required("Grid Import Power Limit"): selector.EntitySelector(),
-        vol.Required("Grid Export Power Limit"): selector.EntitySelector(),
+
+        vol.Required("Battery Rated Capacity (kWh)"): selector.EntitySelector(),
+        vol.Optional("Backup Buffer SOC (%)"): selector.EntitySelector(),
+        vol.Required("Charge Cut-Off SOC (%)"): selector.EntitySelector(),
+        vol.Required("Battery Charge Power Limit (kW)"): selector.EntitySelector(),
+        vol.Required("Battery Discharge Power Limit (kW)"): selector.EntitySelector(),
+        vol.Required("Battery SOC (%)"): selector.EntitySelector(),
+
+        vol.Required("Solar MPPT DC Power Limit (kW)"): selector.EntitySelector(),
+        vol.Required("Inverter AC Power Limit (kW)"): selector.EntitySelector(),
+        vol.Required("Grid Import Power Limit (kW)"): selector.EntitySelector(),
+        vol.Required("Grid Export Power Limit (kW)"): selector.EntitySelector(),
+
+        vol.Required("Load Power (kW)"): selector.EntitySelector(),
+        vol.Required("Solar Power (kW)"): selector.EntitySelector(),
+        vol.Required("Battery Power (kW)(+dis, -chg)"): selector.EntitySelector(),
+        vol.Required("Inverter Power (kW)(+generating, -consuming)"): selector.EntitySelector(),
+        vol.Required("Grid Power (kW)(-export, +import)"): selector.EntitySelector(),
+        
+
+        vol.Required("Solcast Solar Forecast Today (kWh)"): selector.EntitySelector(),
+
 
 
         vol.Required("price_entity"): selector.EntitySelector(),

@@ -1,11 +1,13 @@
 import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.helpers import selector
-from .const import DOMAIN
+from .const import DOMAIN, PlantEntites
+
+
 
 schema = vol.Schema( # Define all inputs to the integration.
     {
-        vol.Required("Battery Discharge Cost ($/kWh)"): selector.NumberSelector(selector.NumberSelectorConfig(
+        vol.Required(PlantEntites.BATTERY_DISCHARGE_COST): selector.NumberSelector(selector.NumberSelectorConfig(
                 min=0,
                 max=1,
                 step=0.001,
@@ -13,35 +15,36 @@ schema = vol.Schema( # Define all inputs to the integration.
                 mode=selector.NumberSelectorMode.BOX,
             )),
 
-        vol.Required("EMS Controlled By Home Assistant Switch (switch)"): selector.EntitySelector(),
-        vol.Required("EMS Control Mode (dropdown)"): selector.EntitySelector(),
-        vol.Required("Discharge Limiter (number input)"): selector.EntitySelector(),
-        vol.Required("Charge Limiter (number input)"): selector.EntitySelector(),
-        vol.Required("PV Limiter (number input)"): selector.EntitySelector(),
-        vol.Required("Export Limiter (number input)"): selector.EntitySelector(),
-        vol.Required("Import Limiter (number input)"): selector.EntitySelector(),
+        vol.Required(PlantEntites.HA_EMS_CONTROL_SWITCH): selector.EntitySelector(),
+        vol.Required(PlantEntites.EMS_CONTROL_MODE): selector.EntitySelector(),
+        vol.Required(PlantEntites.DISCHARGE_LIMITER): selector.EntitySelector(),
+        vol.Required(PlantEntites.CHARGE_LIMITER): selector.EntitySelector(),
+        vol.Required(PlantEntites.PV_LIMTER): selector.EntitySelector(),
+        vol.Required(PlantEntites.EXPORT_LIMITER): selector.EntitySelector(),
+        vol.Required(PlantEntites.IMPORT_LIMTER): selector.EntitySelector(),
 
 
-        vol.Required("Battery Rated Capacity (kWh)"): selector.EntitySelector(),
-        vol.Optional("Backup Buffer SOC (%)"): selector.EntitySelector(),
-        vol.Required("Charge Cut-Off SOC (%)"): selector.EntitySelector(),
-        vol.Required("Battery Charge Power Limit (kW)"): selector.EntitySelector(),
-        vol.Required("Battery Discharge Power Limit (kW)"): selector.EntitySelector(),
-        vol.Required("Battery SOC (%)"): selector.EntitySelector(),
+        vol.Required(PlantEntites.BATTERY_RATED_CAPACITY): selector.EntitySelector(),
+        vol.Optional(PlantEntites.BACKUP_SOC): selector.EntitySelector(),
+        vol.Required(PlantEntites.CHARGE_CUTOFF_SOC): selector.EntitySelector(),
+        
+        vol.Required(PlantEntites.BATTERY_SOC): selector.EntitySelector(),
 
-        vol.Required("Solar MPPT DC Power Limit (kW)"): selector.EntitySelector(),
-        vol.Required("Inverter AC Power Limit (kW)"): selector.EntitySelector(),
-        vol.Required("Grid Import Power Limit (kW)"): selector.EntitySelector(),
-        vol.Required("Grid Export Power Limit (kW)"): selector.EntitySelector(),
+        vol.Required(PlantEntites.CHARGE_LIMIT): selector.EntitySelector(),
+        vol.Required(PlantEntites.DISCHARGE_LIMIT): selector.EntitySelector(),
+        vol.Required(PlantEntites.PV_LIMIT): selector.EntitySelector(),
+        vol.Required(PlantEntites.INVERTER_LIMIT): selector.EntitySelector(),
+        vol.Required(PlantEntites.IMPORT_LIMIT): selector.EntitySelector(),
+        vol.Required(PlantEntites.EXPORT_LIMIT): selector.EntitySelector(),
 
-        vol.Required("Load Power (kW)"): selector.EntitySelector(),
-        vol.Required("Solar Power (kW)"): selector.EntitySelector(),
-        vol.Required("Battery Power (kW)(+dis, -chg)"): selector.EntitySelector(),
-        vol.Required("Inverter Power (kW)(+generating, -consuming)"): selector.EntitySelector(),
-        vol.Required("Grid Power (kW)(-export, +import)"): selector.EntitySelector(),
+        vol.Required(PlantEntites.LOAD_POWER): selector.EntitySelector(),
+        vol.Required(PlantEntites.SOLAR_POWER): selector.EntitySelector(),
+        vol.Required(PlantEntites.BATTERY_POWER): selector.EntitySelector(),
+        vol.Required(PlantEntites.INVERTER_POWER): selector.EntitySelector(),
+        vol.Required(PlantEntites.GRID_POWER): selector.EntitySelector(),
         
 
-        vol.Required("Solcast Solar Forecast Today (kWh)"): selector.EntitySelector(),
+        vol.Required(PlantEntites.SOLCAST_FORECAST): selector.EntitySelector(),
 
 
         #vol.Required("price_entity"): selector.EntitySelector(),

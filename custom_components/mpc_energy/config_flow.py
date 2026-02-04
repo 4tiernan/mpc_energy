@@ -44,10 +44,8 @@ schema = vol.Schema( # Define all inputs to the integration.
         vol.Required("Solcast Solar Forecast Today (kWh)"): selector.EntitySelector(),
 
 
-
-        vol.Required("price_entity"): selector.EntitySelector(),
-        vol.Optional("solar_entity"): selector.EntitySelector(),
-        
+        #vol.Required("price_entity"): selector.EntitySelector(),
+        #vol.Optional("solar_entity"): selector.EntitySelector(),
     }
 )
 

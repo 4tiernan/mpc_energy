@@ -65,14 +65,6 @@ class MPCEnergyFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
                 data=user_input,
             )
 
-        schema = vol.Schema(
-            {
-                vol.Required("battery_entity"): selector.EntitySelector(),
-                vol.Required("price_entity"): selector.EntitySelector(),
-                vol.Optional("solar_entity"): selector.EntitySelector(),
-            }
-        )
-
         return self.async_show_form(
             step_id="user",
             data_schema=schema,

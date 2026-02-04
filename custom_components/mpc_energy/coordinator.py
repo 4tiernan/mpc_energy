@@ -1,7 +1,7 @@
 import logging
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from datetime import timedelta
-from .const import DEFAULT_NAME
+from .const import DEFAULT_NAME, PlantEntites
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -18,7 +18,7 @@ class MPCCoordinator(DataUpdateCoordinator):
         self.entry = entry
 
     async def _async_update_data(self):
-        battery_power_entity = self.entry.data["battery_power"]
+        battery_power_entity = self.entry.data[PlantEntites.BATTERY_POWER]
 
         state = self.hass.states.get(battery_power_entity)
         if state is None or state.state in ("unknown", "unavailable"):

@@ -3,7 +3,20 @@ import sys
 import time
 import datetime
 import traceback
+import logging
 from api_token_secrets import HA_URL, HA_TOKEN, AMBER_API_TOKEN, SITE_ID
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+
+logger.info("My app started")
+logger.warning("Something happened")
+logger.error("Something broke")
+
+# Silence ha_mqtt_discoverable spam
+logging.getLogger("ha_mqtt_discoverable").setLevel(logging.WARNING)
+logging.getLogger("ha_mqtt_discoverable.sensors").setLevel(logging.WARNING)
 
 # HA APP Setup Notes:
 # Proxmox CPU Type must be set to host not kvm64
@@ -86,9 +99,13 @@ while(started == False):
             "run",
             "webserver.py",
             "--server.headless=true",
-            "--theme.base",
-            "light"
+            "--server.port=8501",
+            "--server.address=0.0.0.0",
+            "--server.enableCORS=false",
+            "--server.enableXsrfProtection=false",
+            "--theme.base=light"
         ])
+
 
         print("Streamlit dashboard started")  
 

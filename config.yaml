@@ -5,3 +5,16 @@ slug: "mpc_energy"
 init: false
 arch:
   - amd64
+
+hassio_api: true
+
+ingress: true
+ingress_port: 8501
+
+panel_icon: mdi:chart-line
+
+map:
+  - type: addon_config
+    read_only: false
+
+startup: services

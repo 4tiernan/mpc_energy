@@ -1,0 +1,7 @@
+name: "MPC Energy"
+description: "Test App"
+version: "0.0.1"
+slug: "mpc_energy"
+init: false
+arch:
+  - amd64

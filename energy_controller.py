@@ -10,8 +10,9 @@ class ControlMode(Enum):
     SOLAR_TO_LOAD = "Solar To Load"
 
 class EnergyController():
-    def __init__(self, ha, plant):
+    def __init__(self, ha, ha_mqtt, plant):
         self.ha = ha
+        self.ha_mqtt = ha_mqtt
         self.plant = plant
 
         self.working_mode = ControlMode.SELF_CONSUMPTION.value

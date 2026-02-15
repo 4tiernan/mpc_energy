@@ -11,11 +11,21 @@ from energy_controller import ControlMode
 
 HA_TZ = ZoneInfo("Australia/Brisbane") 
 
+
+import json
+import paho.mqtt.client as mqtt
+from api_token_secrets import MQTT_HOST, MQTT_USER, MQTT_PASS
+
+mqtt_client = mqtt.Client()
+mqtt_client.username_pw_set(MQTT_USER, MQTT_PASS) 
+mqtt_client.connect(MQTT_HOST, 1883)
+mqtt_client.loop_start()
+
 class MPC:
-    def __init__(self, ha, plant, ec):
+    def __init__(self, ha, plant, EC):
         self.plant = plant
         self.ha = ha
-        self.EC = ec
+        self.EC = EC
 
         self.power_threshold = 0.2 # Threshold when comparing power values
 

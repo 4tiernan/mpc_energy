@@ -1,10 +1,11 @@
 from energy_controller import ControlMode
 
 class RBC():    
-    def __init__(self, ha, plant, ec, buffer_percentage_remaining=35, max_discharge_rate = 15):
+    def __init__(self, ha, ha_mqtt, plant, EC, buffer_percentage_remaining=35, max_discharge_rate = 15):
         self.ha = ha
+        self.ha_mqtt = ha_mqtt
         self.plant = plant
-        self.EC = ec
+        self.EC = EC
         
         self.MODES = [
             ControlMode.DISPATCH,

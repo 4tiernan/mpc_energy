@@ -10,13 +10,13 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-logger.info("My app started")
-logger.warning("Something happened")
-logger.error("Something broke")
 
-# Silence ha_mqtt_discoverable spam
+
+# Silence logger spam
 logging.getLogger("ha_mqtt_discoverable").setLevel(logging.WARNING)
 logging.getLogger("ha_mqtt_discoverable.sensors").setLevel(logging.WARNING)
+logging.getLogger("matplotlib.font_manage").setLevel(logging.WARNING)
+
 
 # HA APP Setup Notes:
 # Proxmox CPU Type must be set to host not kvm64
@@ -29,7 +29,8 @@ logging.getLogger("ha_mqtt_discoverable.sensors").setLevel(logging.WARNING)
 # source venv/bin/activate (from within cd opt/energy-manager)
 # nano /opt/energy-manager/run.sh
 
-print("Starting...")
+logger.info("Starting")
+print("Print starting")
 started = False
 
 def PrintError(e):

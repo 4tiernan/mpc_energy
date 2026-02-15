@@ -22,4 +22,4 @@ ENV IP=0.0.0.0
 
 COPY . .
 
-CMD ["python3", "main.py"]
+CMD ["python3", "-u", "main.py"]

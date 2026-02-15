@@ -1,7 +1,7 @@
 import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.helpers import selector
-from .const import DOMAIN, PlantEntites
+from .const import DOMAIN, PlantEntityReferences
 
 
 def create_schema(entry=None):
@@ -10,44 +10,50 @@ def create_schema(entry=None):
     schema = vol.Schema( # Define all inputs to the integration.
         {
             
-            vol.Required(PlantEntites.BATTERY_DISCHARGE_COST, default=get_default(PlantEntites.BATTERY_DISCHARGE_COST, 0)): selector.NumberSelector(selector.NumberSelectorConfig(
+            vol.Required(PlantEntityReferences.BATTERY_DISCHARGE_COST, default=get_default(PlantEntityReferences.BATTERY_DISCHARGE_COST, 0)): selector.NumberSelector(selector.NumberSelectorConfig(
                     min=0,
                     max=1,
                     step=0.001,
                     unit_of_measurement="$/kWh",
                     mode=selector.NumberSelectorMode.BOX,
             )),
+
+            # Amber API Key Input
+            vol.Required(PlantEntityReferences.AMBER_API_KEY, default=get_default(PlantEntityReferences.AMBER_API_KEY, "psk_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"),): selector.TextSelector(selector.TextSelectorConfig(multiline=False)),
+
+            # Amber API Site ID Input
+            vol.Required(PlantEntityReferences.AMBER_API_SITE_ID, default=get_default(PlantEntityReferences.AMBER_API_SITE_ID, "xxxxxxxxxxxxxxxxxxxxxxxxxx"),): selector.TextSelector(selector.TextSelectorConfig(multiline=False)),
+
+            vol.Required(PlantEntityReferences.HA_EMS_CONTROL_SWITCH): selector.EntitySelector(),
+            vol.Required(PlantEntityReferences.EMS_CONTROL_MODE): selector.EntitySelector(),
+            vol.Required(PlantEntityReferences.DISCHARGE_LIMITER): selector.EntitySelector(),
+            vol.Required(PlantEntityReferences.CHARGE_LIMITER): selector.EntitySelector(),
+            vol.Required(PlantEntityReferences.PV_LIMTER): selector.EntitySelector(),
+            vol.Required(PlantEntityReferences.EXPORT_LIMITER): selector.EntitySelector(),
+            vol.Required(PlantEntityReferences.IMPORT_LIMTER): selector.EntitySelector(),
+
+
+            vol.Required(PlantEntityReferences.BATTERY_RATED_CAPACITY): selector.EntitySelector(),
+            vol.Optional(PlantEntityReferences.BACKUP_SOC): selector.EntitySelector(),
+            vol.Required(PlantEntityReferences.CHARGE_CUTOFF_SOC): selector.EntitySelector(),
             
-            #vol.Required(PlantEntites.HA_EMS_CONTROL_SWITCH): selector.EntitySelector(),
-            #vol.Required(PlantEntites.EMS_CONTROL_MODE): selector.EntitySelector(),
-            #vol.Required(PlantEntites.DISCHARGE_LIMITER): selector.EntitySelector(),
-            #vol.Required(PlantEntites.CHARGE_LIMITER): selector.EntitySelector(),
-            #vol.Required(PlantEntites.PV_LIMTER): selector.EntitySelector(),
-            #vol.Required(PlantEntites.EXPORT_LIMITER): selector.EntitySelector(),
-            #vol.Required(PlantEntites.IMPORT_LIMTER): selector.EntitySelector(),
+            vol.Required(PlantEntityReferences.BATTERY_SOC): selector.EntitySelector(),
 
+            vol.Required(PlantEntityReferences.CHARGE_LIMIT): selector.EntitySelector(),
+            vol.Required(PlantEntityReferences.DISCHARGE_LIMIT): selector.EntitySelector(),
+            vol.Required(PlantEntityReferences.PV_LIMIT): selector.EntitySelector(),
+            vol.Required(PlantEntityReferences.INVERTER_LIMIT): selector.EntitySelector(),
+            vol.Required(PlantEntityReferences.IMPORT_LIMIT): selector.EntitySelector(),
+            vol.Required(PlantEntityReferences.EXPORT_LIMIT): selector.EntitySelector(),
 
-            #vol.Required(PlantEntites.BATTERY_RATED_CAPACITY): selector.EntitySelector(),
-            #vol.Optional(PlantEntites.BACKUP_SOC): selector.EntitySelector(),
-            #vol.Required(PlantEntites.CHARGE_CUTOFF_SOC): selector.EntitySelector(),
-            
-            #vol.Required(PlantEntites.BATTERY_SOC): selector.EntitySelector(),
-
-            #vol.Required(PlantEntites.CHARGE_LIMIT): selector.EntitySelector(),
-            #vol.Required(PlantEntites.DISCHARGE_LIMIT): selector.EntitySelector(),
-            #vol.Required(PlantEntites.PV_LIMIT): selector.EntitySelector(),
-            #vol.Required(PlantEntites.INVERTER_LIMIT): selector.EntitySelector(),
-            #vol.Required(PlantEntites.IMPORT_LIMIT): selector.EntitySelector(),
-            #vol.Required(PlantEntites.EXPORT_LIMIT): selector.EntitySelector(),
-
-            #vol.Required(PlantEntites.LOAD_POWER): selector.EntitySelector(),
-            #vol.Required(PlantEntites.SOLAR_POWER): selector.EntitySelector(),
-            vol.Required(PlantEntites.BATTERY_POWER, default=get_default(PlantEntites.BATTERY_POWER)): selector.EntitySelector(),
-            #vol.Required(PlantEntites.INVERTER_POWER): selector.EntitySelector(),
-            #vol.Required(PlantEntites.GRID_POWER): selector.EntitySelector(),
+            vol.Required(PlantEntityReferences.LOAD_POWER): selector.EntitySelector(),
+            vol.Required(PlantEntityReferences.SOLAR_POWER): selector.EntitySelector(),
+            vol.Required(PlantEntityReferences.BATTERY_POWER, default=get_default(PlantEntityReferences.BATTERY_POWER)): selector.EntitySelector(),
+            vol.Required(PlantEntityReferences.INVERTER_POWER): selector.EntitySelector(),
+            vol.Required(PlantEntityReferences.GRID_POWER): selector.EntitySelector(),
             
 
-            #vol.Required(PlantEntites.SOLCAST_FORECAST): selector.EntitySelector(),
+            vol.Required(PlantEntityReferences.SOLCAST_FORECAST): selector.EntitySelector(),
 
 
             #vol.Required("price_entity"): selector.EntitySelector(),

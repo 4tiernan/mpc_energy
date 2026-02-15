@@ -3,8 +3,11 @@ DOMAIN = "mpc_energy"
 DEFAULT_NAME = "MPC Energy"
 
 # Required entities from homeassistant:
-class PlantEntites():
+class PlantEntityReferences():
     BATTERY_DISCHARGE_COST = "Battery Discharge Cost ($/kWh)"
+    AMBER_API_KEY = "Amber API Key"
+    AMBER_API_SITE_ID = "Amber Site ID"
+
     HA_EMS_CONTROL_SWITCH = "EMS Controlled By Home Assistant Switch (switch)"
     EMS_CONTROL_MODE = "EMS Control Mode (dropdown)"
     DISCHARGE_LIMITER = "Discharge Limiter (number input)"

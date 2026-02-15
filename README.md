@@ -4,7 +4,7 @@ A profit optimiser for home batteries with wholesale electricity pricing.
 <br/>
 ## ⚠️ Important Safety Notice
 
-This integration automatically controls energy systems such as batteries, inverters, and grid import/export.
+This home assitant app automatically controls energy systems such as batteries, inverters, and grid import/export.
 
 While it is designed to be conservative and safe-by-default, it can still make decisions that appear incorrect, suboptimal, or outright dumb due to:
 

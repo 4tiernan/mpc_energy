@@ -20,6 +20,8 @@ EXPOSE 8501
 ENV PORT=8501
 ENV IP=0.0.0.0
 
+ENV STREAMLIT_BROWSER_GATHER_USAGE_STATS=false 
+
 COPY . .
 
 CMD ["python3", "-u", "main.py"]

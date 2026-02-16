@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 mqtt_settings = Settings.MQTT(host=const.MQTT_HOST, username=config_manager.MQTT_USER, password=config_manager.MQTT_PASS, port=const.MQTT_PORT)
 
 # Define the device. At least one of `identifiers` or `connections` must be supplied
-device_info = DeviceInfo(name="Energy Manager Device", identifiers="energy-manager-py")
+device_info = DeviceInfo(name="MPC Energy Manager Device", identifiers="mpc-energy-py")
 
 
 def CreateSensor(name, unique_id, unit_of_measurement, state_class="measurement", device_class=None):

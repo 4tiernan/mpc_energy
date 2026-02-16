@@ -8,6 +8,7 @@ import pandas as pd
 from collections import defaultdict
 from typing import Any
 import logging
+import config_manager
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +30,7 @@ class Plant:
             "Command Charging (Grid First)",
             "Command Discharging (PV First)",
             "Command Discharging (ESS First)"]
-        self.rated_capacity = self.ha.get_numeric_state("sensor.sigen_plant_rated_energy_capacity")
+        self.rated_capacity = self.ha.get_numeric_state(config_manager.battery_rated_capacity_entity_id)
         self.max_discharge_power = 24
         self.max_charge_power = 21
         self.max_pv_power = 24
@@ -46,24 +47,24 @@ class Plant:
 
         self.update_data()
     def get_plant_mode(self):
-        return self.ha.get_state("select.sigen_plant_remote_ems_control_mode")["state"]
+        return self.ha.get_state(config_manager.ems_control_mode_entity_id)["state"]
 
     def update_data(self):
-        self.battery_soc = self.ha.get_numeric_state('sensor.sigen_plant_battery_state_of_charge')
-        self.kwh_backup_buffer = (self.ha.get_numeric_state("number.sigen_plant_ess_backup_state_of_charge")/100.0) * self.rated_capacity
-        self.kwh_stored_energy = self.ha.get_numeric_state("sensor.sigen_plant_available_max_discharging_capacity")
+        self.battery_soc = self.ha.get_numeric_state(config_manager.battery_soc_entity_id)
+        self.kwh_backup_buffer = (self.ha.get_numeric_state(config_manager.backup_soc_entity_id)/100.0) * self.rated_capacity
+        self.kwh_stored_energy = self.ha.get_numeric_state(config_manager.battery_stored_energy_entity_id)
         self.kwh_stored_available = self.kwh_stored_energy - self.kwh_backup_buffer
-        self.kwh_charge_unusable = (1-(self.ha.get_numeric_state("number.sigen_plant_ess_charge_cut_off_state_of_charge")/100.0)) * self.rated_capacity # kWh of buffer to 100% IE the charge limit 
-        self.kwh_till_full = self.ha.get_numeric_state("sensor.sigen_plant_available_max_charging_capacity") - self.kwh_charge_unusable
-        self.battery_kw = self.ha.get_numeric_state("sensor.reversed_battery_power")
+        self.kwh_charge_unusable = (1-(self.ha.get_numeric_state(config_manager.charge_cutoff_soc_entity_id)/100.0)) * self.rated_capacity # kWh of buffer to 100% IE the charge limit 
+        self.kwh_till_full = self.ha.get_numeric_state(config_manager.battery_kwh_till_full_entity_id) - self.kwh_charge_unusable
+        self.battery_kw = self.ha.get_numeric_state(config_manager.battery_power_entity_id)
 
-        self.solar_kw = self.ha.get_numeric_state("sensor.sigen_plant_pv_power")
-        self.solar_kwh_today = self.ha.get_numeric_state("sensor.sigen_inverter_daily_pv_energy")
-        self.solar_kw_remaining_today = self.ha.get_numeric_state("sensor.solcast_pv_forecast_forecast_remaining_today")
-        self.solar_daytime = self.ha.get_numeric_state('sensor.solcast_pv_forecast_forecast_this_hour') > self.get_base_load_estimate() # If producing more power than base load consider it during the solar day
-        self.inverter_power = self.ha.get_numeric_state("sensor.sigen_plant_plant_active_power")
-        self.grid_power = self.ha.get_numeric_state("sensor.sigen_plant_grid_active_power")
-        self.load_power = self.ha.get_numeric_state("sensor.sigen_plant_consumed_power")
+        self.solar_kw = self.ha.get_numeric_state(config_manager.solar_power_entity_id)
+        self.solar_kwh_today = self.ha.get_numeric_state(config_manager.plant_solar_kwh_today_entity_id)
+        self.solar_kw_remaining_today = self.ha.get_numeric_state(config_manager.solcast_solar_kwh_remaining_today)
+        self.solar_daytime = self.ha.get_numeric_state(config_manager.solcast_solar_power_this_hour_entity_id) > self.get_base_load_estimate() # If producing more power than base load consider it during the solar day
+        self.inverter_power = self.ha.get_numeric_state(config_manager.inverter_power_entity_id)
+        self.grid_power = self.ha.get_numeric_state(config_manager.grid_power_entity_id)
+        self.load_power = self.ha.get_numeric_state(config_manager.load_power_entity_id)
         self.avg_daily_load = self.get_load_avg(days_ago=self.load_avg_days)[-1].avg_state
         
         self.hours_till_full = 0
@@ -92,13 +93,14 @@ class Plant:
         end = now
         data_bin_qty = int((hours * 60) / bin_period) + 1 # +1 to captre the end time otherwise it would only get the 2nd last time
 
-        battery_soc_state_history = self.ha.get_history("sensor.sigen_plant_battery_state_of_charge", start_time=start, end_time=end)
-        battery_power_state_history = self.ha.get_history("sensor.reversed_battery_power", start_time=start, end_time=end)
-        inverter_power_state_history = self.ha.get_history("sensor.sigen_plant_plant_active_power", start_time=start, end_time=end)
-        solar_power_state_history = self.ha.get_history("sensor.sigen_plant_pv_power", start_time=start, end_time=end)
-        load_power_state_history = self.ha.get_history("sensor.sigen_plant_consumed_power", start_time=start, end_time=end)
-        grid_power_state_history = self.ha.get_history("sensor.sigen_plant_grid_active_power", start_time=start, end_time=end)
+        battery_soc_state_history = self.ha.get_history(config_manager.battery_soc_entity_id, start_time=start, end_time=end)
+        battery_power_state_history = self.ha.get_history(config_manager.battery_power_entity_id, start_time=start, end_time=end)
+        inverter_power_state_history = self.ha.get_history(config_manager.inverter_power_entity_id, start_time=start, end_time=end)
+        solar_power_state_history = self.ha.get_history(config_manager.solar_power_entity_id, start_time=start, end_time=end)
+        load_power_state_history = self.ha.get_history(config_manager.load_power_entity_id, start_time=start, end_time=end)
+        grid_power_state_history = self.ha.get_history(config_manager.grid_power_entity_id, start_time=start, end_time=end)
 
+        raise Exception("THIS NEEDS TO BE FIXED WRONG MQTT SENSOR")
         feed_in_state_history = self.ha.get_history("sensor.energy_manager_device_feed_in_price", start_time=start, end_time=end) 
         general_price_state_history = self.ha.get_history("sensor.energy_manager_device_general_price", start_time=start, end_time=end)
         working_mode_state_history = self.ha.get_history("sensor.energy_manager_device_working_mode", start_time=start, end_time=end, type=str)
@@ -220,11 +222,11 @@ class Plant:
     
     def check_control_limits(self, working_mode, control_mode, discharge, charge, pv, grid_export, grid_import): # Check if control limits match desired values and change them if required. 
         current_control_mode = self.get_plant_mode()
-        curent_discharge_limit = self.ha.get_numeric_state("number.sigen_plant_ess_max_discharging_limit")
-        curent_charge_limit = self.ha.get_numeric_state("number.sigen_plant_ess_max_charging_limit")
-        curent_pv_limit = self.ha.get_numeric_state("number.sigen_plant_pv_max_power_limit")
-        curent_export_limit = self.ha.get_numeric_state("number.sigen_plant_grid_export_limitation")
-        curent_import_limit = self.ha.get_numeric_state("number.sigen_plant_grid_import_limitation")
+        curent_discharge_limit = self.ha.get_numeric_state(config_manager.battery_discharge_limiter_entity_id)
+        curent_charge_limit = self.ha.get_numeric_state(config_manager.battery_charge_limiter_entity_id)
+        curent_pv_limit = self.ha.get_numeric_state(config_manager.pv_limiter_entity_id)
+        curent_export_limit = self.ha.get_numeric_state(config_manager.export_limiter_entity_id)
+        curent_import_limit = self.ha.get_numeric_state(config_manager.import_limiter_entity_id)
 
         a = current_control_mode != control_mode or curent_discharge_limit != discharge or curent_charge_limit != charge
         b = curent_pv_limit != pv or curent_export_limit != grid_export or curent_import_limit != grid_import
@@ -236,14 +238,14 @@ class Plant:
 
     def set_control_limits(self, control_mode, discharge, charge, pv, grid_export, grid_import): # Set the control limits to the desired values
         #if(self.get_plant_mode() != control_mode):
-        self.ha.set_number("number.sigen_plant_ess_max_discharging_limit", discharge)
-        self.ha.set_number("number.sigen_plant_ess_max_charging_limit", charge)
-        self.ha.set_number("number.sigen_plant_pv_max_power_limit", pv)
-        self.ha.set_number("number.sigen_plant_grid_export_limitation", grid_export)
-        self.ha.set_number("number.sigen_plant_grid_import_limitation", grid_import)
+        self.ha.set_number(config_manager.battery_discharge_limiter_entity_id, discharge)
+        self.ha.set_number(config_manager.battery_charge_limiter_entity_id, charge)
+        self.ha.set_number(config_manager.pv_limiter_entity_id, pv)
+        self.ha.set_number(config_manager.export_limiter_entity_id, grid_export)
+        self.ha.set_number(config_manager.import_limiter_entity_id, grid_import)
         
         if(control_mode in self.control_mode_options):
-            self.ha.set_select("select.sigen_plant_remote_ems_control_mode", control_mode)
+            self.ha.set_select(config_manager.ems_control_mode_entity_id, control_mode)
         else:
             raise(f"Requested control mode '{control_mode}' is not a valid control mode!")
     
@@ -255,7 +257,7 @@ class Plant:
         start = datetime.datetime.combine(start_date, datetime.time.min, tzinfo=HA_TZ)
         end = datetime.datetime.combine(end_date, datetime.time.min, tzinfo=HA_TZ)
 
-        load_state_history = self.ha.get_history("sensor.sigen_plant_consumed_power", start_time=start, end_time=end)
+        load_state_history = self.ha.get_history(config_manager.load_power_entity_id, start_time=start, end_time=end)
 
         load_history = [h.state for h in load_state_history]
         
@@ -413,7 +415,7 @@ class Plant:
         end = datetime.datetime.combine(end_date, datetime.time.min, tzinfo=HA_TZ)
 
 
-        history = self.ha.get_history("sensor.sigen_plant_daily_load_consumption", start_time=start, end_time=end)
+        history = self.ha.get_history(config_manager.plant_daily_load_kwh_entity_id, start_time=start, end_time=end)
         
         
         # Remove any invalid states from the history list (Unavailable, None, etc)
@@ -653,8 +655,8 @@ class Plant:
 
         # Solar Forecast
         # Get solar forecast list from HA
-        today = self.ha.get_state("sensor.solcast_pv_forecast_forecast_today")["attributes"]["detailedForecast"]
-        tomorrow = self.ha.get_state("sensor.solcast_pv_forecast_forecast_tomorrow")["attributes"]["detailedForecast"]
+        today = self.ha.get_state(config_manager.solcast_forecast_today_entity_id)["attributes"]["detailedForecast"]
+        tomorrow = self.ha.get_state(config_manager.solcast_forecast_tomorrow_entity_id)["attributes"]["detailedForecast"]
         forecast = today + tomorrow # Combine
 
         df = pd.DataFrame(forecast) # Convert to DataFrame for easy time handling
@@ -699,7 +701,7 @@ class Plant:
 #rouned_start_time = start.replace(minute=(start.minute // bin_period) * bin_period,second=0,microsecond=0,tzinfo=HA_TZ)
 #history = plant.historical_data(hours=1)
 
-#history = plant.ha.get_history("sensor.sigen_plant_pv_power", start_time=start, end_time=end)
+#history = plant.ha.get_history(config_manager.solar_power_entity_id, start_time=start, end_time=end)
 #rouned_start_time = start.replace(minute=(start.minute // 5) * 5,second=0,microsecond=0,tzinfo=HA_TZ)
 #binned = plant.bin_data(history, bin_period, rouned_start_time, data_bin_qty)
 

@@ -12,3 +12,7 @@ configuration:
   battery_discharge_cost:
     name: Battery Discharge Cost (c/kWh)
     description: Effective cost of discharging the battery (Leave at default if unsure).
+
+
+  battery_power_entity_id:
+    name: Battery Power (kW SIGN CONVENTION!!!)

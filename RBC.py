@@ -35,7 +35,7 @@ class RBC():
         self.plant.update_data()
         self.MINIMUM_BATTERY_DISPATCH_PRICE = self.ha_mqtt.min_dispatch_price_number.value
         self.feedIn_price = amber_data.feedIn_price
-        self.solar_kwh_forecast_remaining = self.ha.get_numeric_state("sensor.solcast_pv_forecast_forecast_remaining_today")
+        self.solar_kwh_forecast_remaining = self.plant.solar_kw_remaining_today
         self.kwh_required_remaining = self.plant.kwh_required_remaining(buffer_percentage=self.buffer_percentage_remaining)
         self.kwh_required_till_sundown = self.plant.kwh_required_till_sundown(buffer_percentage=self.buffer_percentage_remaining)
 

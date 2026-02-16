@@ -82,7 +82,7 @@ def PrintError(e):
 
 def ensure_remote_ems(): # Ensures the remote EMS switch is on provided the automatic control switch is on
     if(ha.get_state("input_select.automatic_control_mode")["state"] == "On"):
-            ha.set_switch_state("switch.sigen_plant_remote_ems_controled_by_home_assistant", True)
+            ha.set_switch_state(config_manager.ha_ems_control_switch_entity_id, True)
             time.sleep(2) # delay to ensure the change has time to become effective
 
 
@@ -215,10 +215,10 @@ def update_sensors(amber_data):
     ha_mqtt.kwh_required_till_sundown_sensor.set_state(round(rbc.kwh_required_till_sundown, 2))
     ha_mqtt.amber_api_calls_remaining_sensor.set_state(amber.rate_limit_remaining)
     ha_mqtt.working_mode_sensor.set_state(EC.working_mode)
-    grid_export_power = round(ha.get_numeric_state("sensor.sigen_plant_grid_export_power"), 2)
+    logger.error("Make profit tracking sensors")
     profit = ha.get_numeric_state("sensor.daily_feed_in")
     cost = ha.get_numeric_state("sensor.daily_general_usage")
-    ha_mqtt.system_state_sensor.set_state(EC.working_mode + f" {round(grid_export_power,1)}@{amber_data.feedIn_price} c/kWh ${round(profit-cost,2)} profit")
+    ha_mqtt.system_state_sensor.set_state(EC.working_mode + f" {round(plant.grid_power,1)}@{amber_data.feedIn_price} c/kWh ${round(profit-cost,2)} profit")
     ha_mqtt.base_load_sensor.set_state(round(1000*plant.get_base_load_estimate(),2)) # converted to w from kW
     ha_mqtt.effective_price_sensor.set_state(determine_effective_price(amber_data)) 
     ha_mqtt.avg_daily_load_sensor.set_state(round(plant.avg_daily_load,2))

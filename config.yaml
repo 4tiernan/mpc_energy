@@ -31,27 +31,43 @@ options:
   amber_api_key: ""
   amber_site_id: ""
   battery_discharge_cost: 7
-  ha_ems_control_switch_entity_id: ""
-  ems_control_mode_entity_id: ""
-  battery_discharge_limiter_entity_id: ""
-  battery_charge_limiter_entity_id: ""
-  pv_limiter_entity_id: ""
-  export_limiter_entity_id: ""
-  import_limiter_entity_id: ""
-  battery_rated_capacity_entity_id: ""
-  backup_soc_entity_id: ""
-  charge_cutoff_soc_entity_id: ""
-  battery_max_charge_power_limit_entity_id: ""
-  battery_max_discharge_power_limit_entity_id: ""
-  pv_max_power_limit_entity_id: ""
-  import_max_power_limit_entity_id: ""
-  export_max_power_limit_entity_id: ""
-  load_power_entity_id: ""
-  solar_power_entity_id: ""
-  battery_power_entity_id: ""
-  inverter_power_entity_id: ""
-  grid_power_entity_id: ""
-  solcast_forecast_entity_id: ""
+
+  ha_ems_control_switch_entity_id: "switch.sigen_plant_remote_ems_controled_by_home_assistant"
+  ems_control_mode_entity_id: "select.sigen_plant_remote_ems_control_mode"
+
+  load_power_entity_id: "sensor.sigen_plant_consumed_power"
+  solar_power_entity_id: "sensor.sigen_plant_pv_power"
+  battery_power_entity_id: "sensor.reversed_battery_power"
+  inverter_power_entity_id: "sensor.sigen_plant_plant_active_power"
+  grid_power_entity_id: "sensor.sigen_plant_grid_active_power"
+  
+  battery_soc_entity_id: "sensor.sigen_plant_battery_state_of_charge"
+  battery_stored_energy_entity_id: "sensor.sigen_plant_available_max_discharging_capacity"
+  battery_kwh_till_full_entity_id: "sensor.sigen_plant_available_max_charging_capacity"
+  plant_solar_kwh_today_entity_id: "sensor.sigen_inverter_daily_pv_energy"
+  plant_daily_load_kwh_entity_id: "sensor.sigen_plant_daily_load_consumption"
+  
+  battery_rated_capacity_entity_id: "sensor.sigen_plant_rated_energy_capacity"
+  backup_soc_entity_id: "number.sigen_plant_ess_backup_state_of_charge"
+  charge_cutoff_soc_entity_id: "number.sigen_plant_ess_charge_cut_off_state_of_charge"
+
+  battery_max_discharge_power_limit_entity_id: str
+  battery_max_charge_power_limit_entity_id: str
+  pv_max_power_limit_entity_id: str
+  import_max_power_limit_entity_id: str
+  export_max_power_limit_entity_id: str
+
+  battery_discharge_limiter_entity_id: "number.sigen_plant_ess_max_discharging_limit"
+  battery_charge_limiter_entity_id: "number.sigen_plant_ess_max_charging_limit"
+  pv_limiter_entity_id: "number.sigen_plant_pv_max_power_limit"
+  export_limiter_entity_id: "number.sigen_plant_grid_export_limitation"
+  import_limiter_entity_id: "number.sigen_plant_grid_import_limitation"
+
+  solcast_forecast_today_entity_id: "sensor.solcast_pv_forecast_forecast_today"
+  solcast_forecast_tomorrow_entity_id: "sensor.solcast_pv_forecast_forecast_tomorrow"
+  solcast_solar_kwh_remaining_today: "sensor.solcast_pv_forecast_forecast_remaining_today"
+  solcast_solar_power_this_hour_entity_id: "sensor.solcast_pv_forecast_forecast_this_hour"
+
 
 
 schema:
@@ -61,26 +77,43 @@ schema:
   amber_api_key: password
   amber_site_id: str?
   battery_discharge_cost: int?
+
   ha_ems_control_switch_entity_id: str
   ems_control_mode_entity_id: str
-  battery_discharge_limiter_entity_id: str
-  battery_charge_limiter_entity_id: str
-  pv_limiter_entity_id: str
-  export_limiter_entity_id: str
-  import_limiter_entity_id: str
-  battery_rated_capacity_entity_id: str
-  backup_soc_entity_id: str
-  charge_cutoff_soc_entity_id: str
-  battery_max_charge_power_limit_entity_id: str
-  battery_max_discharge_power_limit_entity_id: str
-  pv_max_power_limit_entity_id: str
-  import_max_power_limit_entity_id: str
-  export_max_power_limit_entity_id: str
+
   load_power_entity_id: str
   solar_power_entity_id: str
   battery_power_entity_id: str
   inverter_power_entity_id: str
   grid_power_entity_id: str
-  solcast_forecast_entity_id: str
+  
+  battery_soc_entity_id: str
+  battery_stored_energy_entity_id: str
+  battery_kwh_till_full: str
+  plant_solar_kwh_today: str
+  plant_daily_load_kwh: str
+  
+  battery_rated_capacity_entity_id: str
+  backup_soc_entity_id: str
+  charge_cutoff_soc_entity_id: str
+
+  battery_max_charge_power_limit_entity_id: str
+  battery_max_discharge_power_limit_entity_id: str
+  pv_max_power_limit_entity_id: str
+  import_max_power_limit_entity_id: str
+  export_max_power_limit_entity_id: str
+
+  battery_discharge_limiter_entity_id: str
+  battery_charge_limiter_entity_id: str
+  pv_limiter_entity_id: str
+  export_limiter_entity_id: str
+  import_limiter_entity_id: str
+
+  solcast_forecast_today_entity_id: str
+  solcast_forecast_tomorrow_entity_id: str
+  solcast_solar_kwh_remaining_today: str
+  solcast_solar_power_this_hour: str
+
+
 
 

@@ -6,7 +6,8 @@ import traceback
 import logging
 import colorlog
 import config_manager
-from api_token_secrets import HA_URL, HA_TOKEN, AMBER_API_TOKEN, SITE_ID
+import const
+from api_token_secrets import AMBER_API_TOKEN, SITE_ID
 
 
 # Create a color formatter
@@ -99,8 +100,8 @@ while(started == False):
         #amber_data = amber.get_data()
 
         ha = HomeAssistantAPI(
-            base_url=HA_URL,
-            token=HA_TOKEN,
+            base_url=const.HA_API_URL,
+            token=const.HA_TOKEN,
             errors=True
         )
         

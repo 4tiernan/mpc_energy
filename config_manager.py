@@ -6,17 +6,17 @@ with open("/data/options.json") as f:
 
 def get_val(key, default=None):
     value = options.get(key, default)
-    if(value == None or value == ""):
+    if((value == None or value == "") and default == None):
         raise Exception(f"Failed to get {key} from user configuration")
+    return value
 
 log_level = get_val("log_level")
-ha_api_key = get_val("ha_api_key")
-ha_mqtt_user = get_val("ha_mqtt_user")
-ha_mqtt_pass = get_val("ha_mqtt_pass")
+MQTT_USER = get_val("ha_mqtt_user")
+MQTT_PASS = get_val("ha_mqtt_pass")
 
 
 amber_api_key = get_val("amber_api_key")
-amber_site_id = get_val("amber_site_id")
+amber_site_id = get_val("amber_site_id", default="")
 battery_discharge_cost = get_val("battery_discharge_cost")
 
 ha_ems_control_switch_entity_id = get_val("ha_ems_control_switch_entity_id")

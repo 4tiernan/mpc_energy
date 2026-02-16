@@ -7,11 +7,15 @@ arch:
   - amd64
 
 hassio_api: true
+homeassistant_api: true
 
 ingress: true
 ingress_port: 8501
 
 panel_icon: mdi:chart-line
+
+services:
+  - mqtt:need
 
 map:
   - type: addon_config
@@ -22,7 +26,6 @@ startup: services
 
 options:
   log_level: info
-  ha_api_key: ""
   ha_mqtt_user: ""
   ha_mqtt_pass: ""
   amber_api_key: ""
@@ -53,9 +56,8 @@ options:
 
 schema:
   log_level: list(debug|info|warning|error|critical)
-  ha_api_key: str
   ha_mqtt_user: str
-  ha_mqtt_pass: str
+  ha_mqtt_pass: password
   amber_api_key: password
   amber_site_id: str?
   battery_discharge_cost: int?

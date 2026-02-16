@@ -17,11 +17,12 @@ HA_TZ = ZoneInfo("Australia/Brisbane")
 
 import json
 import paho.mqtt.client as mqtt
-from api_token_secrets import MQTT_HOST, MQTT_USER, MQTT_PASS
+import const
+import config_manager
 
 mqtt_client = mqtt.Client()
-mqtt_client.username_pw_set(MQTT_USER, MQTT_PASS) 
-mqtt_client.connect(MQTT_HOST, 1883)
+mqtt_client.username_pw_set(config_manager.MQTT_USER, config_manager.MQTT_PASS) 
+mqtt_client.connect(const.MQTT_HOST, const.MQTT_PORT)
 mqtt_client.loop_start()
 
 class MPC:

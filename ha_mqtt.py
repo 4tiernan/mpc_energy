@@ -1,14 +1,15 @@
 from paho.mqtt.client import Client, MQTTMessage
 from ha_mqtt_discoverable import Settings, DeviceInfo
 from ha_mqtt_discoverable.sensors import Select, SelectInfo, SensorInfo, Sensor, NumberInfo, Number
-from api_token_secrets import MQTT_HOST, MQTT_USER, MQTT_PASS
 import time
 import logging
+import const
+import config_manager
 
 logger = logging.getLogger(__name__)
 
 # Configure the required parameters for the MQTT broker
-mqtt_settings = Settings.MQTT(host=MQTT_HOST, username=MQTT_USER, password=MQTT_PASS)
+mqtt_settings = Settings.MQTT(host=const.MQTT_HOST, username=config_manager.MQTT_USER, password=config_manager.MQTT_PASS, port=const.MQTT_PORT)
 
 # Define the device. At least one of `identifiers` or `connections` must be supplied
 device_info = DeviceInfo(name="Energy Manager Device", identifiers="energy-manager-py")

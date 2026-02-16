@@ -82,11 +82,6 @@ energy_controller_selector = CreateSelectInput(
     options=["RBC", "MPC"]
 )
 
-min_dispatch_price_number = CreateNumberInput(
-    name="Min Dispatch Price",
-    unique_id=unique_device_name+"_min_dispatch_price",
-    unit_of_measurement="c/kWh"
-)
 
 base_load_sensor = CreateSensor(
     name = "Base Load",
@@ -186,7 +181,6 @@ estimated_price_status_sensor = CreateSensor(
 )
 
 def initalise_entities(): # Initalise entities and get them discovered by the ha mqtt service
-    min_dispatch_price_number.entity.set_value(0)
     working_mode_sensor.set_state("Self Consumption")
     system_state_sensor.set_state("Self Consumption")
     amber_api_calls_remaining_sensor.set_state(0)
@@ -205,7 +199,8 @@ def initalise_entities(): # Initalise entities and get them discovered by the ha
     estimated_price_status_sensor.set_state(0)
     time.sleep(10)
 
-initalise_entities()
+time.sleep(1) # Sleep to allow entites to be picked up by mqtt broker
+#initalise_entities()
 
 #estimated_price_status_sensor.set_state(0)
 #time.sleep(10)

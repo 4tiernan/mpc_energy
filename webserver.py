@@ -4,10 +4,11 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import json
 import paho.mqtt.client as mqtt
-from api_token_secrets import MQTT_HOST, MQTT_USER, MQTT_PASS
 import datetime, time
 import queue
 from streamlit_autorefresh import st_autorefresh
+import config_manager
+import const
 
 st.set_page_config(
     page_title="MPC Dashboard",
@@ -37,9 +38,9 @@ def on_message(client, userdata, msg):
 
 if "mqtt_client" not in st.session_state:
     client = mqtt.Client(callback_api_version=mqtt.CallbackAPIVersion.VERSION2)
-    client.username_pw_set(MQTT_USER, MQTT_PASS)
+    client.username_pw_set(config_manager.MQTT_USER, config_manager.MQTT_PASS)
     client.on_message = on_message
-    client.connect(MQTT_HOST, 1883)
+    client.connect(const.MQTT_HOST, const.MQTT_PORT)
     client.loop_start()
     client.subscribe("home/mpc/output")
     st.session_state.mqtt_client = client

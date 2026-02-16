@@ -7,7 +7,6 @@ import logging
 import colorlog
 import config_manager
 import const
-from api_token_secrets import AMBER_API_TOKEN, SITE_ID
 
 
 # Create a color formatter
@@ -96,7 +95,7 @@ while(started == False):
         from amber_api import AmberAPI
         from PlantControl import Plant
 
-        amber = AmberAPI(AMBER_API_TOKEN, SITE_ID, errors=True)
+        amber = AmberAPI(config_manager.amber_api_key, config_manager.amber_site_id, errors=True)
         #amber_data = amber.get_data()
 
         ha = HomeAssistantAPI(

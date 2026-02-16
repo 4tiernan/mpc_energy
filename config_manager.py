@@ -52,5 +52,5 @@ import_limiter_entity_id = get_val("import_limiter_entity_id")
 
 solcast_forecast_today_entity_id = get_val("solcast_forecast_today_entity_id")
 solcast_forecast_tomorrow_entity_id = get_val("solcast_forecast_tomorrow_entity_id")
-solcast_solar_kwh_remaining_today = get_val("solcast_solar_kwh_remaining_today")
+solcast_solar_kwh_remaining_today_entity_id = get_val("solcast_solar_kwh_remaining_today_entity_id")
 solcast_solar_power_this_hour_entity_id = get_val("solcast_solar_power_this_hour_entity_id")

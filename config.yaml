@@ -65,7 +65,7 @@ options:
 
   solcast_forecast_today_entity_id: "sensor.solcast_pv_forecast_forecast_today"
   solcast_forecast_tomorrow_entity_id: "sensor.solcast_pv_forecast_forecast_tomorrow"
-  solcast_solar_kwh_remaining_today: "sensor.solcast_pv_forecast_forecast_remaining_today"
+  solcast_solar_kwh_remaining_today_entity_id: "sensor.solcast_pv_forecast_forecast_remaining_today"
   solcast_solar_power_this_hour_entity_id: "sensor.solcast_pv_forecast_forecast_this_hour"
 
 
@@ -89,9 +89,9 @@ schema:
   
   battery_soc_entity_id: str
   battery_stored_energy_entity_id: str
-  battery_kwh_till_full: str
-  plant_solar_kwh_today: str
-  plant_daily_load_kwh: str
+  battery_kwh_till_full_entity_id: str
+  plant_solar_kwh_today_entity_id: str
+  plant_daily_load_kwh_entity_id: str
   
   battery_rated_capacity_entity_id: str
   backup_soc_entity_id: str
@@ -111,8 +111,8 @@ schema:
 
   solcast_forecast_today_entity_id: str
   solcast_forecast_tomorrow_entity_id: str
-  solcast_solar_kwh_remaining_today: str
-  solcast_solar_power_this_hour: str
+  solcast_solar_kwh_remaining_today_entity_id: str
+  solcast_solar_power_this_hour_entity_id: str
 
 
 

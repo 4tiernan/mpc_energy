@@ -60,7 +60,7 @@ class Plant:
 
         self.solar_kw = self.ha.get_numeric_state(config_manager.solar_power_entity_id)
         self.solar_kwh_today = self.ha.get_numeric_state(config_manager.plant_solar_kwh_today_entity_id)
-        self.solar_kw_remaining_today = self.ha.get_numeric_state(config_manager.solcast_solar_kwh_remaining_today)
+        self.solar_kw_remaining_today = self.ha.get_numeric_state(config_manager.solcast_solar_kwh_remaining_today_entity_id)
         self.solar_daytime = self.ha.get_numeric_state(config_manager.solcast_solar_power_this_hour_entity_id) > self.get_base_load_estimate() # If producing more power than base load consider it during the solar day
         self.inverter_power = self.ha.get_numeric_state(config_manager.inverter_power_entity_id)
         self.grid_power = self.ha.get_numeric_state(config_manager.grid_power_entity_id)
@@ -100,7 +100,6 @@ class Plant:
         load_power_state_history = self.ha.get_history(config_manager.load_power_entity_id, start_time=start, end_time=end)
         grid_power_state_history = self.ha.get_history(config_manager.grid_power_entity_id, start_time=start, end_time=end)
 
-        raise Exception("THIS NEEDS TO BE FIXED WRONG MQTT SENSOR")
         feed_in_state_history = self.ha.get_history("sensor.energy_manager_device_feed_in_price", start_time=start, end_time=end) 
         general_price_state_history = self.ha.get_history("sensor.energy_manager_device_general_price", start_time=start, end_time=end)
         working_mode_state_history = self.ha.get_history("sensor.energy_manager_device_working_mode", start_time=start, end_time=end, type=str)

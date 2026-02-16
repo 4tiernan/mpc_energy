@@ -1,5 +1,6 @@
 from energy_controller import ControlMode
 import logging
+import config_manager
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +34,7 @@ class RBC():
 
     def update_values(self, amber_data):
         self.plant.update_data()
-        self.MINIMUM_BATTERY_DISPATCH_PRICE = self.ha_mqtt.min_dispatch_price_number.value
+        self.MINIMUM_BATTERY_DISPATCH_PRICE = config_manager.battery_discharge_cost
         self.feedIn_price = amber_data.feedIn_price
         self.solar_kwh_forecast_remaining = self.plant.solar_kw_remaining_today
         self.kwh_required_remaining = self.plant.kwh_required_remaining(buffer_percentage=self.buffer_percentage_remaining)

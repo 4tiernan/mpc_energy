@@ -12,6 +12,7 @@ logger = logging.getLogger(__name__)
 mqtt_settings = Settings.MQTT(host=const.MQTT_HOST, username=config_manager.MQTT_USER, password=config_manager.MQTT_PASS, port=const.MQTT_PORT)
 
 # Define the device. At least one of `identifiers` or `connections` must be supplied
+unique_device_name = "mpc_energy_manager"
 device_info = DeviceInfo(name="MPC Energy Manager Device", identifiers="mpc-energy-py")
 
 
@@ -71,120 +72,120 @@ class CreateText():
 
 controller_update_selector = CreateSelectInput(
     name="Controller Update",
-    unique_id="controller_update",
+    unique_id=unique_device_name+"_controller_update",
     options=["Working", "Update"]
 )
 
 energy_controller_selector = CreateSelectInput(
     name="Energy Controller",
-    unique_id="energy_controller",
+    unique_id=unique_device_name+"_energy_controller",
     options=["RBC", "MPC"]
 )
 
 min_dispatch_price_number = CreateNumberInput(
     name="Min Dispatch Price",
-    unique_id="min_dispatch_price",
+    unique_id=unique_device_name+"_min_dispatch_price",
     unit_of_measurement="c/kWh"
 )
 
 base_load_sensor = CreateSensor(
     name = "Base Load",
-    unique_id="base_load_python",
+    unique_id=unique_device_name+"_base_load_python",
     unit_of_measurement="w"
 )
 
 alive_time_sensor = CreateSensor(
     name = "Alive Time",
-    unique_id="alive-time-python",
+    unique_id=unique_device_name+"_alive-time-python",
     unit_of_measurement="s"
 )
 
 working_mode_sensor = CreateSensor(
     name = "Working Mode",
-    unique_id="working_mode_python",
+    unique_id=unique_device_name+"_working_mode_python",
     unit_of_measurement=None,
     state_class = None
 )
 
 system_state_sensor = CreateSensor(
     name = "System State",
-    unique_id="system_state_python",
+    unique_id=unique_device_name+"_system_state_python",
     unit_of_measurement=None,
     state_class = None
 )
 
 effective_price_sensor = CreateSensor(
     name = "Effective Price",
-    unique_id="effective_price_python",
+    unique_id=unique_device_name+"_effective_price_python",
     unit_of_measurement="c/kWh"
 )
 
 current_feedIn_sensor = CreateSensor(
     name = "Feed In Price",
-    unique_id="current_feed_in_price_python",
+    unique_id=unique_device_name+"_current_feed_in_price_python",
     unit_of_measurement="c/kWh"
 )
 current_general_price_sensor = CreateSensor(
     name = "General Price",
-    unique_id="current_general_price_python",
+    unique_id=unique_device_name+"_current_general_price_python",
     unit_of_measurement="c/kWh"
 )
 amber_api_calls_remaining_sensor = CreateSensor(
     name = "Remaining API Calls",
-    unique_id="remaining_api_calls_python",
+    unique_id=unique_device_name+"_remaining_api_calls_python",
     unit_of_measurement="calls"
 )
 
 max_feedIn_sensor = CreateSensor(
     name = "Max Forecasted 12hr Feed In",
-    unique_id="max-forecasted-12hr-feedin-price-python",
+    unique_id=unique_device_name+"_max-forecasted-12hr-feedin-price-python",
     unit_of_measurement="c/kWh"
 )
 
 
 target_discharge_sensor = CreateSensor(
     name = "Target Discharge Price",
-    unique_id="target_discharge_price_python",
+    unique_id=unique_device_name+"_target_discharge_price_python",
     unit_of_measurement="c/kWh"
 )
 
 kwh_discharged_sensor = CreateSensor(
     name = "kWh Discharged",
-    unique_id="kwh_discharged_python",
+    unique_id=unique_device_name+"_kwh_discharged_python",
     unit_of_measurement="kWh"
 )
 
 kwh_remaining_sensor = CreateSensor(
     name = "kWh Remaining",
-    unique_id="kwh_remaining_python",
+    unique_id=unique_device_name+"_kwh_remaining_python",
     unit_of_measurement="kWh"
 )
 
 
 kwh_required_overnight_sensor = CreateSensor(
     name = "kWh Required Overnight",
-    unique_id="kwh_required_overnight_python",
+    unique_id=unique_device_name+"_kwh_required_overnight_python",
     unit_of_measurement="kWh"
 )
 
 kwh_required_till_sundown_sensor = CreateSensor(
     name = "kWh Till Sundown",
-    unique_id="kwh_required_till_sundown_python",
+    unique_id=unique_device_name+"_kwh_required_till_sundown_python",
     unit_of_measurement="kWh"
 )
 
 avg_daily_load_sensor = CreateSensor(
     name = "Average Daily Load",
-    unique_id="avg_daily_load_python",
+    unique_id=unique_device_name+"_avg_daily_load_python",
     unit_of_measurement="kWh"
 )
 estimated_price_status_sensor = CreateSensor(
     name = "Estimated Price",
-    unique_id="estimated_price_python",
+    unique_id=unique_device_name+"_estimated_price_python",
     unit_of_measurement=""
 )
 
-def initalise_entities():
+def initalise_entities(): # Initalise entities and get them discovered by the ha mqtt service
     min_dispatch_price_number.entity.set_value(0)
     working_mode_sensor.set_state("Self Consumption")
     system_state_sensor.set_state("Self Consumption")
@@ -204,7 +205,7 @@ def initalise_entities():
     estimated_price_status_sensor.set_state(0)
     time.sleep(10)
 
-#initalise_entities()
+initalise_entities()
 
 #estimated_price_status_sensor.set_state(0)
 #time.sleep(10)

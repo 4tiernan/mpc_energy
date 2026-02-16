@@ -26,7 +26,7 @@ class RBC():
         self.kwh_required_remaining = self.plant.kwh_required_remaining(buffer_percentage=self.buffer_percentage_remaining)
         self.max_discharge_rate = max_discharge_rate
         self.hrs_of_discharge_available = 2
-        self.MINIMUM_BATTERY_DISPATCH_PRICE = ha_mqtt.min_dispatch_price_number.value #minimum price that is worth dispatching the battery for
+        self.MINIMUM_BATTERY_DISPATCH_PRICE = config_manager.battery_discharge_cost #minimum price that is worth dispatching the battery for
         self.working_mode = ControlMode.SELF_CONSUMPTION
         self.target_price_reduction_percentage = 10 # Percentage reduction of ideal sell price to sell at (Assumes the max price won't occour)
 

@@ -80,7 +80,7 @@ def PrintError(e):
     time.sleep(30)
 
 def ensure_remote_ems(): # Ensures the remote EMS switch is on provided the automatic control switch is on
-    if(ha.get_state("input_select.automatic_control_mode")["state"] == "On"):
+    if(ha_mqtt.automatic_control_switch == True):
             ha.set_switch_state(config_manager.ha_ems_control_switch_entity_id, True)
             time.sleep(2) # delay to ensure the change has time to become effective
 
@@ -109,9 +109,6 @@ while(started == False):
         
         ensure_remote_ems()
         
-
-        ha_mqtt.controller_update_selector.set_state("Working")
-
         EC = EnergyController(
             ha=ha,
             ha_mqtt=ha_mqtt,
@@ -257,7 +254,7 @@ def main_loop_code():
             print_values(amber_data) # Print the new latest prices
             
             # Only run MPC every price update
-            if(ha.get_state("input_select.automatic_control_mode")["state"] == "On" and ha_mqtt.energy_controller_selector.state == "MPC"):
+            if(ha_mqtt.automatic_control_switch.state == True and ha_mqtt.energy_controller_selector.state == "MPC"):
                 automatic_control = True
                 mpc.run(amber_data)
                 EC.run(amber_data=amber_data) 
@@ -271,7 +268,7 @@ def main_loop_code():
         
 
     # If auto control is on, run the energy controller (every 2 seconds as we need to keep track of some things)
-    if(ha.get_state("input_select.automatic_control_mode")["state"] == "On"):
+    if(ha_mqtt.automatic_control_switch.state == True):
         EC.run(amber_data=amber_data)
         automatic_control = True
         if(ha_mqtt.energy_controller_selector.state == "RBC"):
@@ -287,7 +284,7 @@ def main_loop_code():
 
 
     # If Auto control is off, send a notification warning so
-    if(ha.get_state("input_select.automatic_control_mode")["state"] != "On"):
+    if(ha_mqtt.automatic_control_switch == False):
         if(automatic_control == True):
             #EC.self_consumption()
             automatic_control = False
@@ -295,7 +292,7 @@ def main_loop_code():
             ha.send_notification(f"Automatic Control turned off", "Self Consuming", "mobile_app_pixel_10_pro")
 
     # If Auto control has been TURNED on, print a msg and reset flag
-    elif(ha.get_state("input_select.automatic_control_mode")["state"] == "On" and automatic_control == False):
+    elif(ha_mqtt.automatic_control_switch == True and automatic_control == False):
         automatic_control = True
         last_control_mode = "" # Reset flag so the approprate controller takes over
         logger.warning(f"Automatic Control turned on.")
@@ -303,11 +300,8 @@ def main_loop_code():
             
     
 while True:
-    try:
-        if(ha_mqtt.controller_update_selector.state == "Update"):
-            logger.error("Update Commanded, exiting")
-            break
-        
+    print(ha_mqtt.automatic_control_switch)
+    try:        
         main_loop_code()
         time.sleep(2)
 

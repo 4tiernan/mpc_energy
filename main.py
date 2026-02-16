@@ -4,9 +4,37 @@ import time
 import datetime
 import traceback
 import logging
+import colorlog
 from api_token_secrets import HA_URL, HA_TOKEN, AMBER_API_TOKEN, SITE_ID
 
-logging.basicConfig(level=logging.INFO)
+# Create a color formatter
+formatter = colorlog.ColoredFormatter(
+    "%(log_color)s%(asctime)s [%(levelname)s] %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+    log_colors={
+        'DEBUG':    'cyan',
+        'INFO':     'green',
+        'WARNING':  'yellow',
+        'ERROR':    'red',
+        'CRITICAL': 'bold_red',
+    }
+)
+# Create a handler
+handler = logging.StreamHandler()
+handler.setFormatter(formatter)
+
+# Set up the logger
+logger = colorlog.getLogger()
+logger.addHandler(handler)
+logger.setLevel(logging.INFO)
+
+
+# Configure logging with timestamps without milliseconds
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S"  # <- remove milliseconds
+)
 logger = logging.getLogger(__name__)
 
 
@@ -29,14 +57,13 @@ logging.getLogger("matplotlib.font_manager").setLevel(logging.WARNING)
 # source venv/bin/activate (from within cd opt/energy-manager)
 # nano /opt/energy-manager/run.sh
 
-logger.info("Starting")
-print("Print starting")
+logger.info("Starting MPC Energy App")
 started = False
 
 def PrintError(e):
-    print(f"Exception occoured: {e}")
+    logger.warning(f"Exception occoured: {e}")
     traceback.print_exc() # Prints the full traceback to the console
-    print("Trying again after 30 seconds")
+    logger.warning("Trying again after 30 seconds")
     time.sleep(30)
 
 def ensure_remote_ems(): # Ensures the remote EMS switch is on provided the automatic control switch is on
@@ -108,7 +135,7 @@ while(started == False):
         ])
 
 
-        print("Streamlit dashboard started")  
+        #logger.info("Streamlit dashboard started")  
 
         started = True
     except Exception as e:
@@ -156,10 +183,10 @@ def determine_effective_price(amber_data):
             return general_price # default to the general price
         
 def print_values(amber_data):
-    print("....")
-    print(f"Feed In: {amber_data.feedIn_price} c/kWh")
-    print(f"Max 12hr Feed In: {amber_data.feedIn_max_forecast_price} c/kWh")
-    print(f"General: {amber_data.general_price} c/kWh")
+    logger.info("....")
+    logger.info(f"Feed In: {amber_data.feedIn_price} c/kWh")
+    logger.info(f"Max 12hr Feed In: {amber_data.feedIn_max_forecast_price} c/kWh")
+    logger.info(f"General: {amber_data.general_price} c/kWh")
     
 # Update HA MQTT sensors
 def update_sensors(amber_data):
@@ -185,7 +212,7 @@ def update_sensors(amber_data):
     
 update_sensors(amber_data)
 time.sleep(1)
-print("Configuration complete. Running")
+logger.info("Configuration complete. Running")
 
 # Code runs every 2 seconds (to reduce cpu usage)
 def main_loop_code():
@@ -221,12 +248,12 @@ def main_loop_code():
                 automatic_control = True
                 mpc.run(amber_data)
                 EC.run(amber_data=amber_data) 
-                print(f"MPC ran")
+                logger.info(f"MPC ran")
             else:
                 mpc.run_optimisation(amber_data) # run the optimisation at each time step regardless 
         
-        print(f"Partial Update: {partial_update}")
-        print(f"Seconds till next update: {round(next_amber_update_timestamp - time.time())}")
+        logger.info(f"Partial Update: {partial_update}")
+        logger.info(f"Seconds till next update: {round(next_amber_update_timestamp - time.time())}")
         
         
 
@@ -251,21 +278,21 @@ def main_loop_code():
         if(automatic_control == True):
             #EC.self_consumption()
             automatic_control = False
-            print(f"Automatic Control turned off.")
+            logger.warning(f"Automatic Control turned off.")
             ha.send_notification(f"Automatic Control turned off", "Self Consuming", "mobile_app_pixel_10_pro")
 
     # If Auto control has been TURNED on, print a msg and reset flag
     elif(ha.get_state("input_select.automatic_control_mode")["state"] == "On" and automatic_control == False):
         automatic_control = True
         last_control_mode = "" # Reset flag so the approprate controller takes over
-        print(f"Automatic Control turned on.")
+        logger.warning(f"Automatic Control turned on.")
                 
             
     
 while True:
     try:
         if(ha_mqtt.controller_update_selector.state == "Update"):
-            print("Update Commanded, exiting")
+            logger.error("Update Commanded, exiting")
             break
         
         main_loop_code()
@@ -274,7 +301,7 @@ while True:
         ha_mqtt.alive_time_sensor.set_state(round(time.time()-start_time,1))
 
     except KeyboardInterrupt:
-        print("Shutting down...")
+        logger.error("Keyboard Interrupt, Shutting down...")
         streamlit_proc.terminate()
         break
     

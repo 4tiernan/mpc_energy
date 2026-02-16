@@ -3,7 +3,9 @@ import time
 import numpy as np
 from datetime import datetime, timedelta
 from dataclasses import dataclass
+import logging
 
+logger = logging.getLogger(__name__)
 
 @dataclass
 class PriceForecast:
@@ -71,13 +73,13 @@ class AmberAPI:
         if r.status_code == 429:
 
             if self.seconds_till_rate_limit_reset:
-                print(f"Exceeded Amber API request rate limit.")
-                print(f"Waiting {self.seconds_till_rate_limit_reset+5} seconds before retrying")
+                logger.error(f"Exceeded Amber API request rate limit.")
+                logger.error(f"Waiting {self.seconds_till_rate_limit_reset+5} seconds before retrying")
                 time.sleep(int(self.seconds_till_rate_limit_reset+5))
             else:
-                print(r.headers)
-                print(f"Exceeded AmazonAWS Amber API request rate limit.")
-                print(f"Waiting 10 seconds before retrying")
+                logger.error(r.headers)
+                logger.error(f"Exceeded AmazonAWS Amber API request rate limit.")
+                logger.error(f"Waiting 10 seconds before retrying")
                 time.sleep(10)
             return self.send_request(url)
         

@@ -1,5 +1,8 @@
 from enum import Enum
 from dataclasses import dataclass
+import logging
+
+logger = logging.getLogger(__name__)
 
 class ControlMode(Enum):
     SELF_CONSUMPTION = "Self Consumption"
@@ -124,10 +127,7 @@ class EnergyController():
             grid_import=0)
     
     def run(self, amber_data):
-        #if(self.last_working_mode != self.working_mode): 
-        #    self.print_values(amber_data)
         self.last_working_mode = self.working_mode
-
         self.mainain_control_mode()
 
     def mainain_control_mode(self): # Maintain the current control mode (mainly export all solar)

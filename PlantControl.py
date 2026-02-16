@@ -7,7 +7,9 @@ import math
 import pandas as pd
 from collections import defaultdict
 from typing import Any
+import logging
 
+logger = logging.getLogger(__name__)
 
 HA_TZ = ZoneInfo("Australia/Brisbane") 
 
@@ -198,11 +200,11 @@ class Plant:
 
     def display_data(self):
         self.update_data()
-        print("Stored Energy: "+str(round(self.kwh_stored_energy,2))+" kWh")
-        print("Available Stored Energy: "+str(round(self.kwh_stored_available,2))+" kWh")
-        print("kWh till Full: "+str(round(self.kwh_till_full,2))+" kWh")
-        print(f"Hours Till Full: {self.display_hrs_minutes(self.hours_till_full)}")
-        print(f"Hours Till Empty: {self.display_hrs_minutes(self.hours_till_empty)}")
+        logger.info("Stored Energy: "+str(round(self.kwh_stored_energy,2))+" kWh")
+        logger.info("Available Stored Energy: "+str(round(self.kwh_stored_available,2))+" kWh")
+        logger.info("kWh till Full: "+str(round(self.kwh_till_full,2))+" kWh")
+        logger.info(f"Hours Till Full: {self.display_hrs_minutes(self.hours_till_full)}")
+        logger.info(f"Hours Till Empty: {self.display_hrs_minutes(self.hours_till_empty)}")
 
     def display_hrs_minutes(self, hours):
         if(hours < 1):
@@ -229,7 +231,7 @@ class Plant:
 
         if(a or b):
             self.set_control_limits(control_mode, discharge, charge, pv, grid_export, grid_import)
-            print(f"{working_mode} !!!")
+            logger.info(f"{working_mode} !!!")
             time.sleep(5) # Allow time for HA to update
 
     def set_control_limits(self, control_mode, discharge, charge, pv, grid_export, grid_import): # Set the control limits to the desired values

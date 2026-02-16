@@ -3,7 +3,9 @@ from typing import Any, Dict, Optional
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
+import logging
 
+logger = logging.getLogger(__name__)
 
 @dataclass
 class History:

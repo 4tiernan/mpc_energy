@@ -3,7 +3,9 @@ from ha_mqtt_discoverable import Settings, DeviceInfo
 from ha_mqtt_discoverable.sensors import Select, SelectInfo, SensorInfo, Sensor, NumberInfo, Number
 from api_token_secrets import MQTT_HOST, MQTT_USER, MQTT_PASS
 import time
+import logging
 
+logger = logging.getLogger(__name__)
 
 # Configure the required parameters for the MQTT broker
 mqtt_settings = Settings.MQTT(host=MQTT_HOST, username=MQTT_USER, password=MQTT_PASS)

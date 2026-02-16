@@ -8,6 +8,9 @@ from zoneinfo import ZoneInfo
 import matplotlib.dates as mdates
 import time
 from energy_controller import ControlMode
+import logging
+
+logger = logging.getLogger(__name__)
 
 HA_TZ = ZoneInfo("Australia/Brisbane") 
 
@@ -197,7 +200,7 @@ class MPC:
         # ---------- Solve ----------
         prob = cp.Problem(objective, constraints)
         prob.solve(solver=cp.ECOS)
-        print(f"Solver took {round(time.time()-start,2)} seconds to solve")
+        logger.info(f"Solver took {round(time.time()-start,2)} seconds to solve")
 
         # Don't continue if the solver failed
         if prob.status not in ("optimal", "optimal_inaccurate"):
@@ -357,9 +360,9 @@ class MPC:
         return output, control_mode
 
     def display_results(self, output):
-        print(f"Profit: ${round(output['profit'], 2)}")
+        logger.info(f"Profit: ${round(output['profit'], 2)}")
         #print(f"Solar Remaining {np.sum(solar_5min*(5/60))}")
-        print(f"solar used: {round(output['solar_used'][0],2)}  bat: {round(output['battery_power'][0],2)}  load: {round(output['load'][0],2)} grid: {round(output['grid_net'][0],2)}  inverter_power: {round(output['inverter_power'][0], 2)}")
+        logger.info(f"solar used: {round(output['solar_used'][0],2)}  bat: {round(output['battery_power'][0],2)}  load: {round(output['load'][0],2)} grid: {round(output['grid_net'][0],2)}  inverter_power: {round(output['inverter_power'][0], 2)}")
 
         plt.figure(figsize=(14,8))
 

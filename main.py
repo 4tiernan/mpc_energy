@@ -5,7 +5,9 @@ import datetime
 import traceback
 import logging
 import colorlog
+import config_manager
 from api_token_secrets import HA_URL, HA_TOKEN, AMBER_API_TOKEN, SITE_ID
+
 
 # Create a color formatter
 formatter = colorlog.ColoredFormatter(
@@ -38,13 +40,24 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-
-
 # Silence logger spam
 logging.getLogger("ha_mqtt_discoverable").setLevel(logging.WARNING)
 logging.getLogger("ha_mqtt_discoverable.sensors").setLevel(logging.WARNING)
 logging.getLogger("matplotlib.font_manager").setLevel(logging.WARNING)
 
+# Check to see if an amber site number has been set and print the available ones if not
+if(config_manager.amber_site_id == ""):
+    from amber_api import AmberAPI
+    amber = AmberAPI(config_manager.amber_api_key, "")
+    sites = amber.get_sites()
+    string_data = ""
+    for site in sites:
+        available_channels = []
+        for channel in site['channels']:
+            available_channels.append(channel['type'])
+        string_data = string_data + f"Site ID: {site['id']},  NMI: {site['nmi']}, Channels: {available_channels}"
+    logger.error(f"Amber Site ID not selected, please copy the desired site number into the configuration tab:\n{string_data}")
+    exit()
 
 # HA APP Setup Notes:
 # Proxmox CPU Type must be set to host not kvm64

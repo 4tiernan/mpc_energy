@@ -40,7 +40,7 @@ max_discharge_rate = 15
 hrs_of_discharge_available = kwh_of_discharge_available/max_discharge_rate
 
 class AmberAPI:
-    def __init__(self, api_key, site_id, errors):
+    def __init__(self, api_key, site_id, errors=True):
         self.api_key = api_key
         self.site_id = site_id
         self.base = "https://api.amber.com.au/v1"
@@ -49,7 +49,7 @@ class AmberAPI:
             "Authorization": f"Bearer {self.api_key}",
             "Accept": "application/json"
         }
-        self.errors = errors
+        self.errors = True
         self.rate_limit_remaining = None
         self.seconds_till_rate_limit_reset = None
         self.data = None

@@ -1,0 +1,14 @@
+configuration:
+  log_level:
+    name: Log Level
+ 
+  amber_api_key:
+    name: Amber API Key
+
+  amber_site_id:
+    name: Amber Site ID
+    description: If you do not know your site number, simply don't enter anything, start the app and check the logs for your site number.
+ 
+  battery_discharge_cost:
+    name: Battery Discharge Cost (c/kWh)
+    description: Effective cost of discharging the battery (Leave at default if unsure).

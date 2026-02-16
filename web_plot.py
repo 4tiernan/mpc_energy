@@ -108,7 +108,7 @@ def plot_mpc_results(st, output):
         xref="x",
         yref="paper",  # span the full height of the subplot
         x0=time_index[0],   # start of past (beginning of your data)
-        x1=time_index[historical_data_len],             # end of past (current time)
+        x1=time_index[historical_data_len+1],             # end of past (current time)
         y0=0,
         y1=1,
         fillcolor="grey",

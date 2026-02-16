@@ -281,6 +281,6 @@ def check_entity_exists(state_topic, broker_host, port=1883, username=None, pass
 state_topic = "homeassistant/switch/MPC-Energy-Manager-Device/Automatic-Control/config" # Check to see if the switch exists on the mqtt brocker, if not, set inital values for all entities
 
 if not check_entity_exists(state_topic, const.MQTT_HOST, const.MQTT_PORT, config_manager.MQTT_USER, config_manager.MQTT_PASS):
-    logger.warning("MQTT Topics were not found on the brocker, creating required entities.3")
+    logger.warning("MQTT Topics were not found on the brocker, creating required entities.")
     # Sensor doesn’t exist — set initial values
     initalise_entities()

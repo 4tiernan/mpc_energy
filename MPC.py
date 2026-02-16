@@ -54,7 +54,7 @@ class MPC:
         self.discharge_efficiency = 0.95
         self.battery_min_export_cost = 0.07  # $/kWh (Export will only occour ABOVE this value)
         self.grid_import_penalty_cost = 0.02 # $/kWh penalty for using grid power
-        self.solar_curtailment_penalty = 0.0001  # $/kWh just enough to encorage use of the solar
+        self.solar_curtailment_penalty = 0 # $/kWh just enough to encorage use of the solar
         self.min_solar_export_price = 0.02 # $/kWh minimum price to sell solar 
        
     def update_limits(self):
@@ -242,6 +242,7 @@ class MPC:
 
             # store it in shared dict
             output = {
+                "historical_data_length": 0,
                 "time_index": [time_idx.isoformat() for time_idx in time_index],
                 "battery_power": battery_power,
                 "soc": soc.value.tolist(),
@@ -262,6 +263,8 @@ class MPC:
             output.update({"plan_modes": plan_modes}) # Add the control modes to the output to be plotted
 
             # Add the historical data to the mpc plan
+            plotted_output={}
+            '''
             plotted_output = {
                 "historical_data_length": len(self.historical_data["time_index"]),
                 "time_index": self.historical_data["time_index"] + output["time_index"], 
@@ -280,9 +283,11 @@ class MPC:
                 "soc_max": self.soc_max,
                 "plan_modes": self.historical_data["plan_modes"] + output["plan_modes"],
             }            
-            
+            mqtt_client.publish("home/mpc/output", json.dumps(plotted_output), retain=True)'''
+
+            mqtt_client.publish("home/mpc/output", json.dumps(output), retain=True)
         
-            mqtt_client.publish("home/mpc/output", json.dumps(plotted_output), retain=True)
+            
 
             return [output, plotted_output]
         

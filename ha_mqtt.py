@@ -117,11 +117,10 @@ automatic_control_switch = CreateSwitchInput(
     unique_id="automatic_control_switch",
 )
 
-
 energy_controller_selector = CreateSelectInput(
     name="Energy Controller",
     unique_id="energy_controller",
-    options=["RBC", "MPC"]
+    options=["MPC", "RBC"]
 )
 
 
@@ -179,6 +178,22 @@ max_feedIn_sensor = CreateSensor(
     unit_of_measurement="c/kWh"
 )
 
+import_cost_sensor = CreateSensor(
+    name = "Import Costs Today",
+    unique_id="import_costs",
+    unit_of_measurement="c/kWh"
+)
+export_profit_sensor = CreateSensor(
+    name = "Export Profits Today",
+    unique_id="export_profits",
+    unit_of_measurement="c/kWh"
+)
+
+net_profit_sensor = CreateSensor(
+    name = "Net Profits Today",
+    unique_id="net_profit",
+    unit_of_measurement="c/kWh"
+)
 
 target_discharge_sensor = CreateSensor(
     name = "Target Discharge Price",
@@ -240,6 +255,9 @@ def initalise_entities(): # Initalise entities and get them discovered by the ha
     avg_daily_load_sensor.set_state(0)
     kwh_required_till_sundown_sensor.set_state(0)
     estimated_price_status_sensor.set_state(0)
+    import_cost_sensor.set_state(0)
+    export_profit_sensor.set_state(0)
+    net_profit_sensor.set_state(0)
     time.sleep(10)
 
 

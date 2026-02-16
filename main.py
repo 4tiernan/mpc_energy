@@ -80,7 +80,7 @@ def PrintError(e):
     time.sleep(30)
 
 def ensure_remote_ems(): # Ensures the remote EMS switch is on provided the automatic control switch is on
-    if(ha_mqtt.automatic_control_switch == True):
+    if(ha_mqtt.automatic_control_switch.state == True):
             ha.set_switch_state(config_manager.ha_ems_control_switch_entity_id, True)
             time.sleep(2) # delay to ensure the change has time to become effective
 
@@ -211,10 +211,12 @@ def update_sensors(amber_data):
     ha_mqtt.kwh_required_till_sundown_sensor.set_state(round(rbc.kwh_required_till_sundown, 2))
     ha_mqtt.amber_api_calls_remaining_sensor.set_state(amber.rate_limit_remaining)
     ha_mqtt.working_mode_sensor.set_state(EC.working_mode)
-    logger.error("Make profit tracking sensors")
-    profit = ha.get_numeric_state("sensor.daily_feed_in")
-    cost = ha.get_numeric_state("sensor.daily_general_usage")
-    ha_mqtt.system_state_sensor.set_state(EC.working_mode + f" {round(plant.grid_power,1)}@{amber_data.feedIn_price} c/kWh ${round(profit-cost,2)} profit")
+    
+    ha_mqtt.import_cost_sensor.set_state(plant.daily_import_cost)
+    ha_mqtt.export_profit_sensor.set_state(plant.daily_export_profit)
+    ha_mqtt.net_profit_sensor.set_state(plant.daily_net_profit)
+    
+    ha_mqtt.system_state_sensor.set_state(EC.working_mode + f" {round(plant.grid_power,1)}@{amber_data.feedIn_price} c/kWh ${round(plant.daily_net_profit,2)} profit")
     ha_mqtt.base_load_sensor.set_state(round(1000*plant.get_base_load_estimate(),2)) # converted to w from kW
     ha_mqtt.effective_price_sensor.set_state(determine_effective_price(amber_data)) 
     ha_mqtt.avg_daily_load_sensor.set_state(round(plant.avg_daily_load,2))
@@ -284,7 +286,7 @@ def main_loop_code():
 
 
     # If Auto control is off, send a notification warning so
-    if(ha_mqtt.automatic_control_switch == False):
+    if(ha_mqtt.automatic_control_switch.state == False):
         if(automatic_control == True):
             #EC.self_consumption()
             automatic_control = False
@@ -292,7 +294,7 @@ def main_loop_code():
             ha.send_notification(f"Automatic Control turned off", "Self Consuming", "mobile_app_pixel_10_pro")
 
     # If Auto control has been TURNED on, print a msg and reset flag
-    elif(ha_mqtt.automatic_control_switch == True and automatic_control == False):
+    elif(ha_mqtt.automatic_control_switch.state == True and automatic_control == False):
         automatic_control = True
         last_control_mode = "" # Reset flag so the approprate controller takes over
         logger.warning(f"Automatic Control turned on.")
@@ -300,7 +302,6 @@ def main_loop_code():
             
     
 while True:
-    print(ha_mqtt.automatic_control_switch)
     try:        
         main_loop_code()
         time.sleep(2)

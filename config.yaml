@@ -25,6 +25,7 @@ startup: services
 
 
 options:
+  accepted_risks: False
   log_level: info
   ha_mqtt_user: ""
   ha_mqtt_pass: ""
@@ -70,9 +71,8 @@ options:
   import_limiter_entity_id: "number.sigen_plant_grid_import_limitation"
 
 
-
-
 schema:
+  accepted_risks: bool
   log_level: list(debug|info|warning|error|critical)
   ha_mqtt_user: str
   ha_mqtt_pass: password

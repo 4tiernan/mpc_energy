@@ -21,6 +21,8 @@ Setup the [MQTT](https://www.home-assistant.io/integrations/mqtt) integration an
 
 Sigenergy 
 Setup the [Sigenergy](https://github.com/TypQxQ/Sigenergy-Local-Modbus?tab=readme-ov-file) integration.
+# Note
+The controls are disabled by default for saftey, please enable them as per the integration's instructions.
 
 ---
 
@@ -43,7 +45,7 @@ Click the button above or follow the instructions below:
 
 ---
 
-## 4 Configuring the App
+## 4️⃣ Configuring the App
 Risk Acknowledgement:
 After reading the risks associated with use of this app in the readme, check this button to active the app.
 
@@ -60,7 +62,7 @@ If you desire, you may set the battery discharge cost according to the cost of y
 
 
 
-## 2️⃣ Starting the Add-on
+## 5️⃣ Starting the Add-on
 
 1. Open the MPC Energy add-on page.
 2. Enable **Start on boot** and the **watch dog**
@@ -69,7 +71,7 @@ If you desire, you may set the battery discharge cost according to the cost of y
 
 ---
 
-## 3️⃣ Web Interface
+## 6️⃣ Web Interface
 
 MPC Energy uses **Streamlit** for its web interface:
 
@@ -82,14 +84,14 @@ MPC Energy uses **Streamlit** for its web interface:
 ---
 
 
-## 5️⃣ MQTT Discovery
+## 7️⃣ MQTT Discovery
 All the sensors from the app should automatically be discovered by the MQTT integration. Check for a new device in the MQTT integration to see the sensors reported by the MPC Energy app.
 
 **mqtt sensor description**
 
 ---
 
-## 7️⃣ Troubleshooting
+## 8️⃣ Troubleshooting
   
 - **Missing sensors** → verify all `entity_id`s are correct.  
 - **MQTT not publishing** → check HA broker credentials.  

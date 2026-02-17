@@ -5,7 +5,7 @@ A profit optimiser for home batteries with wholesale electricity pricing.
 <br/>
 ## 🚀 Getting Started
 
-👉 [Click here for onboarding instructions](./ONBOARDING.md)
+👉 [Click here for onboarding instructions](./docs/ONBOARDING.md)
 ## ⚠️ Important Safety Notice
 
 This home assitant app automatically controls energy systems such as batteries, inverters, and grid import/export.

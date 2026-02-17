@@ -41,15 +41,7 @@ class Plant:
         self.max_export_power = self.get_config_entry_value(config_manager.export_max_power_limit_entity_id)
         self.max_import_power = self.get_config_entry_value(config_manager.import_max_power_limit_entity_id)
         
-        print(
-            f"Battery Cap: {self.rated_capacity} kWh | "
-            f"Max Discharge: {self.max_discharge_power} kW | "
-            f"Max Charge: {self.max_charge_power} kW | "
-            f"Max PV: {self.max_pv_power} kW | "
-            f"Max Inverter: {self.max_inverter_power} kW | "
-            f"Max Export: {self.max_export_power} kW | "
-            f"Max Import: {self.max_import_power} kW"
-        )
+        #print(f"Battery Cap: {self.rated_capacity} kWh | Max Discharge: {self.max_discharge_power} kW | Max Charge: {self.max_charge_power} kW | Max PV: {self.max_pv_power} kW | Max Inverter: {self.max_inverter_power} kW | Max Export: {self.max_export_power} kW | Max Import: {self.max_import_power} kW")
         self.load_avg_days = 3
 
         self.last_load_data_retrival_timestamp = 0

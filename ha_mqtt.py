@@ -178,22 +178,24 @@ max_feedIn_sensor = CreateSensor(
     unit_of_measurement="c/kWh"
 )
 
+
 import_cost_sensor = CreateSensor(
     name = "Import Costs Today",
     unique_id="import_costs",
-    unit_of_measurement="c/kWh"
+    unit_of_measurement="$"
 )
 export_profit_sensor = CreateSensor(
     name = "Export Profits Today",
     unique_id="export_profits",
-    unit_of_measurement="c/kWh"
+    unit_of_measurement="$"
 )
 
 net_profit_sensor = CreateSensor(
     name = "Net Profits Today",
     unique_id="net_profit",
-    unit_of_measurement="c/kWh"
+    unit_of_measurement="$"
 )
+
 
 target_discharge_sensor = CreateSensor(
     name = "Target Discharge Price",

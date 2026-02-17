@@ -68,6 +68,7 @@ class MPC:
 
     # Update any values or forecasts required to run the sim
     def update_values(self, amber_data, inject_real_values = True):   
+        self.plant.update_data()
         current_soc = (self.plant.battery_soc / 100)*self.soc_max
         self.soc_init = min(current_soc, self.soc_max) #constrain the soc to within limits to stop solver from doing weird stuff
 
@@ -85,7 +86,6 @@ class MPC:
 
         # Inject the current real load and solar values into the sim
         if(inject_real_values):
-            self.plant.update_data()
             self.solar_5min[0] = self.plant.solar_kw #change to 5min avg of these instantaneous values
             self.load_5min[0] = self.plant.load_power
 

@@ -35,7 +35,7 @@ options:
   amber_site_id: ""
   battery_discharge_cost: 7
 
-  battery_power_sign_convention: ""
+  battery_power_sign_convention: "- Charge, + Discharge"
 
   battery_max_discharge_power_limit_entity_id: "sensor.sigen_plant_ess_rated_discharging_power"
   battery_max_charge_power_limit_entity_id: "sensor.sigen_plant_ess_rated_charging_power"

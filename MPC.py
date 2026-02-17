@@ -237,7 +237,7 @@ class MPC:
                 if ts.date() == today:
                     forecast_profit_today += interval_profit[t]
                 elif ts.date() == tomorrow:
-                    profit_tomoforecast_profit_tomorrowrrow += interval_profit[t]
+                    forecast_profit_tomorrow += interval_profit[t]
 
             forecast_profit_today = forecast_profit_today + self.daily_profit
 

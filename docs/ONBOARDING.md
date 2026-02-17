@@ -1,26 +1,26 @@
 # MPC Energy Onboarding Guide
 
-Welcome to **MPC Energy**, a Home Assistant app that optimizes home battery control based on <a href="https://www.amber.com.au/" target="_blank">Amber</a> wholesale electricity pricing. This guide will walk you through installation, configuration, and first-time setup.
+Welcome to **MPC Energy**, a Home Assistant app that optimizes home battery control based on [Amber](https://www.amber.com.au/) wholesale electricity pricing. This guide will walk you through installation, configuration, and first-time setup.
 
 ---
 
 ## 1️⃣ Amber API
 
-Amber Wholesale Prices:<a href="https://app.amber.com.au/developers/?_gl=1*1szghuy*_gcl_au*ODg1NzE4MjA5LjE3NzEzMTY0NTc.*_ga*MTE1ODI1NDY2Ny4xNzcxMzE2NDU3*_ga_YRCQDZ4F7P*czE3NzEzMTY0NTckbzEkZzEkdDE3NzEzMTY0NTkkajU4JGwwJGgw&_ga=2.115523334.1611969294.1771316457-1158254667.1771316457" target="_blank">here</a>
-Open the amber developer tab 
+Amber Wholesale Prices:Open the [Amber Developer](https://app.amber.com.au/developers/?_gl=1*1szghuy*_gcl_au*ODg1NzE4MjA5LjE3NzEzMTY0NTc.*_ga*MTE1ODI1NDY2Ny4xNzcxMzE2NDU3*_ga_YRCQDZ4F7P*czE3NzEzMTY0NTckbzEkZzEkdDE3NzEzMTY0NTkkajU4JGwwJGgw&_ga=2.115523334.1611969294.1771316457-1158254667.1771316457) tab.
+
 Click the 'Generate a new Token' button, give it a name and copy the API key into the app configuration.
 
 ---
 
 ## 2️⃣ Required Integrations
 Solcast Solar Forecasting:
-Follow Instructions Provided <a href="https://github.com/BJReplay/ha-solcast-solar?tab=readme-ov-file#solcast-requirements" target="_blank">here</a> 
+Follow Instructions Provided [here](https://github.com/BJReplay/ha-solcast-solar?tab=readme-ov-file#solcast-requirements)
 
 Home Assistant MQTT
-Setup the <a href="https://www.home-assistant.io/integrations/mqtt" target="_blank">MQTT</a> integration and the required mosquito broker. Keep the mqtt login details handy to enter into the app config.
+Setup the [MQTT](https://www.home-assistant.io/integrations/mqtt) integration and the required mosquito broker. Keep the MQTT login details handy to enter into the app config.
 
 Sigenergy 
-Setup the <a href="https://github.com/TypQxQ/Sigenergy-Local-Modbus?tab=readme-ov-file" target="_blank">Sigenergy</a> integration.
+Setup the [Sigenergy](https://github.com/TypQxQ/Sigenergy-Local-Modbus?tab=readme-ov-file) integration.
 
 ---
 

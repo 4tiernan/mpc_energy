@@ -4,28 +4,30 @@ Welcome to **MPC Energy**, a Home Assistant app that optimizes home battery cont
 
 ---
 
-## 1️⃣ Required API's
+## 1️⃣ Amber API
 
-Amber Wholesale Prices
-
-https://app.amber.com.au/developers/?_gl=1*1szghuy*_gcl_au*ODg1NzE4MjA5LjE3NzEzMTY0NTc.*_ga*MTE1ODI1NDY2Ny4xNzcxMzE2NDU3*_ga_YRCQDZ4F7P*czE3NzEzMTY0NTckbzEkZzEkdDE3NzEzMTY0NTkkajU4JGwwJGgw&_ga=2.115523334.1611969294.1771316457-1158254667.1771316457
+Amber Wholesale Prices:<a href="https://app.amber.com.au/developers/?_gl=1*1szghuy*_gcl_au*ODg1NzE4MjA5LjE3NzEzMTY0NTc.*_ga*MTE1ODI1NDY2Ny4xNzcxMzE2NDU3*_ga_YRCQDZ4F7P*czE3NzEzMTY0NTckbzEkZzEkdDE3NzEzMTY0NTkkajU4JGwwJGgw&_ga=2.115523334.1611969294.1771316457-1158254667.1771316457" target="_blank">here</a>
+Open the amber developer tab 
+Click the 'Generate a new Token' button, give it a name and copy the API key into the app configuration.
 
 ---
 
 ## 2️⃣ Required Integrations
 Solcast Solar Forecasting:
-Follow Instructions Provided 
-<a href="https://github.com/BJReplay/ha-solcast-solar?tab=readme-ov-file#solcast-requirements" target="_blank">here</a> 
+Follow Instructions Provided <a href="https://github.com/BJReplay/ha-solcast-solar?tab=readme-ov-file#solcast-requirements" target="_blank">here</a> 
 
-Home Assistant MQTT and login
+Home Assistant MQTT
+Setup the <a href="https://www.home-assistant.io/integrations/mqtt" target="_blank">MQTT</a> integration and the required mosquito broker. Keep the mqtt login details handy to enter into the app config.
 
 Sigenergy 
+Setup the <a href="https://github.com/TypQxQ/Sigenergy-Local-Modbus?tab=readme-ov-file" target="_blank">Sigenergy</a> integration.
 
 ---
 
 ## 3️⃣ Installation
 
 ### Add the repository
+Click the button in the readme or follow the following instructions:
 
 1. Open **Home Assistant → Settings → Add-on Store → ⋮ → Repositories**.
 2. Add the following URL:  
@@ -39,6 +41,20 @@ Sigenergy
 3. Wait for the installation to complete.
 
 ---
+
+## 4 Configuring the App
+Enter your Amber API key, MQTT username and password and set the plant Solar PV DC, import and export limit with the values for your system. 
+
+If you are noticing your main house, gateway or battery breakers are popping from over current, reduce the import/export limits to reduce the max power through these breakers.
+
+Amber Site ID: 
+Start the app without configuring this if you don't know your site id. After starting the app check the logs and select your site id from the list returned by amber and enter it in the configuration.
+
+
+Battery Discharge Cost:
+If you desire, you may set the battery discharge cost according to the cost of your battery (not solar, inverter or other included system costs) divided by the total discharge energy the battery is warranted for. This ensures the battery will only be used when it makes financial sense to do so. You can set this value higher or lower to adjust the system behaviour though.
+
+
 
 ## 2️⃣ Starting the Add-on
 

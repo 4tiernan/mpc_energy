@@ -5,8 +5,8 @@ Welcome to **MPC Energy**, a Home Assistant app that optimizes home battery cont
 ---
 
 ## 1️⃣ Amber API
-
-Amber Wholesale Prices: Open the [Amber Developer](https://app.amber.com.au/developers/?_gl=1*1szghuy*_gcl_au*ODg1NzE4MjA5LjE3NzEzMTY0NTc.*_ga*MTE1ODI1NDY2Ny4xNzcxMzE2NDU3*_ga_YRCQDZ4F7P*czE3NzEzMTY0NTckbzEkZzEkdDE3NzEzMTY0NTkkajU4JGwwJGgw&_ga=2.115523334.1611969294.1771316457-1158254667.1771316457) tab.
+You must use Amber Electric as your electricity retailer to use this app. Please ensure you have created an account then proceed with the instructions.
+Amber Wholesale Prices: Open the [Amber Developer](https://app.amber.com.au/developers/?_gl=1*1szghuy*_gcl_au*ODg1NzE4MjA5LjE3NzEzMTY0NTc.*_ga*MTE1ODI1NDY2Ny4xNzcxMzE2NDU3*_ga_YRCQDZ4F7P*czE3NzEzMTY0NTckbzEkZzEkdDE3NzEzMTY0NTkkajU4JGwwJGgw&_ga=2.115523334.1611969294.1771316457-1158254667.1771316457) tab, you will need to enable developer mode in settings if you haven't already.
 
 Click the 'Generate a new Token' button, give it a name and take note of the API key.
 

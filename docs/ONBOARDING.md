@@ -1,10 +1,18 @@
 # MPC Energy Onboarding Guide
 
-Welcome to **MPC Energy**, a Home Assistant add-on that optimizes home battery usage based on wholesale electricity pricing. This guide will walk you through installation, configuration, and first-time setup.
+Welcome to **MPC Energy**, a Home Assistant app that optimizes home battery control based on <a href="https://www.amber.com.au/" target="_blank">Amber</a> wholesale electricity pricing. This guide will walk you through installation, configuration, and first-time setup.
 
 ---
 
-## 1️⃣ Installation
+## 1️⃣ Required API's
+
+---
+
+## 2️⃣ Required Integrations
+
+---
+
+## 3️⃣ Installation
 
 ### Add the repository
 

@@ -219,8 +219,13 @@ def update_sensors(amber_data):
     ha_mqtt.import_cost_sensor.set_state(plant.daily_import_cost)
     ha_mqtt.export_profit_sensor.set_state(plant.daily_export_profit)
     ha_mqtt.net_profit_sensor.set_state(plant.daily_net_profit)
+
+    if(plant.grid_power < 0):
+        price = amber_data.feedIn_price
+    else:
+        price = amber_data.general_price
     
-    ha_mqtt.system_state_sensor.set_state(EC.working_mode + f" {round(plant.grid_power,1)}@{amber_data.feedIn_price} c/kWh ${round(plant.daily_net_profit,2)} profit")
+    ha_mqtt.system_state_sensor.set_state(EC.working_mode + f" {round(abs(plant.grid_power),1)}@{price} c/kWh ${round(plant.daily_net_profit,2)} profit")
     ha_mqtt.base_load_sensor.set_state(round(1000*plant.get_base_load_estimate(),2)) # converted to w from kW
     ha_mqtt.effective_price_sensor.set_state(determine_effective_price(amber_data)) 
     ha_mqtt.avg_daily_load_sensor.set_state(round(plant.avg_daily_load,2))

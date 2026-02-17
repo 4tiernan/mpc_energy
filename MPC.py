@@ -73,7 +73,7 @@ class MPC:
 
         # ---------- Historical Data ---------- 
         self.historical_data = self.plant.historical_data(hours=6) # Get the last 6 hours of historical data
-
+        self.daily_profit = self.plant.daily_net_profit
         
         # ---------- Forecasts ----------
         # Load Forecast
@@ -230,15 +230,16 @@ class MPC:
             today = now.date()
             tomorrow = today + timedelta(days=1)
 
-            profit_today = 0.0
-            profit_tomorrow = 0.0
+            forecast_profit_today = 0.0
+            forecast_profit_tomorrow = 0.0
 
             for t, ts in enumerate(time_index):
                 if ts.date() == today:
-                    profit_today += interval_profit[t]
+                    forecast_profit_today += interval_profit[t]
                 elif ts.date() == tomorrow:
-                    profit_tomorrow += interval_profit[t]
+                    profit_tomoforecast_profit_tomorrowrrow += interval_profit[t]
 
+            forecast_profit_today = forecast_profit_today + self.daily_profit
 
             # store it in shared dict
             output = {
@@ -249,8 +250,8 @@ class MPC:
                 "grid_net": grid_net,
                 "prices_buy": self.prices_buy.tolist(),
                 "prices_sell": self.prices_sell.tolist(),
-                "profit_today": float(profit_today),
-                "profit_tomorrow": float(profit_tomorrow),
+                "profit_today": float(forecast_profit_today),
+                "profit_tomorrow": float(forecast_profit_tomorrow),
                 "inverter_power": inverter_power.value.tolist(),
                 "solar_forecast": self.solar_5min,
                 "solar_used": solar_used.value.tolist(),

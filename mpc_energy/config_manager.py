@@ -10,6 +10,8 @@ def get_entity_id(key, default=None):
         raise Exception(f"Failed to get {key} from user configuration")
     return value
 
+accepted_risks = get_entity_id("accepted_risks")
+
 log_level = get_entity_id("log_level")
 MQTT_USER = get_entity_id("ha_mqtt_user")
 MQTT_PASS = get_entity_id("ha_mqtt_pass")

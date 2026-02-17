@@ -45,6 +45,11 @@ logging.getLogger("ha_mqtt_discoverable").setLevel(logging.WARNING)
 logging.getLogger("ha_mqtt_discoverable.sensors").setLevel(logging.WARNING)
 logging.getLogger("matplotlib.font_manager").setLevel(logging.WARNING)
 
+
+if(not config_manager.accepted_risks):
+    logger.error("You must toggle the accept risks switch to acknowledge the risks associated with use of this software before being able to use the app.")
+    exit()
+
 # Check to see if an amber site number has been set and print the available ones if not
 if(config_manager.amber_site_id == ""):
     from amber_api import AmberAPI

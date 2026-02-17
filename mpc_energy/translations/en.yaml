@@ -24,7 +24,7 @@ configuration:
 
   battery_power_sign_convention:
     name: Battery Power Sign Convention
-    description: Select which sign convention your battery uses
+    description: Select which sign convention your battery uses. Sigenergy uses - Charge, + Discharge by default.
 
   battery_max_discharge_power_limit_entity_id:
     name: Max Battery Discharge Power (kW, Set to a value or an entity)

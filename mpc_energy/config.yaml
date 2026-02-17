@@ -1,10 +1,11 @@
 name: "MPC Energy"
-description: "Test App"
+description: "A profit optimiser for home batteries with wholesale electricity pricing."
 version: "0.0.1"
 slug: "mpc_energy"
 init: false
 arch:
   - amd64
+  - aarch64
 
 hassio_api: true
 homeassistant_api: true

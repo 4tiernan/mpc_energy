@@ -6,9 +6,18 @@ Welcome to **MPC Energy**, a Home Assistant app that optimizes home battery cont
 
 ## 1️⃣ Required API's
 
+Amber Wholesale Prices
+
 ---
 
 ## 2️⃣ Required Integrations
+Solcast Solar Forecasting:
+Follow Instructions Provided 
+<a href="https://github.com/BJReplay/ha-solcast-solar?tab=readme-ov-file#solcast-requirements" target="_blank">here</a> 
+
+Home Assistant MQTT and login
+
+Sigenergy 
 
 ---
 

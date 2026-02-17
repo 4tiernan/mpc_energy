@@ -1,7 +1,16 @@
 configuration:
+  accepted_risks:
+    name: Confirm you have read and accepted the risks associated with use of this app.
+
   log_level:
     name: Log Level
- 
+
+  ha_mqtt_user:
+    name: MQTT Broker Username
+
+  ha_mqtt_pass:
+    name: MQTT Brocker Password
+  
   amber_api_key:
     name: Amber API Key
 
@@ -13,6 +22,46 @@ configuration:
     name: Battery Discharge Cost (c/kWh)
     description: Effective cost of discharging the battery (Leave at default if unsure).
 
+  battery_max_discharge_power_limit_entity_id:
+    name: Max Battery Discharge Power (kW, Set to a value or an entity)
+  
+  battery_max_charge_power_limit_entity_id:
+    name: Max Battery Charge Power (kW, Set to a value or an entity)
+
+  inverter_max_power_limit_entity_id:
+    name: Max Inverter AC Power (kW, Set to a value or an entity)
+  
+  pv_max_power_limit_entity_id:
+    name: Max PV DC Power (kW, Set to a value or an entity)
+
+  import_max_power_limit_entity_id:
+    name: Max Import Power (kW, Set to a value or an entity)
+    description: Lower this value if you are tripping breakers
+
+  export_max_power_limit_entity_id:
+    name: Max Export Power (kW, Set to a value or an entity)
+    description: Lower this value if you are tripping breakers
+
+  solcast_forecast_today_entity_id:
+    name: Solcast Forecast Today Entity
+
+  solcast_forecast_tomorrow_entity_id:
+    name: Solcast Forecast Tomorrow Entity
+
+  solcast_solar_kwh_remaining_today_entity_id:
+    name: Solcast Solar kWh Forecast Remaining Today (kWh)
+
+  solcast_solar_power_this_hour_entity_id:
+    name: Solcast Power This Hour Entity (Wh)
+
+  ha_ems_control_switch_entity_id:
+    name: HA EMS Control Switch Entity
+    description: Entity that allows home assistant to take control of the ems
+
+  
+
+
+
 
   battery_power_entity_id:
-    name: Battery Power (kW SIGN CONVENTION!!!)
+    name: Battery Power Entity (kW, + Discharging, - Charging)

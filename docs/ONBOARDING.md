@@ -27,7 +27,8 @@ Setup the <a href="https://github.com/TypQxQ/Sigenergy-Local-Modbus?tab=readme-o
 ## 3️⃣ Installation
 
 ### Add the repository
-Click the button in the readme or follow the following instructions:
+[![Open your Home Assistant instance and show the add app repository dialog with a specific repository URL pre-filled.](https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg)](https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2F4tiernan%2Fmpc_energy)
+Click the button above or follow the instructions below:
 
 1. Open **Home Assistant → Settings → Add-on Store → ⋮ → Repositories**.
 2. Add the following URL:  
@@ -36,7 +37,7 @@ Click the button in the readme or follow the following instructions:
 
 ### Install the add-on
 
-1. Find **MPC Energy** in the Add-on Store.
+1. Find **MPC Energy** in the HA App Store.
 2. Click **Install**.
 3. Wait for the installation to complete.
 

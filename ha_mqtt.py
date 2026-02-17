@@ -120,7 +120,7 @@ automatic_control_switch = CreateSwitchInput(
 energy_controller_selector = CreateSelectInput(
     name="Energy Controller",
     unique_id="energy_controller",
-    options=["MPC", "RBC"]
+    options=["MPC", "RBC", "Safe Mode"]
 )
 
 

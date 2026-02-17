@@ -70,7 +70,7 @@ if(config_manager.amber_site_id == ""):
 # source venv/bin/activate (from within cd opt/energy-manager)
 # nano /opt/energy-manager/run.sh
 
-logger.info("Starting MPC Energy App")
+logger.info("------------------------  Starting MPC Energy App  ------------------------")
 started = False
 
 def PrintError(e):
@@ -160,7 +160,6 @@ next_amber_update_timestamp = time.time() #time to run the next amber update
 partial_update = False #Indicates wheather to do a full amber update or just the current prices (if only estimated prices)
 last_amber_update_timestamp = time.time()
 amber_data = amber.get_data(forecast_hrs=mpc.forecast_hrs)
-mpc.run_optimisation(amber_data) # Get the latest optimisiation to plot on the dashboard
 last_control_mode = ""
 
 def determine_effective_price(amber_data):
@@ -221,9 +220,43 @@ def update_sensors(amber_data):
     ha_mqtt.effective_price_sensor.set_state(determine_effective_price(amber_data)) 
     ha_mqtt.avg_daily_load_sensor.set_state(round(plant.avg_daily_load,2))
 
-    
+def run_controller(price_update=False):
+    global automatic_control, last_control_mode
+    # If Auto control has been TURNED on, print a msg and reset flag
+    if(ha_mqtt.automatic_control_switch.state == True):
+        if(automatic_control == False):
+            automatic_control = True
+            last_control_mode = "" # Reset flag so the approprate controller takes over
+            logger.warning(f"Automatic Control turned on.")
+
+        selected_controller = ha_mqtt.energy_controller_selector.state
+
+        if(selected_controller == "MPC"):
+            if(last_control_mode != selected_controller or price_update == True):
+                mpc.run(amber_data) # Run the MPC Controller if the price updates (every 5 min) or if it was just selected as the new controller
+
+        elif(selected_controller == "RBC"):
+            rbc.run(amber_data) # RBC needs to run every loop
+
+        else: # Selected Controller must be safe mode
+            EC.self_consumption()
+
+        last_control_mode = selected_controller # Reset the controller tracker
+
+        if(price_update and selected_controller != "MPC"):
+            mpc.run_optimisation(amber_data) # Run the MPC optimisation each time the price updates to keep the plot updated if the mpc.ran() function wasn't called
+ 
+        # If auto control is on, run the energy controller and RBC (every 2 seconds as we need to keep track of some things)
+        EC.run(amber_data=amber_data)
+
+
+    else: # Automatic Control Turned off
+        if(automatic_control == True):
+            #EC.self_consumption()
+            automatic_control = False
+            logger.warning(f"Automatic Control turned off.")
+
 update_sensors(amber_data)
-time.sleep(1)
 logger.info("Configuration complete. Running")
 
 # Code runs every 2 seconds (to reduce cpu usage)
@@ -253,54 +286,16 @@ def main_loop_code():
         
 
         if(not amber_data.prices_estimated): #If the prices are real
-            print_values(amber_data) # Print the new latest prices
+            run_controller(price_update=True) # Send the price update flag to indicate that new pricing data has been received.
+            print_values(amber_data) # Print the new latest prices     
             
-            # Only run MPC every price update
-            if(ha_mqtt.automatic_control_switch.state == True and ha_mqtt.energy_controller_selector.state == "MPC"):
-                automatic_control = True
-                mpc.run(amber_data)
-                EC.run(amber_data=amber_data) 
-                logger.info(f"MPC ran")
-            else:
-                mpc.run_optimisation(amber_data) # run the optimisation at each time step regardless 
-        
         logger.info(f"Partial Update: {partial_update}")
         logger.info(f"Seconds till next update: {round(next_amber_update_timestamp - time.time())}")
         
-        
-
-    # If auto control is on, run the energy controller (every 2 seconds as we need to keep track of some things)
-    if(ha_mqtt.automatic_control_switch.state == True):
-        EC.run(amber_data=amber_data)
-        automatic_control = True
-        if(ha_mqtt.energy_controller_selector.state == "RBC"):
-            rbc.run(amber_data) # RBC needs to run every 2 seconds
-            last_control_mode = ha_mqtt.energy_controller_selector.state
-        
-        # If the MPC selector was selected, run MPC before the next price update
-        if(last_control_mode != ha_mqtt.energy_controller_selector.state and ha_mqtt.energy_controller_selector.state == "MPC"):
-            mpc.run(amber_data)
-            last_control_mode = ha_mqtt.energy_controller_selector.state
-         
+    
+    run_controller() # Run the selected controller         
     update_sensors(amber_data)
 
-
-    # If Auto control is off, send a notification warning so
-    if(ha_mqtt.automatic_control_switch.state == False):
-        if(automatic_control == True):
-            #EC.self_consumption()
-            automatic_control = False
-            logger.warning(f"Automatic Control turned off.")
-            ha.send_notification(f"Automatic Control turned off", "Self Consuming", "mobile_app_pixel_10_pro")
-
-    # If Auto control has been TURNED on, print a msg and reset flag
-    elif(ha_mqtt.automatic_control_switch.state == True and automatic_control == False):
-        automatic_control = True
-        last_control_mode = "" # Reset flag so the approprate controller takes over
-        logger.warning(f"Automatic Control turned on.")
-                
-            
-    
 while True:
     try:        
         main_loop_code()

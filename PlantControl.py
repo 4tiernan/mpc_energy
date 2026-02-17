@@ -20,6 +20,9 @@ class BinnedStateClass:
     avg_state: Any # Avg of the states
     time: datetime # Start time of the bin
 
+
+
+
 class Plant:
     def __init__(self, ha):
         self.ha = ha
@@ -31,12 +34,22 @@ class Plant:
             "Command Discharging (PV First)",
             "Command Discharging (ESS First)"]
         self.rated_capacity = self.ha.get_numeric_state(config_manager.battery_rated_capacity_entity_id)
-        self.max_discharge_power = 24
-        self.max_charge_power = 21
-        self.max_pv_power = 24
-        self.max_inverter_power = 15
-        self.max_export_power = 15
-        self.max_import_power = 45
+        self.max_discharge_power = self.get_config_entry_value(config_manager.battery_max_discharge_power_limit_entity_id)
+        self.max_charge_power = self.get_config_entry_value(config_manager.battery_max_charge_power_limit_entity_id)
+        self.max_pv_power = self.get_config_entry_value(config_manager.pv_max_power_limit_entity_id)
+        self.max_inverter_power = self.get_config_entry_value(config_manager.inverter_max_power_limit_entity_id)
+        self.max_export_power = self.get_config_entry_value(config_manager.export_max_power_limit_entity_id)
+        self.max_import_power = self.get_config_entry_value(config_manager.import_max_power_limit_entity_id)
+        
+        print(
+            f"Battery Cap: {self.rated_capacity} kWh | "
+            f"Max Discharge: {self.max_discharge_power} kW | "
+            f"Max Charge: {self.max_charge_power} kW | "
+            f"Max PV: {self.max_pv_power} kW | "
+            f"Max Inverter: {self.max_inverter_power} kW | "
+            f"Max Export: {self.max_export_power} kW | "
+            f"Max Import: {self.max_import_power} kW"
+        )
         self.load_avg_days = 3
 
         self.last_load_data_retrival_timestamp = 0
@@ -46,6 +59,22 @@ class Plant:
         self.base_load_estimate = None
 
         self.update_data()
+    def get_config_entry_value(self, entry_id): # Try to get the value from a config entry that is either a string float or an entity id
+        try:
+            val = float(entry_id)
+            if(val != None and val > 0):
+                return val
+            else:
+                logger.error(f"Value set for {entry_id} : {val} is invailid.")
+        except (ValueError, TypeError):
+            try:
+                # If the config entry id cannot be parsed as a float it should be the entity_id
+                val = self.ha.get_numeric_state(entry_id)
+                return val  
+            except Exception as e:
+                logger.error(f"Unable to get entity id or float from config entry '{entry_id}'. Please check the entity id or ensure it is a float. Exception: {e}")
+
+
     def get_plant_mode(self):
         return self.ha.get_state(config_manager.ems_control_mode_entity_id)["state"]
 

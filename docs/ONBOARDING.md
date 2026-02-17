@@ -10,6 +10,8 @@ To utilise this Home Assistant App you will need the following accounts:
 
 You must use Amber Electric as your electricity retailer to use this app.
 Please create these accounts before continuing with the onboarding process.
+
+You will also need [HACS](https://www.hacs.xyz/) setup to install the required integrations
 ---
 
 ## 1️⃣ Amber API
@@ -20,13 +22,14 @@ Click the 'Generate a new Token' button, give it a name and take note of the API
 ---
 
 ## 2️⃣ Required Integrations
-Solcast Solar Forecasting:
+Solcast Solar Forecasting (HACS):
 Follow Instructions Provided [here](https://github.com/BJReplay/ha-solcast-solar?tab=readme-ov-file#solcast-requirements).
+
 
 Home Assistant MQTT
 Setup the [MQTT](https://www.home-assistant.io/integrations/mqtt) integration and the required mosquito broker. Keep the MQTT login details handy to enter into the app config.
 
-Sigenergy 
+Sigenergy (HACS)
 Setup the [Sigenergy](https://github.com/TypQxQ/Sigenergy-Local-Modbus?tab=readme-ov-file) integration.
 # Note
 The controls are disabled by default for saftey, please enable them as per the integration's instructions.

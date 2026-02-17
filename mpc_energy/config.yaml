@@ -1,6 +1,6 @@
 name: "MPC Energy"
 description: "A profit optimiser for home batteries with wholesale electricity pricing."
-version: "0.0.2"
+version: "0.0.3"
 slug: "mpc_energy"
 init: false
 arch:
@@ -27,12 +27,15 @@ startup: services
 
 options:
   accepted_risks: False
+  
   log_level: info
   ha_mqtt_user: ""
   ha_mqtt_pass: ""
   amber_api_key: ""
   amber_site_id: ""
   battery_discharge_cost: 7
+
+  battery_power_sign_convention: ""
 
   battery_max_discharge_power_limit_entity_id: "sensor.sigen_plant_ess_rated_discharging_power"
   battery_max_charge_power_limit_entity_id: "sensor.sigen_plant_ess_rated_charging_power"
@@ -51,7 +54,7 @@ options:
 
   load_power_entity_id: "sensor.sigen_plant_consumed_power"
   solar_power_entity_id: "sensor.sigen_plant_pv_power"
-  battery_power_entity_id: "sensor.reversed_battery_power"
+  battery_power_entity_id: "sensor.sigen_plant_battery_power"
   inverter_power_entity_id: "sensor.sigen_plant_plant_active_power"
   grid_power_entity_id: "sensor.sigen_plant_grid_active_power"
   
@@ -74,12 +77,15 @@ options:
 
 schema:
   accepted_risks: bool
+
   log_level: list(debug|info|warning|error|critical)
   ha_mqtt_user: str
   ha_mqtt_pass: password
   amber_api_key: password
   amber_site_id: str?
   battery_discharge_cost: int?
+
+  battery_power_sign_convention: list(+ Charge, - Discharge|- Charge, + Discharge)
 
   battery_max_discharge_power_limit_entity_id: str
   battery_max_charge_power_limit_entity_id: str

@@ -78,6 +78,11 @@ class Plant:
         self.kwh_charge_unusable = (1-(self.ha.get_numeric_state(config_manager.charge_cutoff_soc_entity_id)/100.0)) * self.rated_capacity # kWh of buffer to 100% IE the charge limit 
         self.kwh_till_full = self.ha.get_numeric_state(config_manager.battery_kwh_till_full_entity_id) - self.kwh_charge_unusable
         self.battery_kw = self.ha.get_numeric_state(config_manager.battery_power_entity_id)
+        if(config_manager.battery_power_sign_convention == "+ Charge, - Discharge"): # If battery power is the wrong way around, flip it
+            self.battery_kw = -self.battery_kw
+        # Internal battery power convention ^^^^^^^:
+        #   +kW = discharging (battery supplying power)
+        #   -kW = charging (battery absorbing power)
 
         self.solar_kw = self.ha.get_numeric_state(config_manager.solar_power_entity_id)
         self.solar_kwh_today = self.ha.get_numeric_state(config_manager.plant_solar_kwh_today_entity_id)
@@ -122,6 +127,16 @@ class Plant:
 
         battery_soc_state_history = self.ha.get_history(config_manager.battery_soc_entity_id, start_time=start, end_time=end)
         battery_power_state_history = self.ha.get_history(config_manager.battery_power_entity_id, start_time=start, end_time=end)
+        if(config_manager.battery_power_sign_convention == "+ Charge, - Discharge"):
+            for state in battery_power_state_history:
+                try:
+                    state.state = -float(state.state)
+                except:
+                    pass
+        # Internal battery power convention ^^^^^^^:
+        #   +kW = discharging (battery supplying power)
+        #   -kW = charging (battery absorbing power)
+
         inverter_power_state_history = self.ha.get_history(config_manager.inverter_power_entity_id, start_time=start, end_time=end)
         solar_power_state_history = self.ha.get_history(config_manager.solar_power_entity_id, start_time=start, end_time=end)
         load_power_state_history = self.ha.get_history(config_manager.load_power_entity_id, start_time=start, end_time=end)

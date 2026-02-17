@@ -22,6 +22,10 @@ configuration:
     name: Battery Discharge Cost (c/kWh)
     description: Effective cost of discharging the battery (Leave at default if unsure).
 
+  battery_power_sign_convention:
+    name: Battery Power Sign Convention
+    description: Select which sign convention your battery uses
+
   battery_max_discharge_power_limit_entity_id:
     name: Max Battery Discharge Power (kW, Set to a value or an entity)
   

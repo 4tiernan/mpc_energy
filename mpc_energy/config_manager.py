@@ -17,6 +17,7 @@ MQTT_PASS = get_entity_id("ha_mqtt_pass")
 amber_api_key = get_entity_id("amber_api_key")
 amber_site_id = get_entity_id("amber_site_id", default="")
 battery_discharge_cost = get_entity_id("battery_discharge_cost")
+battery_power_sign_convention = get_entity_id("battery_power_sign_convention")
 
 battery_max_discharge_power_limit_entity_id = get_entity_id("battery_max_discharge_power_limit_entity_id")
 battery_max_charge_power_limit_entity_id = get_entity_id("battery_max_charge_power_limit_entity_id")
@@ -24,6 +25,7 @@ inverter_max_power_limit_entity_id = get_entity_id("inverter_max_power_limit_ent
 pv_max_power_limit_entity_id = get_entity_id("pv_max_power_limit_entity_id")
 import_max_power_limit_entity_id = get_entity_id("import_max_power_limit_entity_id")
 export_max_power_limit_entity_id = get_entity_id("export_max_power_limit_entity_id")
+
 
 solcast_forecast_today_entity_id = get_entity_id("solcast_forecast_today_entity_id")
 solcast_forecast_tomorrow_entity_id = get_entity_id("solcast_forecast_tomorrow_entity_id")

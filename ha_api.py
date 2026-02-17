@@ -23,6 +23,11 @@ class HomeAssistantAPI:
         }
         self.errors = errors
 
+    def check_api_running(self): #Checks to see if we can connect to the ha api
+        url = f"{self.base_url}/api/"
+        response = self.ha_request(url, "get")
+        return response.get("message") == "API running."
+
     def ha_request(self, url, method, data=None, params = None, headers = None):
         if(headers == None):
             headers = self.headers
@@ -38,7 +43,11 @@ class HomeAssistantAPI:
             else: 
                 raise Exception(f"Method not get or post: {method}")
         except Exception as e:
-            raise Exception(f"Unable to connect to HA, exception: {e}")
+            if(self.check_api_running()):
+                entity_id = url.split("/api/states/")[-1]
+                logger.error(f"Able to connect to HA API but the entity {entity_id} was not found. Is it disabled?")
+            else:
+                raise Exception(f"Unable to connect to HA, exception: {e}")
     
     def get_state(self, entity_id):
         url = f"{self.base_url}/api/states/{entity_id}"
@@ -95,7 +104,6 @@ class HomeAssistantAPI:
             history.append(History(state=state_value, time=state_time))
         return history
     
-    
     def set_switch_state(self, entity_id: str, state: bool):
         if(state == True):
             self.call_service("switch", "turn_on", {"entity_id": entity_id})
@@ -116,6 +124,7 @@ class HomeAssistantAPI:
             "entity_id": entity_id,
             "value": value
         })
+    
     def set_select(self, entity_id, option):
         if entity_id.startswith("input_select."):
             domain = "input_select"

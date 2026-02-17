@@ -43,6 +43,9 @@ Click the button in the readme or follow the following instructions:
 ---
 
 ## 4 Configuring the App
+Risk Acknowledgement:
+After reading the risks associated with use of this app in the readme, check this button to active the app.
+
 Enter your Amber API key, MQTT username and password and set the plant Solar PV DC, import and export limit with the values for your system. 
 
 If you are noticing your main house, gateway or battery breakers are popping from over current, reduce the import/export limits to reduce the max power through these breakers.
@@ -59,102 +62,37 @@ If you desire, you may set the battery discharge cost according to the cost of y
 ## 2️⃣ Starting the Add-on
 
 1. Open the MPC Energy add-on page.
-2. Enable **Start on boot**.
+2. Enable **Start on boot** and the **watch dog**
 3. Click **Start**.
-4. Verify logs to ensure the add-on starts correctly.
+4. Verify logs to ensure the app starts correctly. If the app throws an error regarding an entity, check that the default entity exists and if not correct it according. If the app throws another error check the FAQs and issues to try and resolve, else create a issue to get it looked into.
 
 ---
 
-## 3️⃣ Ingress / Web Interface
+## 3️⃣ Web Interface
 
 MPC Energy uses **Streamlit** for its web interface:
 
-1. Access via **Ingress** from the add-on page.
-2. Default port: `8501` (configured automatically by HA).
-3. This interface shows:
+1. Access via **Open Webui** from the add-on page. Or add it to the sidebar
+2. This interface shows:
    - Real-time battery, solar, and grid metrics
    - Forecasted optimization
+3. Validate the plotted data is feasible for your system, if it's not, check all the relevant entities in the configuration.
 
 ---
 
-## 4️⃣ Configuration Options
 
-All configuration is handled via the add-on **Options** panel. Here’s what you need to set:
+## 5️⃣ MQTT Discovery
+All the sensors from the app should automatically be discovered by the MQTT integration. Check for a new device in the MQTT integration to see the sensors reported by the MPC Energy app.
 
-| Option | Description | Example / Notes |
-|--------|-------------|----------------|
-| `accepted_risks` | Accept MPC experimental features | `false` |
-| `log_level` | Level of logs to display | `info`, `debug`, `warning`, `error`, `critical` |
-| `ha_mqtt_user` / `ha_mqtt_pass` | Credentials to connect to HA MQTT broker | Leave blank if using discovery |
-| `amber_api_key` / `amber_site_id` | Amber electric tariff API credentials | Optional, only if using Amber API |
-| `battery_discharge_cost` | $/kWh cost of battery discharge | 7 |
-| `battery_max_discharge_power_limit_entity_id` | Sensor for battery max discharge power | `sensor.sigen_plant_ess_rated_discharging_power` |
-| `battery_max_charge_power_limit_entity_id` | Sensor for battery max charge power | `sensor.sigen_plant_ess_rated_charging_power` |
-| `inverter_max_power_limit_entity_id` | Max power sensor from inverter | `sensor.sigen_plant_max_active_power` |
-| `pv_max_power_limit_entity_id` | Max PV generation sensor | optional |
-| `import_max_power_limit_entity_id` | Max grid import sensor | optional |
-| `export_max_power_limit_entity_id` | Max grid export sensor | optional |
-| `solcast_forecast_*` | PV forecast sensors | `sensor.solcast_pv_forecast_forecast_today` etc. |
-| `ha_ems_control_switch_entity_id` | EMS control switch | `switch.sigen_plant_remote_ems_controled_by_home_assistant` |
-| `ems_control_mode_entity_id` | EMS control mode selector | `select.sigen_plant_remote_ems_control_mode` |
-| `load_power_entity_id` | Current load sensor | `sensor.sigen_plant_consumed_power` |
-| `solar_power_entity_id` | Solar production sensor | `sensor.sigen_plant_pv_power` |
-| `battery_power_entity_id` | Battery power sensor | `sensor.reversed_battery_power` |
-| `inverter_power_entity_id` | Inverter power sensor | `sensor.sigen_plant_plant_active_power` |
-| `grid_power_entity_id` | Grid power sensor | `sensor.sigen_plant_grid_active_power` |
-| `battery_soc_entity_id` | Battery state of charge sensor | `sensor.sigen_plant_battery_state_of_charge` |
-| `battery_stored_energy_entity_id` | Stored energy sensor | `sensor.sigen_plant_available_max_discharging_capacity` |
-| `battery_kwh_till_full_entity_id` | Remaining charge capacity | `sensor.sigen_plant_available_max_charging_capacity` |
-| `plant_solar_kwh_today_entity_id` | Daily solar energy | `sensor.sigen_inverter_daily_pv_energy` |
-| `plant_daily_load_kwh_entity_id` | Daily load consumption | `sensor.sigen_plant_daily_load_consumption` |
-| `battery_rated_capacity_entity_id` | Rated battery capacity | `sensor.sigen_plant_rated_energy_capacity` |
-| `backup_soc_entity_id` | Backup SOC for EMS | `number.sigen_plant_ess_backup_state_of_charge` |
-| `charge_cutoff_soc_entity_id` | Charge cutoff SOC | `number.sigen_plant_ess_charge_cut_off_state_of_charge` |
-| `battery_discharge_limiter_entity_id` | Battery discharge limit | `number.sigen_plant_ess_max_discharging_limit` |
-| `battery_charge_limiter_entity_id` | Battery charge limit | `number.sigen_plant_ess_max_charging_limit` |
-| `pv_limiter_entity_id` | PV power limiter | `number.sigen_plant_pv_max_power_limit` |
-| `export_limiter_entity_id` | Grid export limiter | `number.sigen_plant_grid_export_limitation` |
-| `import_limiter_entity_id` | Grid import limiter | `number.sigen_plant_grid_import_limitation` |
-
-> ⚠️ Make sure each entity exists in Home Assistant; missing sensors may prevent MPC Energy from running properly.
-
----
-
-## 5️⃣ MQTT Discovery (Optional)
-
-If you enable **MQTT**, MPC Energy will automatically publish entities to Home Assistant:
-
-- Ensure `ha_mqtt_user` and `ha_mqtt_pass` are set if using a secured broker.
-- Topics follow: `mpc_energy/<entity_id>`
-
----
-
-## 6️⃣ First Run
-
-1. Save the configuration in the Options panel.
-2. Restart the add-on.
-3. Check **Logs**:
-   - Ensure all sensors are detected
-   - No errors connecting to MQTT or HA API
-4. Open the **Streamlit interface** via Ingress.
-5. Verify the dashboard shows live battery, solar, and grid data.
+**mqtt sensor description**
 
 ---
 
 ## 7️⃣ Troubleshooting
-
-- **Add-on fails to start** → check that `arch` matches your device (`aarch64` for RPi4-64).  
+  
 - **Missing sensors** → verify all `entity_id`s are correct.  
 - **MQTT not publishing** → check HA broker credentials.  
-- **Streamlit not loading** → check Ingress port (`8501`) and Supervisor logs.
-
----
-
-## 8️⃣ Updating
-
-1. Pull latest changes from the repository.
-2. Reinstall or rebuild the add-on.
-3. Restart add-on to apply updates.
+- **Streamlit not loading** → check app logs and Supervisor logs.
 
 ---
 

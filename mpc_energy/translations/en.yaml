@@ -47,10 +47,10 @@ configuration:
     description: Lower this value if you are tripping breakers
 
   solcast_forecast_today_entity_id:
-    name: Solcast Forecast Today Entity
+    name: Solcast Forecast Today Entity (kWh with attributes for whole day)
 
   solcast_forecast_tomorrow_entity_id:
-    name: Solcast Forecast Tomorrow Entity
+    name: Solcast Forecast Tomorrow Entity (kWh with attributes for whole day)
 
   solcast_solar_kwh_remaining_today_entity_id:
     name: Solcast Solar kWh Forecast Remaining Today (kWh)
@@ -62,10 +62,59 @@ configuration:
     name: HA EMS Control Switch Entity
     description: Entity that allows home assistant to take control of the ems
 
-  
+  ems_control_mode_entity_id:
+    name: EMS Control Mode Selector Entity
 
+  load_power_entity_id:
+    name: Load Power Entity (kW)
 
-
+  solar_power_entity_id:
+    name: Solar Power Entity (kW)
 
   battery_power_entity_id:
-    name: Battery Power Entity (kW, + Discharging, - Charging)
+    name: Battery Power Entity (kW)
+  
+  inverter_power_entity_id:
+    name: Inverter Power Entity (kW, + Generating, - Consuming)
+
+  grid_power_entity_id:
+    name: Grid Net Power Entity (kW, + Importing, - Exporting)
+  
+  battery_soc_entity_id:
+    name: Battery SOC Entity (Percentage)
+
+  battery_stored_energy_entity_id:
+    name: Battery Energy Stored Entity (kWh)
+
+  battery_kwh_till_full_entity_id:
+    name: Battery Charge Available Entity (kWh till battery full)
+
+  plant_solar_kwh_today_entity_id:
+    name: Solar Energy Generated Today Entity (kWh)
+
+  plant_daily_load_kwh_entity_id:
+    name: Load Energy Consumed Today Entity (kWh)
+
+  battery_rated_capacity_entity_id:
+    name: Battery Rated Storage Capacity Entity (kWh)
+
+  backup_soc_entity_id:
+    name: ESS Battery Backup SOC Entity (Percentage, reserve for blackouts)
+  
+  charge_cutoff_soc_entity_id:
+    name: ESS Battery Charge Cut-off SOC Entity (Percentage, maximum charge limit)
+  
+  battery_discharge_limiter_entity_id:
+    name: Battery Discharge Power Limiter (kW, to control system)
+  
+  battery_charge_limiter_entity_id:
+    name: Battery Charge Power Limiter (kW, to control system)
+  
+  pv_limiter_entity_id:
+    name: PV Power Limiter (kW, to control system)
+  
+  export_limiter_entity_id:
+    name: Export Power Limiter (kW, to control system)
+
+  import_limiter_entity_id: 
+    name: Import Power Limiter (kW, to control system)

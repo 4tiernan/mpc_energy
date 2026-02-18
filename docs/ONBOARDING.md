@@ -54,6 +54,7 @@ Click the button above or follow the instructions below:
 <br>
 
 ## 4️⃣ Configuring the App
+### In the App's Configuration Tab you will find the following settings:<br>
 ### Risk Acknowledgement:
 After reading the risks associated with use of this app in the readme, check this button to active the app.
 

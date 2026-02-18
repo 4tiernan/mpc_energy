@@ -56,6 +56,7 @@ if(config_manager.amber_site_id == ""):
     amber = AmberAPI(config_manager.amber_api_key, "")
     sites = amber.get_sites()
     string_data = ""
+    logger.info(sites)    
     for site in sites:
         available_channels = []
         for channel in site['channels']:

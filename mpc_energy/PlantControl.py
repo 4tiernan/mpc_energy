@@ -334,6 +334,13 @@ class Plant:
 
         load_state_history = self.ha.get_history(config_manager.load_power_entity_id, start_time=start, end_time=end)
 
+        # Check to see if the requested amount of data was recieved, use the configured default if not
+        if(not self.validate_returned_data_timedelta(data=load_state_history, requested_start=start, requested_end=end)):
+            configured_avg_load_power = config_manager.estimated_daily_load_energy_consumption / 24 # Divide by 24 to convert from daily energy to power
+            logger.error(f"Using default load power of {configured_avg_load_power} watts for the base load.")
+            return configured_avg_load_power
+        
+        # If we get here the requested amount of data must have been received. 
         load_history = [h.state for h in load_state_history]
         
         load_history_clean = [
@@ -480,7 +487,29 @@ class Plant:
         #    print(avg_day[i].states)       
 
         return binned_history
-        
+    
+    def validate_returned_data_timedelta(self, data, requested_start, requested_end, tollerance_minutes=30):
+        '''
+        data -> array containing datetime objs (data[i].time) for each datapoint
+        returns True if the requested amount of data was returned.
+        '''
+        if(not data):
+            logger.error(f"Data returned from the api for the requested times: Start: {requested_start}, End: {requested_end}")
+            return False
+        else:
+            first_time = data[0].time
+            last_time = data[-1].time
+
+            # Determine if less data time span was returned than requested
+            expected_span = requested_end - requested_start
+            actual_span = last_time - first_time 
+
+            # If 30 mintues less data than expected was returned, use the estimated load energy configured.
+            if actual_span < expected_span - datetime.timedelta(minutes=tollerance_minutes):
+                logger.warning(f"{expected_span.days} days of load data was requested but only {actual_span.days} were returned")
+                return False
+        return True
+
     def update_load_avg(self, days_ago=7):
         avg_day = [] # Create the avg day array to contain the average load energy profile
         dt = datetime.datetime.combine(
@@ -504,25 +533,17 @@ class Plant:
 
         history = self.ha.get_history(config_manager.plant_daily_load_kwh_entity_id, start_time=start, end_time=end)
         
-        if(not history):
-            logger.error(f"No load history returned from the api for the requested times: Start: {start}, End: {end}")
-        else:
-            first_time = history[0].time
-            last_time = history[-1].time
+        # Check to see if the requested amount of data was recieved, use the configured default if not
+        if(not self.validate_returned_data_timedelta(data=history, requested_start=start, requested_end=end)):
+            configured_avg_load = config_manager.estimated_daily_load_energy_consumption 
+            logger.error(f"Using default load energy of {configured_avg_load} kWh per day.")
 
-            # Determine if less data time span was returned than requested
-            expected_span = end - start
-            actual_span = last_time - first_time 
+            # Create a linearly spaced array climbing from 0 to the total load over a day
+            for i in range(len(avg_day)):
+                    avg_day[i].avg_state = (i/len(avg_day)) * configured_avg_load
 
-            # If 30 mintues less data than expected was returned, use the estimated load energy configured.
-            if actual_span < expected_span - datetime.timedelta(minutes=30):
-                configured_avg_load = config_manager.estimated_daily_load_energy_consumption
-                logger.warning(f"{expected_span.days} days of load data was requested but only {actual_span.days} were returned. Using default load energy of {configured_avg_load} kWh per day.")
-                for interval in avg_day:
-                    interval.avg_state = configured_avg_load
-                return avg_day
-                
-
+            return avg_day 
+        
 
         # If we've got here we must have the requested number of days of load data     
 
@@ -559,9 +580,6 @@ class Plant:
             while(day[-1].state < max_state): # remove any states that were from the previous day, ie ensure we start with 0 for the day
                 day.pop(-1)
                 #print("Popping End of Day Data")
-
-
-            
         
         for day in history_days:
             i = 0

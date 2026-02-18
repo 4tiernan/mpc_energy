@@ -33,6 +33,29 @@ Sigenergy (HACS)
 Setup the [Sigenergy](https://github.com/TypQxQ/Sigenergy-Local-Modbus?tab=readme-ov-file) integration.
 **Note: The controls are disabled by default for saftey, please enable them as per the integration's instructions.**
 
+### You will need to enable the following entities in the Sigenergy Integration:
+Controls:
+* Remote EMS (Controlled by Home Assistant)
+* Remote EMS Control Mode
+
+Configuration:
+* ESS Backup State of Charge
+* ESS Charge Cut-Off State of Charge
+* ESS Discharge Cut-Off State of Charge
+* ESS Max Charging Limit
+* ESS Max Discharging Limit
+* Grid Export Limitation
+* Grid Import Limitation
+* PV Max Power Limit
+
+Diagnostic:
+* Available Max Charging Capacity
+* Available Max Discharging Capacity
+* ESS Rated Charging Power
+* ESS Rated Discharging Power
+
+
+
 <br>
 
 ## 3️⃣ Installation
@@ -91,7 +114,7 @@ Examples:
 * Three Phase 80A: 50 kW
 
 <br>
-The Max Export Power is set by your inverter max AC power, (this will be the same as the size of the inverter you purchased, ie if you purchased a 15kW inverter enter 15kW) 
+The Max Export Power is set by your inverter max AC power or you connection export limit. This is normally 5kW per phase, ie, 5 kW for Single Phase or 15 kW for three phase.
 
 <br><br>
 

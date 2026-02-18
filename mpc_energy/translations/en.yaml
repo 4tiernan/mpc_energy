@@ -1,10 +1,7 @@
 configuration:
   accepted_risks:
     name: Confirm you have read and accepted the risks associated with use of this app.
-
-  log_level:
-    name: Log Level
-
+    
   ha_mqtt_user:
     name: MQTT Broker Username
 

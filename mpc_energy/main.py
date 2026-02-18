@@ -28,18 +28,7 @@ handler.setFormatter(formatter)
 # Set up the logger
 logger = colorlog.getLogger()
 logger.addHandler(handler)
-
-configured_log_level = config_manager.log_level  # e.g. "debug"
-
-LOG_LEVELS = {
-    "debug": logging.DEBUG,
-    "info": logging.INFO,
-    "warning": logging.WARNING,
-    "error": logging.ERROR,
-    "critical": logging.CRITICAL,
-}
-
-logger.setLevel(LOG_LEVELS.get(configured_log_level.lower(), logging.INFO))
+logger.setLevel(logging.INFO)
 
 
 # Configure logging with timestamps without milliseconds

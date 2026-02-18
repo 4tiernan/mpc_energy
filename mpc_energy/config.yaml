@@ -27,8 +27,6 @@ startup: services
 
 options:
   accepted_risks: False
-  
-  log_level: info
   ha_mqtt_user: ""
   ha_mqtt_pass: ""
   amber_api_key: ""
@@ -78,7 +76,6 @@ options:
 schema:
   accepted_risks: bool
 
-  log_level: list(debug|info|warning|error|critical)
   ha_mqtt_user: str
   ha_mqtt_pass: password
   amber_api_key: password

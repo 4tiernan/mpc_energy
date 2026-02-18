@@ -1,0 +1,40 @@
+blueprint:
+  name: MPC Energy Alive Time Monitor
+  description: Send a notification to your mobile if the MPC Energy App stops running and put the system into self consumption mode
+  domain: automation
+  input:
+    mobile_app_target:
+      name: Mobile Target
+      description: This is the target to send the warning notification to.
+      selector:
+        device:
+          integration: mobile_app
+
+
+triggers:
+  - entity_id:
+      - sensor.mpc_energy_manager_device_alive_time
+    for:
+      hours: 0
+      minutes: 10
+      seconds: 0
+    trigger: state
+    
+condition: []
+
+action:
+  - service: notify.mobile_app_!input notify_device
+    data:
+      title: "MPC Add On Offline !!"
+      message: "Alive Time not updated for over 10 minutes."
+      data:
+        channel: MPC Energy Manager Offline
+        importance: max
+
+  - action: switch.turn_off
+    metadata: {}
+    target:
+      entity_id: switch.sigen_plant_remote_ems_controled_by_home_assistant
+    data: {}
+    
+mode: single

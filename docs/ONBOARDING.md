@@ -76,10 +76,19 @@ The PV Max Power Limit is the 'Max. PV power' listed under DC Input for your inv
 [Three Phase](https://www.sigenergy.com/uploads/en_download/1693469427819336.pdf)<br>
 
 The Max Import Power is limited by your main breaker rating (A - Amps).
-* Single Phase Max Power (kW): (240 X A) / 1000
-* Three Phase Max Power (kW): (3 X 240 X A) / 1000
+* Single Phase Max Power (kW): (230 X A) / 1000
+* Three Phase Max Power (kW): (3 X 230 X A) / 1000
 
 Round this number down a bit to allow for some headroom, 10% should do, more if you find your breaker is popping.<br>
+
+Examples:
+* Single Phase 63A: 14 kW
+* Single Phase 80A: 17 kW
+* Single Phase 100A: 20 kW
+* Three Phase 32A: 20 kW
+* Three Phase 63A: 40 kW
+* Three Phase 80A: 50 kW
+
 <br>
 The Max Export Power is set by your inverter max AC power, (this will be the same as the size of the inverter you purchased, ie if you purchased a 15kW inverter enter 15kW) 
 

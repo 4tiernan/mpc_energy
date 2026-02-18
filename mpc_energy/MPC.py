@@ -239,8 +239,6 @@ class MPC:
                 elif ts.date() == tomorrow:
                     forecast_profit_tomorrow += interval_profit[t]
 
-            forecast_profit_today = forecast_profit_today + self.daily_profit
-
             # Round all the mpc data to 2 dp
             battery_power = [round(x, 2) for x in battery_power]
             battery_soc = [round(x, 2) for x in soc.value.tolist()]
@@ -260,7 +258,8 @@ class MPC:
                 "grid_net": grid_net,
                 "prices_buy": self.prices_buy.tolist(),
                 "prices_sell": self.prices_sell.tolist(),
-                "profit_today": float(forecast_profit_today),
+                "profit_already_today": float(self.daily_profit),
+                "profit_remaining_today": float(forecast_profit_today),
                 "profit_tomorrow": float(forecast_profit_tomorrow),
                 "inverter_power": inverter_power,
                 "solar_forecast": solar_forecast_power,

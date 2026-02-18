@@ -50,11 +50,16 @@ def plot_mpc_results(st, output):
     col1.subheader("🔋 MPC Plan Dashboard")
 
     col2.metric(
-        label="Profit Today",
-        value=f"${st.session_state.mpc_output['profit_today']:.2f}"
+        label="Profit Already Today",
+        value=f"${st.session_state.mpc_output['profit_already_today']:.2f}"
     )
 
     col3.metric(
+        label="Profit Already Today",
+        value=f"${st.session_state.mpc_output['profit_remaining_today']:.2f}"
+    )    
+
+    col4.metric(
         label="Profit Tomorrow",
         value=f"${st.session_state.mpc_output['profit_tomorrow']:.2f}"
     )

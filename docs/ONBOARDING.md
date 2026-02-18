@@ -133,6 +133,6 @@ All the sensors from the app should automatically be discovered by the MQTT inte
 <br>
 
 ## 9️⃣ Support
-
+- Most of the logs will show in the app's log tab, otherwise look in the home assistant logs and select supervisor rather than core in the top right.
 - GitHub: [https://github.com/4tiernan/mpc_energy](https://github.com/4tiernan/mpc_energy)  
 - Issues: Use the GitHub Issues page for bug reports and feature requests.

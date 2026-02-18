@@ -45,7 +45,7 @@ def plot_mpc_results(st, output):
     Plot MPC results using Plotly (dual-axis, 2 subplots)
     """
 
-    col1, col2, col3, col4, col5, col6, col7 = st.columns(7)
+    col1, col2, col3, col4, col5 = st.columns(5)
 
     col1.subheader("🔋 MPC Plan Dashboard")
 

@@ -33,6 +33,29 @@ Sigenergy (HACS)
 Setup the [Sigenergy](https://github.com/TypQxQ/Sigenergy-Local-Modbus?tab=readme-ov-file) integration.
 **Note: The controls are disabled by default for saftey, please enable them as per the integration's instructions.**
 
+### You will need to enable the following entities in the Sigenergy Integration:
+Controls:
+* Remote EMS (Controlled by Home Assistant)
+* Remote EMS Control Mode
+
+Configuration:
+* ESS Backup State of Charge
+* ESS Charge Cut-Off State of Charge
+* ESS Discharge Cut-Off State of Charge
+* ESS Max Charging Limit
+* ESS Max Discharging Limit
+* Grid Export Limitation
+* Grid Import Limitation
+* PV Max Power Limit
+
+Diagnostic:
+* Available Max Charging Capacity
+* Available Max Discharging Capacity
+* ESS Rated Charging Power
+* ESS Rated Discharging Power
+
+
+
 <br>
 
 ## 3️⃣ Installation

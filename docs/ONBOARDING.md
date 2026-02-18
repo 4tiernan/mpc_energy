@@ -49,7 +49,7 @@ Click the button above or follow the instructions below:
 
 1. Find **MPC Energy** in the HA App Store.
 2. Click **Install**.
-3. Wait for the installation to complete.
+3. Wait for the installation to complete, (This can take 10+ minutes, especially on a RPI).
 
 <br>
 

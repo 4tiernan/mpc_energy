@@ -11,6 +11,8 @@ To utilise this Home Assistant App you will need the following accounts:
 Please create these accounts before continuing with the onboarding process.<br><br>
 You will also need [HACS](https://www.hacs.xyz/) setup to install the required integrations
 
+## Warning ⚠️: Do not add your device to amber or sign up to the smartshift automation. This will result in you loosing the ability to control your battery system and it can be a lengthy process to undo.
+
 <br>
 
 

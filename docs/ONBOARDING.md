@@ -114,7 +114,7 @@ Examples:
 * Three Phase 80A: 50 kW
 
 <br>
-The Max Export Power is set by your inverter max AC power, (this will be the same as the size of the inverter you purchased, ie if you purchased a 15kW inverter enter 15kW) 
+The Max Export Power is set by your inverter max AC power or you connection export limit. This is normally 5kW per phase, ie, 5 kW for Single Phase or 15 kW for three phase.
 
 <br><br>
 

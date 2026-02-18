@@ -139,7 +139,9 @@ MPC Energy uses **Streamlit** for its web interface:
 
 
 ### Sunsynk Power Flow Card
-slipx06 has created a wonderful card to be able to display all relevant data for your energy system. The hacs repo can be found [here](https://github.com/slipx06/sunsynk-power-flow-card).<br>
+slipx06 has created a wonderful card to be able to display all relevant data for your energy system. The hacs repo can be found [here](https://github.com/slipx06/sunsynk-power-flow-card) or you can add it to your Home Assitant instance here -> [![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=slipx06&repository=sunsynk-power-flow-card&category=plugin)
+
+.<br>
 An example yaml for a Sigenergy system can be found 
 <a href="https://github.com/4tiernan/mpc_energy/blob/main/yaml_examples/sunsynk_power_flow_card_example.yaml"  target="_blank" rel="noreferrer noopener">here</a>.
 

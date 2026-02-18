@@ -23,10 +23,12 @@ triggers:
 condition: []
 
 action:
-  - service: notify.mobile_app_!input notify_device
+  - service: notify.notify
     data:
       title: "MPC Add On Offline !!"
-      message: "Alive Time not updated for over 10 minutes."
+      message: "Alive Time not updated for over {{ offline_duration }}."
+      target:
+        device_id: !input mobile_app_target
       data:
         channel: MPC Energy Manager Offline
         importance: max

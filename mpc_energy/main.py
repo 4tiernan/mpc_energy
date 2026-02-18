@@ -55,6 +55,10 @@ if(config_manager.amber_site_id == ""):
     from amber_api import AmberAPI
     amber = AmberAPI(config_manager.amber_api_key, "")
     sites = amber.get_sites()
+    if(not sites):
+        logger.error("No sites were found, amber may not have transfered your connection yet. This will take approximatly 2 days (https://help.amber.com.au/hc/en-us/articles/34942303478797-Solar-and-Battery-Onboarding-What-to-Expect-When-Enrolling-to-SmartShift). Please try again later.")
+        exit()
+        
     string_data = ""
     logger.info(sites)    
     for site in sites:
@@ -62,7 +66,7 @@ if(config_manager.amber_site_id == ""):
         for channel in site['channels']:
             available_channels.append(channel['type'])
         string_data = string_data + f"Site ID: {site['id']},  NMI: {site['nmi']}, Channels: {available_channels}"
-    logger.error(f"Amber Site ID not selected, please copy the desired site number into the configuration tab:\n({string_data})")
+    logger.warning(f"Amber Site ID not selected, please copy the desired site number into the configuration tab:\n({string_data})")
     exit()
 
 # HA APP Setup Notes:

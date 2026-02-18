@@ -62,7 +62,7 @@ if(config_manager.amber_site_id == ""):
         for channel in site['channels']:
             available_channels.append(channel['type'])
         string_data = string_data + f"Site ID: {site['id']},  NMI: {site['nmi']}, Channels: {available_channels}"
-    logger.error(f"Amber Site ID not selected, please copy the desired site number into the configuration tab:\n{string_data}")
+    logger.error(f"Amber Site ID not selected, please copy the desired site number into the configuration tab:\n({string_data})")
     exit()
 
 # HA APP Setup Notes:

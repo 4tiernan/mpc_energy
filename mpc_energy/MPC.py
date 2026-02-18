@@ -241,23 +241,33 @@ class MPC:
 
             forecast_profit_today = forecast_profit_today + self.daily_profit
 
+            # Round all the mpc data to 2 dp
+            battery_power = [round(x, 2) for x in battery_power]
+            battery_soc = [round(x, 2) for x in soc.value.tolist()]
+            grid_net = [round(x, 2) for x in grid_net]
+            inverter_power = [round(x, 2) for x in inverter_power.value.tolist()]
+            solar_forecast_power = [round(x, 2) for x in self.solar_5min]
+            solar_used_power = [round(x, 2) for x in solar_used.value.tolist()]
+            load_power = [round(x, 2) for x in self.load_5min]
+
+
             # store it in shared dict
             output = {
                 "historical_data_length": 0,
                 "time_index": [time_idx.isoformat() for time_idx in time_index],
-                "battery_power": round(battery_power, 2),
-                "soc": round(soc.value.tolist(), 2),
-                "grid_net": round(grid_net, 2),
-                "prices_buy": round(self.prices_buy.tolist()),
-                "prices_sell": round(self.prices_sell.tolist()),
-                "profit_today": round(float(forecast_profit_today), 2),
-                "profit_tomorrow": round(float(forecast_profit_tomorrow), 2),
-                "inverter_power": round(inverter_power.value.tolist(), 2),
-                "solar_forecast": round(self.solar_5min, 2),
-                "solar_used": round(solar_used.value.tolist(), 2),
-                "load_power": round(self.load_5min, 2),
-                "soc_min": round(self.soc_min, 2),
-                "soc_max": round(self.soc_max, 2),
+                "battery_power": battery_power,
+                "soc": battery_soc,
+                "grid_net": grid_net,
+                "prices_buy": self.prices_buy.tolist(),
+                "prices_sell": self.prices_sell.tolist(),
+                "profit_today": float(forecast_profit_today),
+                "profit_tomorrow": float(forecast_profit_tomorrow),
+                "inverter_power": inverter_power,
+                "solar_forecast": solar_forecast_power,
+                "solar_used": solar_used_power,
+                "load_power": load_power,
+                "soc_min": self.soc_min,
+                "soc_max": self.soc_max,
             }
             output = self.convert_to_python(output) # Ensure all arrays and data is in the plain python format, ie no numpy
             plan_modes = self.determine_plan_modes(output) # Determine the control mode for each time period

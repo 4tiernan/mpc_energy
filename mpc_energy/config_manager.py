@@ -12,7 +12,6 @@ def get_entity_id(key, default=None):
 
 accepted_risks = get_entity_id("accepted_risks")
 
-log_level = get_entity_id("log_level")
 MQTT_USER = get_entity_id("ha_mqtt_user")
 MQTT_PASS = get_entity_id("ha_mqtt_pass")
 

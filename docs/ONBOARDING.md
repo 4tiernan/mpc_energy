@@ -54,20 +54,20 @@ Click the button above or follow the instructions below:
 <br>
 
 ## 4️⃣ Configuring the App
-### In the App's Configuration Tab you will find the following settings:<br>
+### In the App's Configuration Tab you will find the following settings:<br><br>
 ### Risk Acknowledgement:
-After reading the risks associated with use of this app in the readme, check this button to active the app.
-
-Enter your Amber API key, MQTT username and password and set the plant Solar PV DC, import and export limit with the values for your system. 
-
-If you are noticing your main house, gateway or battery breakers are popping from over current, reduce the import/export limits to reduce the max power through these breakers.
-
+After reading the risks associated with use of this app in the [readme](https://github.com/4tiernan/mpc_energy?tab=readme-ov-file#%EF%B8%8F-important-safety-notice), check this button to active the app.
+<br><br>
+### Credentials:
+Enter your Amber API key, MQTT username and password as setup before.
+<br><br>
 ### Amber Site ID: 
 Start the app without configuring this if you don't know your site id. After starting the app check the logs and select your site id from the list returned by amber and enter it in the configuration.
-
+<br><br>
 
 ### Battery Discharge Cost:
 If you desire, you may set the battery discharge cost according to the cost of your battery (not solar, inverter or other included system costs) divided by the total discharge energy the battery is warranted for. This ensures the battery will only be used when it makes financial sense to do so. You can set this value higher or lower to adjust the system behaviour though.
+<br><br>
 
 ### System Limits:
 Some of the system limits are exposed by the Sigenergy Integration but a few are not.
@@ -93,7 +93,7 @@ Examples:
 <br>
 The Max Export Power is set by your inverter max AC power, (this will be the same as the size of the inverter you purchased, ie if you purchased a 15kW inverter enter 15kW) 
 
-<br>
+<br><br>
 
 ## 5️⃣ Starting the Add-on
 

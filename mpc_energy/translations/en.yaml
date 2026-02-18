@@ -38,14 +38,15 @@ configuration:
   
   pv_max_power_limit_entity_id:
     name: Max PV DC Power (kW, Set to a value or an entity)
+    description: Please see the onboarding docs for how to set this value.
 
   import_max_power_limit_entity_id:
     name: Max Import Power (kW, Set to a value or an entity)
-    description: Lower this value if you are tripping breakers
+    description: Lower this value if you are tripping breakers, see onboarding docs for more info on how to set this.
 
   export_max_power_limit_entity_id:
     name: Max Export Power (kW, Set to a value or an entity)
-    description: Lower this value if you are tripping breakers
+    description: Lower this value if you are tripping breakers, see onboarding docs for more info on how to set this.
 
   solcast_forecast_today_entity_id:
     name: Solcast Forecast Today Entity (kWh with attributes for whole day)

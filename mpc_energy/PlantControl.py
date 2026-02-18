@@ -21,8 +21,6 @@ class BinnedStateClass:
     time: datetime # Start time of the bin
 
 
-
-
 class Plant:
     def __init__(self, ha):
         self.ha = ha
@@ -65,7 +63,6 @@ class Plant:
                 return val  
             except Exception as e:
                 logger.error(f"Unable to get entity id or float from config entry '{entry_id}'. Please check the entity id or ensure it is a float. Exception: {e}")
-
 
     def get_plant_mode(self):
         return self.ha.get_state(config_manager.ems_control_mode_entity_id)["state"]
@@ -485,6 +482,18 @@ class Plant:
         return binned_history
         
     def update_load_avg(self, days_ago=7):
+        avg_day = [] # Create the avg day array to contain the average load energy profile
+        dt = datetime.datetime.combine(
+            datetime.date.today(),
+            datetime.time.min
+        )
+        time_bucket_size = 5 # Size of time bucket in Minutes 
+
+        for i in range(int((24*60)/time_bucket_size)):
+            avg_day.append(BinnedStateClass(avg_state=None, states=[], time=dt.time()))
+            dt = dt + datetime.timedelta(minutes=time_bucket_size)
+
+
         today = datetime.datetime.now(HA_TZ).date()
         end_date = today - datetime.timedelta(days=1)
         start_date = end_date - datetime.timedelta(days=days_ago)
@@ -495,7 +504,28 @@ class Plant:
 
         history = self.ha.get_history(config_manager.plant_daily_load_kwh_entity_id, start_time=start, end_time=end)
         
-        
+        if(not history):
+            logger.error(f"No load history returned from the api for the requested times: Start: {start}, End: {end}")
+        else:
+            first_time = history[0].time
+            last_time = history[-1].time
+
+            # Determine if less data time span was returned than requested
+            expected_span = end - start
+            actual_span = last_time - first_time 
+
+            # If 30 mintues less data than expected was returned, use the estimated load energy configured.
+            if actual_span < expected_span - datetime.timedelta(minutes=30):
+                configured_avg_load = config_manager.estimated_daily_load_energy_consumption
+                logger.warning(f"{expected_span.days} days of load data was requested but only {actual_span.days} were returned. Using default load energy of {configured_avg_load} kWh per day.")
+                for interval in avg_day:
+                    interval.avg_state = configured_avg_load
+                return avg_day
+                
+
+
+        # If we've got here we must have the requested number of days of load data     
+
         # Remove any invalid states from the history list (Unavailable, None, etc)
         clean_history = []
         for hist in history:
@@ -530,15 +560,7 @@ class Plant:
                 day.pop(-1)
                 #print("Popping End of Day Data")
 
-        avg_day = []
-        dt = datetime.datetime.combine(
-            datetime.date.today(),
-            datetime.time.min
-        )
-        time_bucket_size = 5 # Size of time bucket in Minutes 
-        for i in range(int((24*60)/time_bucket_size)):
-            avg_day.append(BinnedStateClass(avg_state=None, states=[], time=dt.time()))
-            dt = dt + datetime.timedelta(minutes=time_bucket_size)
+
             
         
         for day in history_days:

@@ -19,6 +19,10 @@ configuration:
     name: Battery Discharge Cost (c/kWh)
     description: Effective cost of discharging the battery (Leave at default if unsure).
 
+  estimated_daily_load_energy_consumption:
+    name: Estimated Daily Load Energy Consumption
+    description: Enter your approximate daily energy consumption. (This is used until the system has enough historical data to build a model of your usage which takes 3 days)
+
   battery_power_sign_convention:
     name: Battery Power Sign Convention
     description: Select which sign convention your battery uses. Sigenergy uses - Charge, + Discharge by default.

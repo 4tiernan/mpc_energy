@@ -1,6 +1,6 @@
 name: "MPC Energy"
 description: "A profit optimiser for home batteries with wholesale electricity pricing."
-version: "0.0.13"
+version: "0.0.14"
 slug: "mpc_energy"
 init: false
 arch:
@@ -33,7 +33,7 @@ options:
   amber_site_id: ""
   battery_discharge_cost: 7
 
-  battery_power_sign_convention: "- Charge, + Discharge"
+  estimated_daily_load_energy_consumption: 24
 
   battery_max_discharge_power_limit_entity_id: "sensor.sigen_plant_ess_rated_discharging_power"
   battery_max_charge_power_limit_entity_id: "sensor.sigen_plant_ess_rated_charging_power"
@@ -41,6 +41,8 @@ options:
   pv_max_power_limit_entity_id: ""
   import_max_power_limit_entity_id: ""
   export_max_power_limit_entity_id: ""
+
+  battery_power_sign_convention: "- Charge, + Discharge"
 
   solcast_forecast_today_entity_id: "sensor.solcast_pv_forecast_forecast_today"
   solcast_forecast_tomorrow_entity_id: "sensor.solcast_pv_forecast_forecast_tomorrow"
@@ -81,6 +83,8 @@ schema:
   amber_api_key: password
   amber_site_id: str?
   battery_discharge_cost: int?
+
+  estimated_daily_load_energy_consumption: int
 
   battery_power_sign_convention: list(+ Charge, - Discharge|- Charge, + Discharge)
 

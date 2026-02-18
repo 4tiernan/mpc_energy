@@ -55,7 +55,7 @@ def plot_mpc_results(st, output):
     )
 
     col3.metric(
-        label="Profit Already Today",
+        label="Profit Remaining Today",
         value=f"${st.session_state.mpc_output['profit_remaining_today']:.2f}"
     )    
 

@@ -1,0 +1,275 @@
+type: sections
+max_columns: 4
+title: Example Dashboard
+path: add-on-data
+sections:
+  - type: grid
+    cards:
+      - cardstyle: full
+        wide: false
+        large_font: true
+        show_solar: true
+        show_battery: true
+        show_grid: true
+        center_no_grid: false
+        card_height: 100%
+        card_width: 100%
+        decimal_places: 2
+        decimal_places_energy: 1
+        dynamic_line_width: true
+        max_line_width: 5
+        min_line_width: 2
+        inverter:
+          model: sigenergy
+          three_phase: true
+          modern: false
+          autarky: energy
+          auto_scale: true
+        battery:
+          show_daily: true
+          invert_power: true
+          dynamic_colour: false
+          animate: false
+          remaining_energy_to_shutdown: true
+          show_remaining_energy: true
+          count: 1
+          soc_decimal_places: 2
+          auto_scale: true
+          linear_gradient: true
+          show_absolute: false
+          max_power: 20000
+          soc_end_of_charge: 100
+          energy: 40300
+          colour: "#ff5792"
+          charge_colour: "#359cfd"
+          shutdown_soc_offgrid: 0
+          shutdown_soc: 5
+        battery2:
+          energy: 0
+          shutdown_soc: 20
+          soc_end_of_charge: 100
+          invert_power: false
+          hide_soc: false
+          colour: "#ffc0cb"
+          show_remaining_energy: true
+          remaining_energy_to_shutdown: false
+          show_absolute: false
+          auto_scale: true
+          dynamic_colour: true
+          linear_gradient: true
+          animate: true
+          path_threshold: 100
+          navigate: ""
+          invert_flow: false
+        solar:
+          show_daily: true
+          display_mode: 2
+          mppts: 3
+          max_power: 19200
+          auto_scale: true
+          pv1_name: PV 1
+          pv2_name: PV 2
+          pv3_name: PV 3
+          pv1_max_power: 6650
+          pv3_max_power: 4000
+          dynamic_colour: false
+          efficiency: 2
+          colour: "#ff9500"
+          pv2_max_power: 8550
+        load:
+          show_daily: true
+          auto_scale: true
+          invert_flow: false
+          show_aux: false
+          max_power: 12000
+          dynamic_icon: true
+          dynamic_colour: false
+          invert_load: false
+          max_colour: "#ff7b00"
+        grid:
+          show_daily_buy: true
+          show_daily_sell: true
+          show_nonessential: false
+          auto_scale: true
+          grid_name: Amber Energy
+          colour: "#0092d1"
+          grid_off_colour: "#9e9e9e"
+          energy_cost_decimals: 2
+          import_icon: mdi:transmission-tower-import
+          export_icon: mdi:transmission-tower-export
+          disconnected_icon: mdi:transmission-tower-off
+          nonessential_icon: ""
+          additional_loads: 2
+          load1_icon: ""
+          load2_icon: ""
+          export_colour: "#a852ff"
+          show_absolute: false
+        type: custom:sunsynk-power-flow-card
+        entities:
+          battery_power_190: sensor.sigen_plant_battery_power
+          battery_soc_184: sensor.sigen_plant_battery_state_of_charge
+          day_battery_charge_70: sensor.sigen_plant_daily_battery_charge_energy
+          day_battery_discharge_71: sensor.sigen_plant_daily_battery_discharge_energy
+          day_grid_export_77: sensor.sigen_plant_daily_grid_export_energy
+          day_grid_import_76: sensor.sigen_plant_daily_grid_import_energy
+          day_load_energy_84: sensor.sigen_plant_daily_load_consumption
+          day_pv_energy_108: sensor.sigen_inverter_daily_pv_energy
+          dc_transformer_temp_90: sensor.sigen_inverter_pcs_internal_temperature
+          essential_power: sensor.sigen_plant_consumed_power
+          grid_connected_status_194: sensor.sigen_plant_grid_connection_status
+          grid_ct_power_total: sensor.sigen_plant_grid_active_power
+          grid_frequency: sensor.sigen_inverter_grid_frequency
+          grid_power_169: sensor.sigen_plant_grid_active_power
+          inverter_power_175: sensor.sigen_plant_plant_active_power
+          inverter_status_59: sensor.sigen_plant_plant_running_state
+          pv1_current_110: sensor.sigen_inverter_pv1_current
+          pv1_power_186: sensor.sigen_inverter_pv1_power
+          pv1_voltage_109: sensor.sigen_inverter_pv1_voltage
+          pv2_current_112: sensor.sigen_inverter_pv2_current
+          pv2_power_187: sensor.sigen_inverter_pv2_power
+          pv2_voltage_111: sensor.sigen_inverter_pv2_voltage
+          pv3_current_114: sensor.sigen_inverter_pv3_current
+          pv3_power_188: sensor.sigen_inverter_pv3_power
+          pv3_voltage_113: sensor.sigen_inverter_pv3_voltage
+          solar_sell_247: binary_sensor.sigen_plant_exporting_to_grid
+          total_pv_generation: sensor.sigen_plant_daily_pv_energy
+          pv_total: sensor.sigen_plant_pv_power
+          remaining_solar: sensor.solcast_pv_forecast_forecast_remaining_today
+          energy_cost_buy: sensor.mpc_energy_manager_device_general_price
+          energy_cost_sell: sensor.mpc_energy_manager_device_feed_in_price
+        grid_options:
+          columns: 15
+          rows: 8
+      - type: gauge
+        min: 0
+        max: 50
+        severity:
+          green: 0
+          yellow: 30
+          red: 40
+        grid_options:
+          columns: 7
+          rows: 3
+        name: Import Price
+        entity: sensor.mpc_energy_manager_device_general_price
+      - type: gauge
+        min: 0
+        max: 50
+        severity:
+          green: 0
+          yellow: 30
+          red: 40
+        grid_options:
+          columns: 7
+          rows: 3
+        name: Export Price
+        entity: sensor.mpc_energy_manager_device_feed_in_price
+      - type: gauge
+        min: 0
+        max: 50
+        severity:
+          green: 0
+          yellow: 10
+          red: 30
+        grid_options:
+          columns: 6
+          rows: 3
+        name:
+          type: entity
+        needle: true
+        entity: sensor.mpc_energy_manager_device_effective_price
+      - type: entities
+        entities:
+          - entity: switch.mpc_energy_manager_device_automatic_control
+            name:
+              type: entity
+          - entity: select.mpc_energy_manager_device_energy_controller
+            name:
+              type: entity
+          - entity: sensor.mpc_energy_manager_device_alive_time
+            name:
+              type: entity
+          - entity: sensor.mpc_energy_manager_device_average_daily_load
+            name:
+              type: entity
+          - entity: sensor.mpc_energy_manager_device_base_load
+            name:
+              type: entity
+          - entity: sensor.mpc_energy_manager_device_estimated_price
+            name:
+              type: entity
+          - entity: sensor.mpc_energy_manager_device_kwh_discharged
+            name:
+              type: entity
+          - entity: sensor.mpc_energy_manager_device_kwh_remaining
+            name:
+              type: entity
+          - entity: sensor.mpc_energy_manager_device_kwh_required_overnight
+            name:
+              type: entity
+          - entity: sensor.mpc_energy_manager_device_kwh_till_sundown
+            name:
+              type: entity
+          - entity: sensor.mpc_energy_manager_device_max_forecasted_12hr_feed_in
+            name:
+              type: entity
+          - entity: sensor.mpc_energy_manager_device_remaining_api_calls
+            name:
+              type: entity
+          - entity: sensor.mpc_energy_manager_device_system_state
+            name:
+              type: entity
+          - entity: sensor.mpc_energy_manager_device_target_discharge_price
+            name:
+              type: entity
+          - entity: sensor.mpc_energy_manager_device_working_mode
+            name:
+              type: entity
+        title: MPC Control and Monitoring
+        grid_options:
+          columns: 10
+          rows: auto
+      - type: entities
+        entities:
+          - entity: sensor.sigen_plant_ems_work_mode
+            name:
+              type: entity
+          - entity: switch.sigen_plant_remote_ems_controled_by_home_assistant
+            name: Remote EMS
+          - entity: select.sigen_plant_remote_ems_control_mode
+            name:
+              type: entity
+          - entity: number.sigen_plant_ess_max_discharging_limit
+            name: Discharge Limit
+          - entity: number.sigen_plant_ess_max_charging_limit
+            name: Charge Limit
+          - entity: number.sigen_plant_pv_max_power_limit
+            name: PV Power Limit
+          - entity: number.sigen_plant_grid_export_limitation
+            name: Export Limit
+          - entity: number.sigen_plant_grid_import_limitation
+            name: Import Limit
+          - entity: number.sigen_plant_ess_charge_cut_off_state_of_charge
+            name: Charge SOC Limit
+          - entity: number.sigen_plant_ess_backup_state_of_charge
+            name: Backup SOC
+          - entity: number.sigen_plant_ess_discharge_cut_off_state_of_charge
+            name: Discharge SOC Limit
+        title: Sigenergy Controls
+        grid_options:
+          columns: 10
+          rows: auto
+      - type: entities
+        entities:
+          - entity: sensor.mpc_energy_manager_device_import_costs_today
+            name:
+              type: entity
+          - entity: sensor.mpc_energy_manager_device_export_profits_today
+            name:
+              type: entity
+          - entity: sensor.mpc_energy_manager_device_net_profits_today
+            name:
+              type: entity
+        title: Finances
+    column_span: 4
+cards: []

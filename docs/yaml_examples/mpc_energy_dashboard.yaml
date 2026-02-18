@@ -1,3 +1,6 @@
+# Simply copy the following yaml into a custom manual yaml card in Home Assistant to view the example power flow card
+# Adjust the configued values for battery capacity, available pv, etc as required
+
 type: sections
 max_columns: 4
 title: Example Dashboard

@@ -115,10 +115,13 @@ MPC Energy uses **Streamlit** for its web interface:
 3. Validate the plotted data is feasible for your system, if it's not, check all the relevant entities in the configuration.
 
 
-## Sunsynk Power Flow Card
-slipx06 has created a wonderful card to be able to display all relevant data for your energy system. The hacs repo can be found [here](https://github.com/slipx06/sunsynk-power-flow-card).
+### Sunsynk Power Flow Card
+slipx06 has created a wonderful card to be able to display all relevant data for your energy system. The hacs repo can be found [here](https://github.com/slipx06/sunsynk-power-flow-card).<br>
 An example yaml for a Sigenergy system can be found 
-<a href="https://github.com/4tiernan/mpc_energy/blob/main/yaml_examples/sunsynk_power_flow_card_example.yaml"  target="_blank" rel="noreferrer noopener">here</a>
+<a href="https://github.com/4tiernan/mpc_energy/blob/main/yaml_examples/sunsynk_power_flow_card_example.yaml"  target="_blank" rel="noreferrer noopener">here</a>.
+
+### Example Dashboard
+An example dashboard showing all the relevant MPC Energy App and Sigenergy Integration entites can be found [here](https://github.com/4tiernan/mpc_energy/blob/main/yaml_examples/mpc_energy_dashboard.yaml).
 
 <br>
 
@@ -132,7 +135,7 @@ All the sensors from the app should automatically be discovered by the MQTT inte
 
 ## 8️⃣ Troubleshooting
   
-- **Missing sensors** → verify all `entity_id`s are correct.  
+- **Missing sensors** → verify all entity_ids are correct.  
 - **MQTT not publishing** → check HA broker credentials.  
 - **Streamlit not loading** → check app logs and Supervisor logs.
 

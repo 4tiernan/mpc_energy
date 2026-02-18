@@ -56,7 +56,7 @@ Click the button above or follow the instructions below:
 ## 4️⃣ Configuring the App
 ### In the App's Configuration Tab you will find the following settings:<br><br>
 ### Risk Acknowledgement:
-After reading the risks associated with use of this app in the [readme](https://github.com/4tiernan/mpc_energy?tab=readme-ov-file#%EF%B8%8F-important-safety-notice), check this button to active the app.
+After reading the risks associated with use of this app in the [readme](https://github.com/4tiernan/mpc_energy?tab=readme-ov-file#%EF%B8%8F-important-safety-notice), confirm you accept and understand them by switching on the accept terms switch in the configuration tab.
 <br><br>
 ### Credentials:
 Enter your Amber API key, MQTT username and password as setup before.

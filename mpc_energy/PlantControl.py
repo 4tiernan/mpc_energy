@@ -571,7 +571,7 @@ class Plant:
         for day in history_days:
             day_states = [d.state for d in day]
             min_state = min(day_states[0:int(len(day_states)/2)]) # Minimum state for first half of day (avoids getting next days minimum)
-            max_state = min(day_states[int(len(day_states)/2):-1]) # Maximum state for second half of day (avoids getting next days minimum)
+            max_state = max(day_states[int(len(day_states)/2):-1]) # Maximum state for second half of day (avoids getting next days minimum)
 
             while(day[0].state > min_state): # remove any states that were from the previous day, ie ensure we start with 0 for the day
                 day.pop(0)

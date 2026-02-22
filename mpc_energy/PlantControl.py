@@ -193,8 +193,11 @@ class Plant:
         prices_buy = np.array(history["prices_buy"])
 
         # Compute per-bin kWh by taking the difference between consecutive cumulative readings
-        export_kwh_bin = np.diff(export_cumsum, prepend=0)  # prepend 0 so first bin is correct
-        import_kwh_bin = np.diff(import_cumsum, prepend=0)
+        export_kwh_bin = np.diff(export_cumsum, prepend=export_cumsum[0])  # prepend first element so first bin is correct
+        import_kwh_bin = np.diff(import_cumsum, prepend=import_cumsum[0])
+
+        export_kwh_bin = np.where(export_kwh_bin < 0, 0, export_kwh_bin) # Remove negative values (import and export should only increment positivley)
+        import_kwh_bin = np.where(import_kwh_bin < 0, 0, import_kwh_bin)
 
         # Element-wise multiply by corresponding prices
         profit_per_bin = export_kwh_bin * prices_sell

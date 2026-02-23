@@ -90,6 +90,9 @@ Enter your Amber API key, MQTT username and password as setup before.
 Start the app without configuring this if you don't know your site id. After starting the app check the logs and select your site id from the list returned by amber and enter it in the configuration.
 <br><br>
 
+### Amber Demand Price: 
+If you are on a demand tarrif with Amber, please enter the price per kW (not kWh) for peak consumption for the month. This value can usually be found through your network opperator, ie, [Energex Tarrif Information](https://www.energex.com.au/manage-your-energy/ways-to-save-for-businesses-and-farms/tariffs/residential-tariffs#:~:text=Residential%20TOU%20Demand%20%26%20Energy%20(NTC3900)2)<br><br>
+
 ### Battery Discharge Cost:
 If you desire, you may set the battery discharge cost according to the cost of your battery (not solar, inverter or other included system costs) divided by the total discharge energy the battery is warranted for. This ensures the battery will only be used when it makes financial sense to do so. You can set this value higher or lower to adjust the system behaviour though.
 <br><br>

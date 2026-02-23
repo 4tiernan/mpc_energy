@@ -19,7 +19,7 @@ You will also need [HACS](https://www.hacs.xyz/) setup to install the required i
 ## 1️⃣ Amber API
 Amber Wholesale Prices: Open the [Amber Developer](https://app.amber.com.au/developers/?_gl=1*1szghuy*_gcl_au*ODg1NzE4MjA5LjE3NzEzMTY0NTc.*_ga*MTE1ODI1NDY2Ny4xNzcxMzE2NDU3*_ga_YRCQDZ4F7P*czE3NzEzMTY0NTckbzEkZzEkdDE3NzEzMTY0NTkkajU4JGwwJGgw&_ga=2.115523334.1611969294.1771316457-1158254667.1771316457) tab, you will need to enable developer mode in settings if you haven't already.
 
-Click the 'Generate a new Token' button, give it a name and take note of the API key.
+Click the 'Generate a new Token' button, give it a name and take note of the API key. (In some cicumstances it can take up to 4 business days for the api key to begin to funciton and return your site ID)
 
 <br>
 

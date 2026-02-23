@@ -53,20 +53,29 @@ class AmberAPI:
         self.seconds_till_rate_limit_reset = None
         self.data = None
         self.demand_tarrif = self.check_for_demand_tarrif() # True if user is on a demand tarrif. 
+        self.demand_tarrif_price = None
 
         if(self.demand_tarrif):
             logger.info("The selected site is on a demand tarrif. Adjusting MPC accordingly.")
+            if(demand_price == ""):
+                logger.error("The Amber API has specified that you are on a demand tarrif but no demand price has been entered into the config. Please enter a demand price ($/kW)")
+                exit()
+            else:
+                try: 
+                    self.demand_tarrif_price = float(demand_price)
+                except:
+                    logger.error(f"The demand price enertered in the configuration: '{demand_price}' could not be converted to a float. Please only enter a numeric value.")    
+                    exit()
+            
         else:
             logger.info("No demand tarrif detected continuning normally.")
+            
 
-        if(self.demand_tarrif and demand_price == ""):
-            logger.error("The Amber API has specified that you are on a demand tarrif but no demand price has been entered into the config. Please enter a demand price ($/kW)")
-            exit()
-        try: 
-            self.demand_tarrif_price = float(demand_price)
-        except:
-            logger.error(f"The demand price enertered in the configuration: '{demand_price}' could not be converted to a float. Please only enter a numeric value.")    
-            exit()
+        
+
+
+        
+        
 
     def send_request(self, url):
         r = requests.get(url, headers=self.headers)

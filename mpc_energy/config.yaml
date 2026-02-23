@@ -33,6 +33,8 @@ options:
   ha_mqtt_pass: ""
   amber_api_key: ""
   amber_site_id: ""
+  amber_demand_price: 7
+
   battery_discharge_cost: 7
 
   battery_power_sign_convention: "- Charge, + Discharge"
@@ -83,6 +85,7 @@ schema:
   ha_mqtt_pass: password
   amber_api_key: password
   amber_site_id: str?
+  amber_demand_price: int?
   battery_discharge_cost: int?
 
   battery_power_sign_convention: list(+ Charge, - Discharge|- Charge, + Discharge)

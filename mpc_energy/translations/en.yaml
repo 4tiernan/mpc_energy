@@ -18,6 +18,10 @@ configuration:
     name: Amber Site ID
     description: If you do not know your site number, simply don't enter anything, start the app and check the logs for your site number.
  
+  amber_demand_price:
+    name: Amber Demand Price ($/kW)
+    description: If you are on a demand tarrif please enter the price per kW (not kWh) during the demand window.
+
   battery_discharge_cost:
     name: Battery Discharge Cost (c/kWh)
     description: Effective cost of discharging the battery (Leave at default if unsure).

@@ -18,6 +18,7 @@ MQTT_PASS = get_entity_id("ha_mqtt_pass")
 
 amber_api_key = get_entity_id("amber_api_key")
 amber_site_id = get_entity_id("amber_site_id", default="")
+amber_demand_price = get_entity_id("amber_demand_price", default="")
 battery_discharge_cost = get_entity_id("battery_discharge_cost")
 battery_power_sign_convention = get_entity_id("battery_power_sign_convention")
 

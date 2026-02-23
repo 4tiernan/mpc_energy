@@ -28,7 +28,6 @@ class amber_data:
     feedIn_extrapolated_forecast: list[float]
     
 
-
 UTC_OFFSET = timedelta(hours=10) #UTC time, +10 for Brisbane
 
 # 1) Get your site list
@@ -40,7 +39,7 @@ max_discharge_rate = 15
 hrs_of_discharge_available = kwh_of_discharge_available/max_discharge_rate
 
 class AmberAPI:
-    def __init__(self, api_key, site_id, errors=True):
+    def __init__(self, api_key, site_id, demand_price="", errors=True):
         self.api_key = api_key
         self.site_id = site_id
         self.base = "https://api.amber.com.au/v1"
@@ -53,7 +52,22 @@ class AmberAPI:
         self.rate_limit_remaining = None
         self.seconds_till_rate_limit_reset = None
         self.data = None
-    
+        self.demand_tarrif = self.check_for_demand_tarrif() # True if user is on a demand tarrif. 
+
+        if(self.demand_tarrif):
+            logger.info("The selected site is on a demand tarrif. Adjusting MPC accordingly.")
+        else:
+            logger.info("No demand tarrif detected continuning normally.")
+
+        if(self.demand_tarrif and demand_price == ""):
+            logger.error("The Amber API has specified that you are on a demand tarrif but no demand price has been entered into the config. Please enter a demand price ($/kW)")
+            exit()
+        try: 
+            self.demand_tarrif_price = float(demand_price)
+        except:
+            logger.error(f"The demand price enertered in the configuration: '{demand_price}' could not be converted to a float. Please only enter a numeric value.")    
+            exit()
+
     def send_request(self, url):
         r = requests.get(url, headers=self.headers)
         self.rate_limit_remaining = r.headers.get("RateLimit-Remaining")
@@ -90,8 +104,21 @@ class AmberAPI:
         url = f"{self.base}/sites"
         return self.send_request(url)
     
+    def check_for_demand_tarrif(self):
+        """Returns True if the site selected has a demand tarrif, else False"""
+        url = (f"{self.base}/sites/{self.site_id}/prices/current?next=0&previous={48}&resolution={30}")
+
+        response = self.send_request(url)
+
+        if(len(response) >= 2):
+            for i in response:
+                tarrif_info = i['tariffInformation']
+                if("demandWindow" in tarrif_info): # Check to see if the demand window key exists in the tarrif information, indicating the user is on a demand tarrif. 
+                    return True
+        return False
+
     def get_past_prices(self, previous_intervals, resolution):
-        """Return 12 hours of prices before now for a given site."""
+        """Return historic prices for a given site."""
         if(resolution != 30 and resolution != 5):
             if(self.errors):
                 raise("Resolution must be 5 or 30 minutes not: "+str(resolution))

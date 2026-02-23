@@ -1,6 +1,6 @@
 name: "MPC Energy"
 description: "A profit optimiser for home batteries with wholesale electricity pricing."
-version: "0.0.20"
+version: "0.0.21"
 slug: "mpc_energy"
 init: false
 arch:
@@ -84,7 +84,7 @@ schema:
   ha_mqtt_pass: password
   amber_api_key: password
   amber_site_id: str?
-  amber_demand_price: int?
+  amber_demand_price: str?
   battery_discharge_cost: int?
 
   estimated_daily_load_energy_consumption: int

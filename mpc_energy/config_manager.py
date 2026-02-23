@@ -12,7 +12,6 @@ def get_entity_id(key, default=None):
 
 accepted_risks = get_entity_id("accepted_risks")
 
-log_level = get_entity_id("log_level")
 MQTT_USER = get_entity_id("ha_mqtt_user")
 MQTT_PASS = get_entity_id("ha_mqtt_pass")
 
@@ -20,6 +19,7 @@ amber_api_key = get_entity_id("amber_api_key")
 amber_site_id = get_entity_id("amber_site_id", default="")
 amber_demand_price = get_entity_id("amber_demand_price", default="")
 battery_discharge_cost = get_entity_id("battery_discharge_cost")
+estimated_daily_load_energy_consumption = get_entity_id("estimated_daily_load_energy_consumption")
 battery_power_sign_convention = get_entity_id("battery_power_sign_convention")
 
 battery_max_discharge_power_limit_entity_id = get_entity_id("battery_max_discharge_power_limit_entity_id")

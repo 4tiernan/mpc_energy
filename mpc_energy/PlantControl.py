@@ -21,8 +21,6 @@ class BinnedStateClass:
     time: datetime # Start time of the bin
 
 
-
-
 class Plant:
     def __init__(self, ha):
         self.ha = ha
@@ -65,7 +63,6 @@ class Plant:
                 return val  
             except Exception as e:
                 logger.error(f"Unable to get entity id or float from config entry '{entry_id}'. Please check the entity id or ensure it is a float. Exception: {e}")
-
 
     def get_plant_mode(self):
         return self.ha.get_state(config_manager.ems_control_mode_entity_id)["state"]
@@ -196,8 +193,11 @@ class Plant:
         prices_buy = np.array(history["prices_buy"])
 
         # Compute per-bin kWh by taking the difference between consecutive cumulative readings
-        export_kwh_bin = np.diff(export_cumsum, prepend=0)  # prepend 0 so first bin is correct
-        import_kwh_bin = np.diff(import_cumsum, prepend=0)
+        export_kwh_bin = np.diff(export_cumsum, prepend=export_cumsum[0])  # prepend first element so first bin is correct
+        import_kwh_bin = np.diff(import_cumsum, prepend=import_cumsum[0])
+
+        export_kwh_bin = np.where(export_kwh_bin < 0, 0, export_kwh_bin) # Remove negative values (import and export should only increment positivley)
+        import_kwh_bin = np.where(import_kwh_bin < 0, 0, import_kwh_bin)
 
         # Element-wise multiply by corresponding prices
         profit_per_bin = export_kwh_bin * prices_sell
@@ -337,6 +337,13 @@ class Plant:
 
         load_state_history = self.ha.get_history(config_manager.load_power_entity_id, start_time=start, end_time=end)
 
+        # Check to see if the requested amount of data was recieved, use the configured default if not
+        if(not self.validate_returned_data_timedelta(data=load_state_history, requested_start=start, requested_end=end)):
+            configured_avg_load_power = config_manager.estimated_daily_load_energy_consumption / 24 # Divide by 24 to convert from daily energy to power
+            logger.error(f"Using default load power of {configured_avg_load_power} watts for the base load.")
+            return configured_avg_load_power
+        
+        # If we get here the requested amount of data must have been received. 
         load_history = [h.state for h in load_state_history]
         
         load_history_clean = [
@@ -483,8 +490,42 @@ class Plant:
         #    print(avg_day[i].states)       
 
         return binned_history
-        
+    
+    def validate_returned_data_timedelta(self, data, requested_start, requested_end, tollerance_minutes=30):
+        '''
+        data -> array containing datetime objs (data[i].time) for each datapoint
+        returns True if the requested amount of data was returned.
+        '''
+        if(not data):
+            logger.error(f"Data returned from the api for the requested times: Start: {requested_start}, End: {requested_end}")
+            return False
+        else:
+            first_time = data[0].time
+            last_time = data[-1].time
+
+            # Determine if less data time span was returned than requested
+            expected_span = requested_end - requested_start
+            actual_span = last_time - first_time 
+
+            # If 30 mintues less data than expected was returned, use the estimated load energy configured.
+            if actual_span < expected_span - datetime.timedelta(minutes=tollerance_minutes):
+                logger.warning(f"{expected_span.days} days of load data was requested but only {actual_span.days} were returned")
+                return False
+        return True
+
     def update_load_avg(self, days_ago=7):
+        avg_day = [] # Create the avg day array to contain the average load energy profile
+        dt = datetime.datetime.combine(
+            datetime.date.today(),
+            datetime.time.min
+        )
+        time_bucket_size = 5 # Size of time bucket in Minutes 
+
+        for i in range(int((24*60)/time_bucket_size)):
+            avg_day.append(BinnedStateClass(avg_state=None, states=[], time=dt.time()))
+            dt = dt + datetime.timedelta(minutes=time_bucket_size)
+
+
         today = datetime.datetime.now(HA_TZ).date()
         end_date = today - datetime.timedelta(days=1)
         start_date = end_date - datetime.timedelta(days=days_ago)
@@ -495,7 +536,20 @@ class Plant:
 
         history = self.ha.get_history(config_manager.plant_daily_load_kwh_entity_id, start_time=start, end_time=end)
         
+        # Check to see if the requested amount of data was recieved, use the configured default if not
+        if(not self.validate_returned_data_timedelta(data=history, requested_start=start, requested_end=end)):
+            configured_avg_load = config_manager.estimated_daily_load_energy_consumption 
+            logger.error(f"Using default load energy of {configured_avg_load} kWh per day.")
+
+            # Create a linearly spaced array climbing from 0 to the total load over a day
+            for i in range(len(avg_day)):
+                    avg_day[i].avg_state = (i/len(avg_day)) * configured_avg_load
+
+            return avg_day 
         
+
+        # If we've got here we must have the requested number of days of load data     
+
         # Remove any invalid states from the history list (Unavailable, None, etc)
         clean_history = []
         for hist in history:
@@ -520,7 +574,7 @@ class Plant:
         for day in history_days:
             day_states = [d.state for d in day]
             min_state = min(day_states[0:int(len(day_states)/2)]) # Minimum state for first half of day (avoids getting next days minimum)
-            max_state = min(day_states[int(len(day_states)/2):-1]) # Maximum state for second half of day (avoids getting next days minimum)
+            max_state = max(day_states[int(len(day_states)/2):-1]) # Maximum state for second half of day (avoids getting next days minimum)
 
             while(day[0].state > min_state): # remove any states that were from the previous day, ie ensure we start with 0 for the day
                 day.pop(0)
@@ -529,17 +583,6 @@ class Plant:
             while(day[-1].state < max_state): # remove any states that were from the previous day, ie ensure we start with 0 for the day
                 day.pop(-1)
                 #print("Popping End of Day Data")
-
-        avg_day = []
-        dt = datetime.datetime.combine(
-            datetime.date.today(),
-            datetime.time.min
-        )
-        time_bucket_size = 5 # Size of time bucket in Minutes 
-        for i in range(int((24*60)/time_bucket_size)):
-            avg_day.append(BinnedStateClass(avg_state=None, states=[], time=dt.time()))
-            dt = dt + datetime.timedelta(minutes=time_bucket_size)
-            
         
         for day in history_days:
             i = 0

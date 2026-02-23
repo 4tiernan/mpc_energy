@@ -45,16 +45,21 @@ def plot_mpc_results(st, output):
     Plot MPC results using Plotly (dual-axis, 2 subplots)
     """
 
-    col1, col2, col3, col4, col5, col6, col7 = st.columns(7)
+    col1, col2, col3, col4, col5 = st.columns(5)
 
     col1.subheader("🔋 MPC Plan Dashboard")
 
     col2.metric(
-        label="Profit Today",
-        value=f"${st.session_state.mpc_output['profit_today']:.2f}"
+        label="Profit Already Today",
+        value=f"${st.session_state.mpc_output['profit_already_today']:.2f}"
     )
 
     col3.metric(
+        label="Profit Remaining Today",
+        value=f"${st.session_state.mpc_output['profit_remaining_today']:.2f}"
+    )    
+
+    col4.metric(
         label="Profit Tomorrow",
         value=f"${st.session_state.mpc_output['profit_tomorrow']:.2f}"
     )

@@ -55,13 +55,18 @@ if(config_manager.amber_site_id == ""):
     from amber_api import AmberAPI
     amber = AmberAPI(config_manager.amber_api_key, "")
     sites = amber.get_sites()
+    if(not sites):
+        logger.error("No sites were found, amber may not have transfered your connection yet. This will take approximatly 2 days (https://help.amber.com.au/hc/en-us/articles/34942303478797-Solar-and-Battery-Onboarding-What-to-Expect-When-Enrolling-to-SmartShift). Please try again later.")
+        exit()
+        
     string_data = ""
+    logger.info(sites)    
     for site in sites:
         available_channels = []
         for channel in site['channels']:
             available_channels.append(channel['type'])
         string_data = string_data + f"Site ID: {site['id']},  NMI: {site['nmi']}, Channels: {available_channels}"
-    logger.error(f"Amber Site ID not selected, please copy the desired site number into the configuration tab:\n{string_data}")
+    logger.warning(f"Amber Site ID not selected, please copy the desired site number into the configuration tab:\n({string_data})")
     exit()
 
 # HA APP Setup Notes:
@@ -219,8 +224,13 @@ def update_sensors(amber_data):
     ha_mqtt.import_cost_sensor.set_state(plant.daily_import_cost)
     ha_mqtt.export_profit_sensor.set_state(plant.daily_export_profit)
     ha_mqtt.net_profit_sensor.set_state(plant.daily_net_profit)
+
+    if(plant.grid_power < 0):
+        price = amber_data.feedIn_price
+    else:
+        price = amber_data.general_price
     
-    ha_mqtt.system_state_sensor.set_state(EC.working_mode + f" {round(plant.grid_power,1)}@{amber_data.feedIn_price} c/kWh ${round(plant.daily_net_profit,2)} profit")
+    ha_mqtt.system_state_sensor.set_state(EC.working_mode + f" {round(abs(plant.grid_power),1)}@{price} c/kWh ${round(plant.daily_net_profit,2)} profit")
     ha_mqtt.base_load_sensor.set_state(round(1000*plant.get_base_load_estimate(),2)) # converted to w from kW
     ha_mqtt.effective_price_sensor.set_state(determine_effective_price(amber_data)) 
     ha_mqtt.avg_daily_load_sensor.set_state(round(plant.avg_daily_load,2))

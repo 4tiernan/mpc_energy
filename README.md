@@ -1,6 +1,7 @@
 # MPC Energy
 A profit optimiser for home batteries with wholesale electricity pricing.
-<img width="1688" height="860" alt="image" src="https://github.com/user-attachments/assets/fdcf2482-c2e7-4912-9fc3-9ba50e714bd3" />
+<img width="2614" height="1465" alt="image" src="https://github.com/user-attachments/assets/0f053133-56cd-49b7-815b-8fd2dbcb6717" />
+
 <br/>
 <br/>
 ## 🚀 Getting Started

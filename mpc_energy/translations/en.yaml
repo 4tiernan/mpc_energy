@@ -1,10 +1,7 @@
 configuration:
   accepted_risks:
     name: Confirm you have read and accepted the risks associated with use of this app.
-
-  log_level:
-    name: Log Level
-
+    
   ha_mqtt_user:
     name: MQTT Broker Username
 
@@ -26,6 +23,10 @@ configuration:
     name: Battery Discharge Cost (c/kWh)
     description: Effective cost of discharging the battery (Leave at default if unsure).
 
+  estimated_daily_load_energy_consumption:
+    name: Estimated Daily Load Energy Consumption
+    description: Enter your approximate daily energy consumption. (This is used until the system has enough historical data to build a model of your usage which takes 3 days)
+
   battery_power_sign_convention:
     name: Battery Power Sign Convention
     description: Select which sign convention your battery uses. Sigenergy uses - Charge, + Discharge by default.
@@ -41,14 +42,15 @@ configuration:
   
   pv_max_power_limit_entity_id:
     name: Max PV DC Power (kW, Set to a value or an entity)
+    description: Please see the onboarding docs for how to set this value.
 
   import_max_power_limit_entity_id:
     name: Max Import Power (kW, Set to a value or an entity)
-    description: Lower this value if you are tripping breakers
+    description: Lower this value if you are tripping breakers, see onboarding docs for more info on how to set this.
 
   export_max_power_limit_entity_id:
     name: Max Export Power (kW, Set to a value or an entity)
-    description: Lower this value if you are tripping breakers
+    description: Lower this value if you are tripping breakers, see onboarding docs for more info on how to set this.
 
   solcast_forecast_today_entity_id:
     name: Solcast Forecast Today Entity (kWh with attributes for whole day)

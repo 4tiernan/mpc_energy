@@ -112,6 +112,8 @@ class AmberAPI:
 
         if(len(response) >= 2):
             for i in response:
+                logger.info(i)
+                exit()
                 tarrif_info = i['tariffInformation']
                 if("demandWindow" in tarrif_info): # Check to see if the demand window key exists in the tarrif information, indicating the user is on a demand tarrif. 
                     return True

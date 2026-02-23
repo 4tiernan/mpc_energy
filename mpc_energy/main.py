@@ -136,7 +136,8 @@ while(started == False):
         mpc = MPC(
             ha=ha,
             plant=plant,
-            EC=EC
+            EC=EC, 
+            demand_tarrif=amber.demand_tarrif
         )     
 
         # Start Streamlit dashboard

@@ -26,7 +26,7 @@ mqtt_client.connect(const.MQTT_HOST, const.MQTT_PORT)
 mqtt_client.loop_start()
 
 class MPC:
-    def __init__(self, ha, plant, EC):
+    def __init__(self, ha, plant, EC, demand_tarrif):
         self.plant = plant
         self.ha = ha
         self.EC = EC
@@ -56,6 +56,7 @@ class MPC:
         self.grid_import_penalty_cost = 0.02 # $/kWh penalty for using grid power
         self.solar_curtailment_penalty = 0 # $/kWh just enough to encorage use of the solar
         self.min_solar_export_price = 0.02 # $/kWh minimum price to sell solar 
+        self.demand_tarrif = demand_tarrif # True if the selected site has a demand tarrif applied
        
     def update_limits(self):
         self.battery_capacity = self.plant.rated_capacity  # kWh

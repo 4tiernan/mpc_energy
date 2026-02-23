@@ -31,7 +31,7 @@ options:
   ha_mqtt_pass: ""
   amber_api_key: ""
   amber_site_id: ""
-  amber_demand_price: 7
+  amber_demand_price: ""
 
   battery_discharge_cost: 7
 

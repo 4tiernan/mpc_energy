@@ -258,12 +258,12 @@ def run_controller(price_update=False):
             EC.self_consumption()
 
         last_control_mode = selected_controller # Reset the controller tracker
-
-        if(price_update and selected_controller != "MPC"):
-            mpc.run_optimisation(amber_data) # Run the MPC optimisation each time the price updates to keep the plot updated if the mpc.ran() function wasn't called
  
         # If auto control is on, run the energy controller and RBC (every 2 seconds as we need to keep track of some things)
         EC.run(amber_data=amber_data)
+
+    if(price_update and selected_controller != "MPC"):
+        mpc.run_optimisation(amber_data) # Run the MPC optimisation each time the price updates to keep the plot updated if the mpc.ran() function wasn't called
 
 
     else: # Automatic Control Turned off

@@ -87,7 +87,11 @@ class HomeAssistantAPI:
         response = self.ha_request(url=url, method='get', params=params)
         history = []
         date_format = "%Y-%m-%dT%H:%M:%S"
-        logger.warning(response)
+        
+        if not response:
+            logger.warning(f"No history returned for '{entity_id}' between the times of Start: {start_time} and End: {end_time}. If sensor is new, please wait until history can fill up.")
+            return history
+        
         for i in response[0]:
             state_time = datetime.fromisoformat(i["last_updated"])
             state_time = state_time.astimezone(HA_TZ)

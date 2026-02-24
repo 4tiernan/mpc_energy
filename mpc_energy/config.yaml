@@ -1,6 +1,6 @@
 name: "MPC Energy"
 description: "A profit optimiser for home batteries with wholesale electricity pricing."
-version: "0.0.27"
+version: "0.0.28"
 slug: "mpc_energy"
 init: false
 arch:

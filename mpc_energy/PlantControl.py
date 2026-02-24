@@ -144,7 +144,9 @@ class Plant:
         feed_in_state_history = self.ha.get_history("sensor.mpc_energy_manager_device_feed_in_price", start_time=start, end_time=end) 
         general_price_state_history = self.ha.get_history("sensor.mpc_energy_manager_device_general_price", start_time=start, end_time=end)
         working_mode_state_history = self.ha.get_history("sensor.mpc_energy_manager_device_working_mode", start_time=start, end_time=end, type=str)
-        
+
+        #requested_data_received = self.validate_returned_data_timedelta(inverter_power_state_history, start, end)
+
 
         binned_battery_soc_state_history = self.bin_data(battery_soc_state_history, bin_period=bin_period, start_bin_datetime=start, bin_qty=data_bin_qty)
         binned_battery_power_state_history = self.bin_data(battery_power_state_history, bin_period=bin_period, start_bin_datetime=start, bin_qty=data_bin_qty)
@@ -189,8 +191,7 @@ class Plant:
         history = self.historical_data(hours=hours_since_midnight, bin_period=5)
 
         # Check to see if the requested amount of data was recieved, use the configured default if not
-        if(not self.validate_returned_data_timedelta(data=history, requested_start=start, requested_end=end)):
-            configured_avg_load = config_manager.estimated_daily_load_energy_consumption 
+        if(len(history['prices_sell']) < 2):
             logger.error(f"Insufficent data to calulate profit.")
             return {
                 "total_export_revenue": 0,
@@ -352,7 +353,7 @@ class Plant:
         # Check to see if the requested amount of data was recieved, use the configured default if not
         if(not self.validate_returned_data_timedelta(data=load_state_history, requested_start=start, requested_end=end)):
             configured_avg_load_power = config_manager.estimated_daily_load_energy_consumption / 24 # Divide by 24 to convert from daily energy to power
-            logger.error(f"Using default load power of {configured_avg_load_power} kW for the base load.")
+            logger.warning(f"Using default load power of {configured_avg_load_power} kW for the base load.")
             return configured_avg_load_power
         
         # If we get here the requested amount of data must have been received. 
@@ -551,7 +552,7 @@ class Plant:
         # Check to see if the requested amount of data was recieved, use the configured default if not
         if(not self.validate_returned_data_timedelta(data=history, requested_start=start, requested_end=end)):
             configured_avg_load = config_manager.estimated_daily_load_energy_consumption 
-            logger.error(f"Using default load energy of {configured_avg_load} kWh per day.")
+            logger.warning(f"Using default load energy of {configured_avg_load} kWh per day.")
 
             # Create a linearly spaced array climbing from 0 to the total load over a day
             for i in range(len(avg_day)):

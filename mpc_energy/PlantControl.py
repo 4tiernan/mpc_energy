@@ -340,7 +340,7 @@ class Plant:
         # Check to see if the requested amount of data was recieved, use the configured default if not
         if(not self.validate_returned_data_timedelta(data=load_state_history, requested_start=start, requested_end=end)):
             configured_avg_load_power = config_manager.estimated_daily_load_energy_consumption / 24 # Divide by 24 to convert from daily energy to power
-            logger.error(f"Using default load power of {configured_avg_load_power} watts for the base load.")
+            logger.error(f"Using default load power of {configured_avg_load_power} kW for the base load.")
             return configured_avg_load_power
         
         # If we get here the requested amount of data must have been received. 

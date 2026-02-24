@@ -66,7 +66,7 @@ def plot_mpc_results(st, output):
 
     if(output["demand_tarrif"]):
         col5.metric(
-            label="Peak Demand (During Window)",
+            label="Peak Demand (During Demand Window)",
             value=f"{output['peak_demand']:.2f} kW"
         )
 

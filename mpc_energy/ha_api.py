@@ -87,6 +87,7 @@ class HomeAssistantAPI:
         response = self.ha_request(url=url, method='get', params=params)
         history = []
         date_format = "%Y-%m-%dT%H:%M:%S"
+        logger.warning(response)
         for i in response[0]:
             state_time = datetime.fromisoformat(i["last_updated"])
             state_time = state_time.astimezone(HA_TZ)

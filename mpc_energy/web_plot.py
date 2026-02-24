@@ -139,6 +139,23 @@ def plot_mpc_results(st, output):
                 line_width=0,
             )
         )
+    
+    # Shade for Demand Window
+    for t, dw in enumerate(output["demand_window_forecast"][:-1]):
+        if dw:
+            shapes.append(dict(
+                type="rect",
+                xref="x",
+                yref="paper",
+                x0=time_index[t],
+                x1=time_index[t] + datetime.timedelta(minutes=5),
+                y0=0,
+                y1=1,
+                fillcolor="red",
+                opacity=0.2,
+                layer="below",
+                line_width=0,
+            ))
 
     fig.update_layout(shapes=shapes)
 
@@ -290,24 +307,6 @@ def plot_mpc_results(st, output):
 
     if soc_max is not None:
         fig.add_hline(y=soc_max, row=2, col=1, line_dash="dash", line_color="red")
-
-    for t, dw in enumerate(output["demand_window_forecast"][:-1]):
-        if dw:
-            shapes.append(dict(
-                type="rect",
-                xref="x",
-                yref="y3",  # row 2's y-axis
-                x0=time_index[t],
-                x1=time_index[t] + datetime.timedelta(minutes=5),
-                y0=0,
-                y1=1,
-                yref="paper",
-                fillcolor="red",
-                opacity=0.2,
-                layer="below",
-                line_width=0,
-            ))
-
 
     # ===============================
     # AXES LIMITS (soft defaults)

@@ -93,7 +93,7 @@ class MPC:
         # Amber Forecast (forecast hrs is set in main.py in the get_data call)
         general_price_forecast = amber_data.general_extrapolated_forecast
         feed_in_price_forecast = amber_data.feedIn_extrapolated_forecast
-        self.demand_window_forecast = np.array(amber_data.demand_window_extrapolated_forecast)
+        self.demand_window_forecast = np.array(amber_data.demand_window_extrapolated_forecast, dtype=float)
 
         # Convert to $/kWh
         self.prices_buy = np.array(general_price_forecast) / 100      # buy price in $ from cents
@@ -186,13 +186,20 @@ class MPC:
         # -------------------------------
         # Objective: Minimise cost including battery discharge cost
         # -------------------------------
+
+        objective_list = (
+            + cp.multiply(grid_import, self.prices_buy) * self.dt_5min
+            - cp.multiply(grid_export, self.prices_sell) * self.dt_5min
+            + cp.multiply(grid_import, self.grid_import_penalty_cost) * self.dt_5min
+            + cp.multiply(self.solar_curtailment_penalty, solar_curtail) * self.dt_5min
+            + cp.multiply(self.battery_min_export_cost, p_discharge) * self.dt_5min
+        )
+
+        if(self.demand_tarrif):
+            objective_list = objective_list + (cp.multiply(grid_import, self.demand_window_forecast) * config_manager.amber_demand_price * self.dt_5min) # Demand pricing
+
         objective = cp.Minimize(
-            cp.sum(cp.multiply(grid_import, self.prices_buy) * self.dt_5min
-                - cp.multiply(grid_export, self.prices_sell) * self.dt_5min
-                + cp.multiply(grid_import, self.grid_import_penalty_cost) * self.dt_5min
-                + cp.multiply(self.solar_curtailment_penalty, solar_curtail) * self.dt_5min
-                + cp.multiply(self.battery_min_export_cost, p_discharge) * self.dt_5min
-                ))
+            cp.sum(objective_list))
         
         #  self.charge_reward = 0.00
         # - cp.multiply(self.charge_reward, p_charge) * self.dt_5min

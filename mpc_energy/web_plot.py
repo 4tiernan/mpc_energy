@@ -146,14 +146,14 @@ def plot_mpc_results(st, output):
             shapes.append(dict(
                 type="rect",
                 xref="x",
-                yref="paper",
+                yref="y3",  # SOC subplot y-axis
                 x0=time_index[t],
                 x1=time_index[t] + datetime.timedelta(minutes=5),
                 y0=0,
-                y1=1,
+                y1=40,  # or soc_max if available
                 fillcolor="red",
-                opacity=0.2,
-                layer="below",
+                opacity=0.3,
+                layer="above",  # draw above other shapes so it's visible
                 line_width=0,
             ))
 

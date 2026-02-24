@@ -132,8 +132,8 @@ class MPC:
         constraints += [soc[0] == self.soc_init] # Set the inital soc 
         #constraints += [soc[-1] == min(self.soc_max*0.99, self.soc_init)] # Set the final soc to be close to the starting soc but limit to ensure possibility
 
-        self.prices_sell[0:12] = 10 # Allow testing of various pricings
-        self.prices_buy[0:12] = 11
+        self.prices_sell[0:12] = 5 # Allow testing of various pricings
+        self.prices_buy[0:12] = 6
 
         #self.prices_sell[100:150] = 0.50 # Allow testing of various pricings
         #self.prices_buy[100:150] = 0.70
@@ -201,12 +201,6 @@ class MPC:
         objective = cp.Minimize(
             cp.sum(objective_list))
         
-        #  self.charge_reward = 0.00
-        # - cp.multiply(self.charge_reward, p_charge) * self.dt_5min
-        # + battery_discharge_cost * p_discharge * dt
-        # + battery_export_cost * (grid_export - solar_5min) * dt
-        # + cp.multiply(battery_export, low_price_mask * self.battery_min_export_cost) * self.dt_5min
-
         # ---------- Solve ----------
         prob = cp.Problem(objective, constraints)
         prob.solve(solver=cp.ECOS)

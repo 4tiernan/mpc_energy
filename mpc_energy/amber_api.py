@@ -27,7 +27,7 @@ class amber_data:
     feedIn_12hr_forecast_sorted: list[PriceForecast]
     general_extrapolated_forecast: list[float]
     feedIn_extrapolated_forecast: list[float]
-    demand_window_forecast: list[bool]  # True for each 5-min interval that falls in a demand window
+    demand_window_extrapolated_forecast: list[bool]  # True for each 5-min interval that falls in a demand window
     
 
 UTC_OFFSET = timedelta(hours=10) #UTC time, +10 for Brisbane
@@ -154,7 +154,7 @@ class AmberAPI:
         demand_window = False
         if(self.demand_tarrif):
             try:
-                demand_window = bool(i['tariffInformation']['demandWindow'])
+                demand_window = bool(interval['tariffInformation']['demandWindow'])
             except:
                     logger.warning(f"No demand window flag was found in api call but site is marked as having a demand tarrif. Interval Data '{interval}'")
         
@@ -284,10 +284,11 @@ class AmberAPI:
             feed_in_price = self.data.feedIn_price
 
         if((not estimate and forecast_hrs != None) or self.data == None):
-            [general_extrapolated_forecast, feedIn_extrapolated_forecast] = self.get_extrapolated_forecast(hours=forecast_hrs)
+            [general_extrapolated_forecast, feedIn_extrapolated_forecast, demand_window_extrapolated_forecast] = self.get_extrapolated_forecast(hours=forecast_hrs)
         else:
             general_extrapolated_forecast = self.data.general_extrapolated_forecast
             feedIn_extrapolated_forecast = self.data.feedIn_extrapolated_forecast
+            demand_window_extrapolated_forecast = self.data.demand_window_extrapolated_forecast
 
         self.data = amber_data(
             general_price=round(general_price),
@@ -300,7 +301,8 @@ class AmberAPI:
             general_12hr_forecast_sorted=storted_general_forecast,
             feedIn_12hr_forecast_sorted=storted_feed_in_forecast,
             general_extrapolated_forecast=general_extrapolated_forecast,
-            feedIn_extrapolated_forecast=feedIn_extrapolated_forecast
+            feedIn_extrapolated_forecast=feedIn_extrapolated_forecast,
+            demand_window_extrapolated_forecast=demand_window_extrapolated_forecast
             )
         return self.data
       

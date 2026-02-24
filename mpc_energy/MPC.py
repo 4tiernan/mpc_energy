@@ -93,6 +93,7 @@ class MPC:
         # Amber Forecast (forecast hrs is set in main.py in the get_data call)
         general_price_forecast = amber_data.general_extrapolated_forecast
         feed_in_price_forecast = amber_data.feedIn_extrapolated_forecast
+        self.demand_window_forecast = np.array(amber_data.demand_window_extrapolated_forecast)
 
         # Convert to $/kWh
         self.prices_buy = np.array(general_price_forecast) / 100      # buy price in $ from cents
@@ -257,6 +258,7 @@ class MPC:
                 "battery_power": battery_power,
                 "soc": battery_soc,
                 "grid_net": grid_net,
+                "demand_window_forecast": self.demand_window_forecast.tolist(),
                 "prices_buy": self.prices_buy.tolist(),
                 "prices_sell": self.prices_sell.tolist(),
                 "profit_already_today": float(self.daily_profit),

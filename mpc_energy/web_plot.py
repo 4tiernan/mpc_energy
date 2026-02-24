@@ -188,6 +188,7 @@ def plot_mpc_results(st, output):
         col=1,
         title="Control Mode",
     )
+    
 
     max_abs = max(abs(grid_energy_kwh.min()), abs(grid_energy_kwh.max()))*1.2
     fig.update_yaxes(
@@ -281,6 +282,13 @@ def plot_mpc_results(st, output):
         y=round_list(output["soc"][:-1]),
         name="SOC (kWh)",
         line=dict(color="purple")
+    ), row=2, col=1)
+
+    fig.add_trace(go.Scatter(
+        x=time_index,
+        y=output["demand_window_forecast"][:-1],
+        name="Demand Window",
+        line=dict(color="Red")
     ), row=2, col=1)
 
     # SOC constraint lines (only if present)

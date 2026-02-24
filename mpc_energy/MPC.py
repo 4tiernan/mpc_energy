@@ -88,8 +88,14 @@ class MPC:
 
         # Inject the current real load and solar values into the sim
         if(inject_real_values):
-            self.solar_5min[0] = self.plant.solar_kw #change to 5min avg of these instantaneous values
-            self.load_5min[0] = self.plant.load_power
+            # Inject the avg of the last 5 minutes of solar and load power
+            self.solar_5min[0] = (self.solar_5min[0] + self.historical_data["solar_power"][-1]) / 2 # Avgerage the last 5 minutes of solar with the forecast to make a more realistic value for the current timestep
+            self.load_5min[0] = self.historical_data["load_power"][-1] # Inject the current real load power value into the sim (change to 5min avg of the most recent 5min interval if possible)
+
+
+            # Inject the current instantaneous solar and load values into the sim
+            #self.solar_5min[0] = self.plant.solar_kw #change to 5min avg of these instantaneous values
+            #self.load_5min[0] = self.plant.load_power
 
         # Amber Forecast (forecast hrs is set in main.py in the get_data call)
         self.demand_tarrif_price = amber_data.demand_tarrif_price

@@ -267,7 +267,7 @@ class AmberAPI:
         if(self.data == None or partial_update == False):
             [general_price_forecast, feed_in_price_forecast] = self.get_forecast(next_intervals=24, resolution=30)
 
-            storted_general_forecast = feed_in_price_forecast.copy()
+            storted_general_forecast = general_price_forecast.copy()
             storted_general_forecast.sort(key=lambda x: x.price, reverse=True)
 
             storted_feed_in_forecast = feed_in_price_forecast.copy()

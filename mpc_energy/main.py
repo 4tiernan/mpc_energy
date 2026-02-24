@@ -173,11 +173,7 @@ last_amber_update_timestamp = time.time()
 amber_data = amber.get_data(forecast_hrs=mpc.forecast_hrs)
 last_control_mode = ""
         
-def print_values(amber_data):
-    logger.info("....")
-    logger.info(f"Feed In: {amber_data.feedIn_price} c/kWh")
-    logger.info(f"Max 12hr Feed In: {amber_data.feedIn_max_forecast_price} c/kWh")
-    logger.info(f"General: {amber_data.general_price} c/kWh")
+    
     
 # Update HA MQTT sensors
 def update_sensors(amber_data):
@@ -204,7 +200,7 @@ def update_sensors(amber_data):
     
     ha_mqtt.system_state_sensor.set_state(EC.working_mode + f" {round(abs(plant.grid_power),1)}@{price} c/kWh ${round(plant.daily_net_profit,2)} profit")
     ha_mqtt.base_load_sensor.set_state(round(1000*plant.get_base_load_estimate(),2)) # converted to w from kW
-    ha_mqtt.effective_price_sensor.set_state(round(mpc.current_effective_price*100, 2)) 
+    ha_mqtt.effective_price_sensor.set_state(round(mpc.current_effective_price*100)) 
     ha_mqtt.avg_daily_load_sensor.set_state(round(plant.avg_daily_load,2))
 
 def run_controller(price_update=False):
@@ -263,6 +259,7 @@ def main_loop_code():
         if(amber_data.prices_estimated): # If prices are estimated, don't use them
             seconds_till_next_update = 5
             partial_update = True # Make the next update a partial one
+            logger.info(f"Prices are estimated, running partial update without price update. Will update prices in {seconds_till_next_update} seconds.")
         else: # If prices are real, use them
             partial_update = False
             real_price_offset = 30 # seconds after the period begins when the real price starts
@@ -274,11 +271,10 @@ def main_loop_code():
 
         if(not amber_data.prices_estimated): #If the prices are real
             run_controller(price_update=True) # Send the price update flag to indicate that new pricing data has been received.
-            print_values(amber_data) # Print the new latest prices     
-            
-        logger.info(f"Partial Update: {partial_update}")
-        logger.info(f"Seconds till next update: {round(next_amber_update_timestamp - time.time())}")
-        
+
+            logger.info(f"General: {amber_data.general_price} c/kWh  Feed In: {amber_data.feedIn_price} c/kWh  Max 12hr Feed In: {amber_data.feedIn_max_forecast_price} c/kWh")    
+            logger.info(f"Seconds till next update: {round(next_amber_update_timestamp - time.time())}")
+            logger.info("....")
     
     run_controller() # Run the selected controller         
     update_sensors(amber_data)

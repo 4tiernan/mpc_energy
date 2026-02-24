@@ -265,6 +265,7 @@ class MPC:
             load_power = [round(x, 2) for x in self.load_5min]
 
 
+
             # store it in shared dict
             output = {
                 "historical_data_length": 0,
@@ -273,8 +274,6 @@ class MPC:
                 "soc": battery_soc,
                 "grid_net": grid_net,
                 "demand_tarrif": self.demand_tarrif,
-                "demand_window_forecast": self.demand_window_forecast.tolist(),
-                "peak_demand": float(peak_demand.value),
                 "prices_buy": self.prices_buy.tolist(),
                 "prices_sell": self.prices_sell.tolist(),
                 "profit_already_today": float(self.daily_profit),
@@ -290,6 +289,12 @@ class MPC:
             output = self.convert_to_python(output) # Ensure all arrays and data is in the plain python format, ie no numpy
             plan_modes = self.determine_plan_modes(output) # Determine the control mode for each time period
             output.update({"plan_modes": plan_modes}) # Add the control modes to the output to be plotted
+
+            if(self.demand_tarrif):
+                output.update({
+                    "demand_window_forecast": self.demand_window_forecast.tolist(),
+                    "peak_demand": float(peak_demand.value),
+                })
 
             # Add the historical data to the mpc plan
             plotted_output={}

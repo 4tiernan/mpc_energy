@@ -204,7 +204,7 @@ def update_sensors(amber_data):
     
     ha_mqtt.system_state_sensor.set_state(EC.working_mode + f" {round(abs(plant.grid_power),1)}@{price} c/kWh ${round(plant.daily_net_profit,2)} profit")
     ha_mqtt.base_load_sensor.set_state(round(1000*plant.get_base_load_estimate(),2)) # converted to w from kW
-    ha_mqtt.effective_price_sensor.set_state(round(mpc.current_effective_price/100, 2)) 
+    ha_mqtt.effective_price_sensor.set_state(round(mpc.current_effective_price*100, 2)) 
     ha_mqtt.avg_daily_load_sensor.set_state(round(plant.avg_daily_load,2))
 
 def run_controller(price_update=False):

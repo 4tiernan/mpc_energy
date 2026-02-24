@@ -145,9 +145,7 @@ class AmberAPI:
 
                 elif i["channelType"] == "feedIn":
                     price = -i["perKwh"] 
-                    demand_window = self.demand_window_present(i)
-
-                    interval = PriceForecast(price=price, start_time=start, end_time=end, demand_window=demand_window)  
+                    interval = PriceForecast(price=price, start_time=start, end_time=end, demand_window=False)  
                     previous_feed_in_price.append(interval)
 
         return [previous_general_prices, previous_feed_in_price]
@@ -195,9 +193,7 @@ class AmberAPI:
                         price = -i["advancedPrice"]["predicted"]
                     else:
                         price = -i["perKwh"]   
-                    demand_window = self.demand_window_present(i)
-
-                    interval = PriceForecast(price=price, start_time=start, end_time=end, demand_window=demand_window) 
+                    interval = PriceForecast(price=price, start_time=start, end_time=end, demand_window=False) 
                     feed_in_price_forecast.append(interval)
 
         return [general_price_forecast, feed_in_price_forecast]

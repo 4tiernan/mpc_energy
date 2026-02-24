@@ -22,7 +22,7 @@ class EnergyController():
         self.last_working_mode = None
 
         #Self consume on startup for saftey if auto control on
-        if(ha.get_state("input_select.automatic_control_mode")["state"] == "On"):
+        if(ha_mqtt.automatic_control_switch.state == True):
             self.self_consumption()
                 
     def dispatch(self, grid_export_limit=None):

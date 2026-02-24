@@ -497,7 +497,7 @@ class Plant:
         returns True if the requested amount of data was returned.
         '''
         if(not data):
-            logger.error(f"Data returned from the api for the requested times: Start: {requested_start}, End: {requested_end}")
+            logger.error(f"No data returned from the api for the requested times: Start: {requested_start}, End: {requested_end}")
             return False
         else:
             first_time = data[0].time

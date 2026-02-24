@@ -56,7 +56,7 @@ if(config_manager.amber_site_id == ""):
     amber = AmberAPI(config_manager.amber_api_key, "")
     sites = amber.get_sites()
     if(not sites):
-        logger.error("No sites were found, amber may not have transfered your connection yet. This will take approximatly 2 days (https://help.amber.com.au/hc/en-us/articles/34942303478797-Solar-and-Battery-Onboarding-What-to-Expect-When-Enrolling-to-SmartShift). Please try again later.")
+        logger.error("No sites were found, amber may not have transfered your connection yet. This can take approximatly 4 days (https://help.amber.com.au/hc/en-us/articles/34942303478797-Solar-and-Battery-Onboarding-What-to-Expect-When-Enrolling-to-SmartShift). Please try again later.")
         exit()
         
     string_data = ""

@@ -136,7 +136,7 @@ class MPC:
         #constraints += [soc[-1] == min(self.soc_max*0.99, self.soc_init)] # Set the final soc to be close to the starting soc but limit to ensure possibility
 
         self.prices_sell[0:24] = 30 # Allow testing of various pricings
-        self.prices_buy[0:24] = 31
+        self.prices_buy[0:24] = 31 
 
         #self.prices_sell[100:150] = 0.50 # Allow testing of various pricings
         #self.prices_buy[100:150] = 0.70
@@ -186,10 +186,12 @@ class MPC:
             constraints += [inverter_power[t] <= self.inverter_p_max,
                             inverter_power[t] >= -self.inverter_p_max]
             
-            # Constrain peak_demand to be >= grid_import at every demand window interval
-            constraints += [
-                peak_demand >= cp.multiply(self.demand_window_forecast, grid_import)
-            ]
+
+        # Constrain peak_demand to be >= grid_import at every demand window interval if demand tarrif is applied
+        if self.demand_tarrif:
+            for t in range(int(self.N_5min)):
+                if self.demand_window_forecast[t] > 0:
+                    constraints += [peak_demand >= grid_import[t]]
 
         # -------------------------------
         # Objective: Minimise cost including battery discharge cost

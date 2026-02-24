@@ -91,6 +91,7 @@ class AmberAPI:
                 logger.error(f"Waiting {self.seconds_till_rate_limit_reset+5} seconds before retrying")
                 time.sleep(int(self.seconds_till_rate_limit_reset+5))
             else:
+                logger.error(r)
                 logger.error(r.headers)
                 logger.error(f"Exceeded AmazonAWS Amber API request rate limit.")
                 logger.error(f"Waiting 10 seconds before retrying")

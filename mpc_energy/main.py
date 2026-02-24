@@ -243,7 +243,7 @@ def run_controller(price_update=False):
             automatic_control = False
             logger.warning(f"Automatic Control turned off.")
 
-update_sensors(amber_data)
+#update_sensors(amber_data)
 logger.info("Configuration complete. Running")
 
 # Code runs every 2 seconds (to reduce cpu usage)

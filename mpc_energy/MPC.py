@@ -410,12 +410,18 @@ class MPC:
         grid_net_list = output["grid_net"] # if grid_net is positive we are importing power 
         feedIn_price_list = output["prices_sell"]
         general_price_list = output["prices_buy"]
+        solar_used_list = output["solar_used"]
+        solar_forecast_list = output["solar_forecast"]
 
         for i, grid_net in enumerate(grid_net_list):
             if(grid_net > self.power_threshold): # If there is significant grid import, set price to grid import price
                 return general_price_list[i]
             elif(grid_net < -self.power_threshold): # If there is significant grid export, set price to grid export price
                 return feedIn_price_list[i]
+            else: # If there is no significant import or export, set price based on solar conditions
+                if(solar_used_list[i] < solar_forecast_list[i] - self.power_threshold): # If solar is being curtailed, set price to zero as using more power won't cost anything
+                    return 0
+                
         return general_price_list[0] # Default to current grid price if no significant import or export is occouring
     
     def display_results(self, output):

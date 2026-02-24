@@ -16,6 +16,7 @@ class PriceForecast:
 
 @dataclass
 class amber_data:
+    demand_tarrif_price: float
     general_price: float
     feedIn_price: float
     prices_estimated: bool
@@ -289,6 +290,7 @@ class AmberAPI:
             demand_window_extrapolated_forecast = self.data.demand_window_extrapolated_forecast
 
         self.data = amber_data(
+            demand_tarrif_price=self.demand_tarrif_price,
             general_price=round(general_price),
             feedIn_price=round(feed_in_price),
             prices_estimated=estimate,

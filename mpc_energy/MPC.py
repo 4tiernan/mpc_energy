@@ -91,6 +91,7 @@ class MPC:
             self.load_5min[0] = self.plant.load_power
 
         # Amber Forecast (forecast hrs is set in main.py in the get_data call)
+        self.demand_tarrif_price = amber_data.demand_tarrif_price
         general_price_forecast = amber_data.general_extrapolated_forecast
         feed_in_price_forecast = amber_data.feedIn_extrapolated_forecast
         self.demand_window_forecast = np.array(amber_data.demand_window_extrapolated_forecast, dtype=float)
@@ -206,7 +207,9 @@ class MPC:
         )
 
         if(self.demand_tarrif):
-            objective_list = objective_list + peak_demand * config_manager.amber_demand_price  # no dt multiply - it's a peak charge
+            objective_list = objective_list + peak_demand * self.demand_tarrif_price # no dt multiply - it's a peak charge
+
+        logger.warning(f"Demand Cost: {self.demand_tarrif_price*peak_demand}")
 
         objective = cp.Minimize(
             cp.sum(objective_list))

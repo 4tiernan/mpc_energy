@@ -395,7 +395,7 @@ class MPC:
         return output, control_mode
 
     def determine_current_effective_price(self, output):
-        """Determine the current effective price of electricity based on the MPC plan and current conditions. This can be used to control devices through HA based on the current value of electricity."""
+        """Determine the current effective price of electricity in $/kWh based on the MPC plan and current conditions. This can be used to control devices through HA based on the current value of electricity."""
         grid_net_list = output["grid_net"] # if grid_net is positive we are importing power 
         feedIn_price_list = output["prices_sell"]
         general_price_list = output["prices_buy"]

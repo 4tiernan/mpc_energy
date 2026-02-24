@@ -132,8 +132,8 @@ class MPC:
         constraints += [soc[0] == self.soc_init] # Set the inital soc 
         #constraints += [soc[-1] == min(self.soc_max*0.99, self.soc_init)] # Set the final soc to be close to the starting soc but limit to ensure possibility
 
-        #self.prices_sell[250:270] = -0.30 # Allow testing of various pricings
-        #self.prices_buy[250:270] = -0.20
+        self.prices_sell[0:12] = 10 # Allow testing of various pricings
+        self.prices_buy[0:12] = 11
 
         #self.prices_sell[100:150] = 0.50 # Allow testing of various pricings
         #self.prices_buy[100:150] = 0.70
@@ -188,7 +188,7 @@ class MPC:
         # -------------------------------
 
         objective_list = (
-            + cp.multiply(grid_import, self.prices_buy) * self.dt_5min
+            cp.multiply(grid_import, self.prices_buy) * self.dt_5min
             - cp.multiply(grid_export, self.prices_sell) * self.dt_5min
             + cp.multiply(grid_import, self.grid_import_penalty_cost) * self.dt_5min
             + cp.multiply(self.solar_curtailment_penalty, solar_curtail) * self.dt_5min

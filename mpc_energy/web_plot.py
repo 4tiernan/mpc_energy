@@ -64,6 +64,14 @@ def plot_mpc_results(st, output):
         value=f"${st.session_state.mpc_output['profit_tomorrow']:.2f}"
     )
 
+    if(output["demand_tarrif"]):
+        col5.metric(
+            label="Peak Demand (During Window)",
+            value=f"{output['peak_demand']:.2f} kW (Cost ${output['peak_demand'] * st.session_state.config_manager.amber_demand_price:.2f})"
+        )
+
+    
+
     # -------------------------------
     # Extract limits safely
     # -------------------------------
@@ -141,21 +149,22 @@ def plot_mpc_results(st, output):
         )
     
     # Shade for Demand Window
-    for t, dw in enumerate(output["demand_window_forecast"][:-1]):
-        if dw:
-            shapes.append(dict(
-                type="rect",
-                xref="x",
-                yref="y3",  # SOC subplot y-axis
-                x0=time_index[t],
-                x1=time_index[t] + datetime.timedelta(minutes=5),
-                y0=0,
-                y1=40,  # or soc_max if available
-                fillcolor="red",
-                opacity=0.3,
-                layer="above",  # draw above other shapes so it's visible
-                line_width=0,
-            ))
+    if(output["demand_tarrif"]):
+        for t, dw in enumerate(output["demand_window_forecast"][:-1]):
+            if dw:
+                shapes.append(dict(
+                    type="rect",
+                    xref="x",
+                    yref="y3",  # SOC subplot y-axis
+                    x0=time_index[t],
+                    x1=time_index[t] + datetime.timedelta(minutes=5),
+                    y0=0,
+                    y1=40,  # or soc_max if available
+                    fillcolor="red",
+                    opacity=0.3,
+                    layer="above",  # draw above other shapes so it's visible
+                    line_width=0,
+                ))
 
     fig.update_layout(shapes=shapes)
 

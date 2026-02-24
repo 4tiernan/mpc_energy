@@ -124,6 +124,9 @@ class MPC:
         grid_import = cp.Variable(int(self.N_5min), nonneg=True)
         grid_export = cp.Variable(int(self.N_5min), nonneg=True)
 
+        # Peak Demand Charge (if demand tarrif is applied)
+        peak_demand = cp.Variable(int(self.N_5min), nonneg=True) # Variable to represent the peak demand in the demand window, used for demand tarrif calculation.
+
         # Inverter
         inverter_power = cp.Variable(int(self.N_5min), nonneg=False) # Discharge to grid is positive
 
@@ -182,6 +185,11 @@ class MPC:
             # Inverter AC Limit
             constraints += [inverter_power[t] <= self.inverter_p_max,
                             inverter_power[t] >= -self.inverter_p_max]
+            
+            # Constrain peak_demand to be >= grid_import at every demand window interval
+            constraints += [
+                peak_demand >= cp.multiply(self.demand_window_forecast, grid_import)
+            ]
 
         # -------------------------------
         # Objective: Minimise cost including battery discharge cost
@@ -196,7 +204,7 @@ class MPC:
         )
 
         if(self.demand_tarrif):
-            objective_list = objective_list + (cp.multiply(grid_import, self.demand_window_forecast) * config_manager.amber_demand_price * self.dt_5min) # Demand pricing
+            objective_list = objective_list + peak_demand * config_manager.amber_demand_price  # no dt multiply - it's a peak charge
 
         objective = cp.Minimize(
             cp.sum(objective_list))
@@ -259,7 +267,9 @@ class MPC:
                 "battery_power": battery_power,
                 "soc": battery_soc,
                 "grid_net": grid_net,
+                "demand_tarrif": self.demand_tarrif,
                 "demand_window_forecast": self.demand_window_forecast.tolist(),
+                "peak_demand": float(peak_demand.value),
                 "prices_buy": self.prices_buy.tolist(),
                 "prices_sell": self.prices_sell.tolist(),
                 "profit_already_today": float(self.daily_profit),

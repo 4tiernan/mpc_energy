@@ -67,7 +67,7 @@ def plot_mpc_results(st, output):
     if(output["demand_tarrif"]):
         col5.metric(
             label="Peak Demand (During Window)",
-            value=f"{output['peak_demand']:.2f} kW (Cost ${output['peak_demand'] * st.session_state.config_manager.amber_demand_price:.2f})"
+            value=f"{output['peak_demand']:.2f} kW"
         )
 
     

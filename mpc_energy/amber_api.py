@@ -12,6 +12,7 @@ class PriceForecast:
     price: float
     start_time: datetime
     end_time: datetime
+    demand_window: bool # True if the current price is in a demand window
 
 @dataclass
 class amber_data:
@@ -26,17 +27,11 @@ class amber_data:
     feedIn_12hr_forecast_sorted: list[PriceForecast]
     general_extrapolated_forecast: list[float]
     feedIn_extrapolated_forecast: list[float]
+    demand_window_forecast: list[bool]  # True for each 5-min interval that falls in a demand window
     
 
 UTC_OFFSET = timedelta(hours=10) #UTC time, +10 for Brisbane
 
-# 1) Get your site list
-#sites = amber.get_sites()
-#print("Your sites:", sites)
-
-kwh_of_discharge_available = 15
-max_discharge_rate = 15
-hrs_of_discharge_available = kwh_of_discharge_available/max_discharge_rate
 
 class AmberAPI:
     def __init__(self, api_key, site_id, demand_price="", errors=True):
@@ -69,13 +64,6 @@ class AmberAPI:
             
         else:
             logger.info("No demand tarrif detected continuning normally.")
-            
-
-        
-
-
-        
-        
 
     def send_request(self, url):
         r = requests.get(url, headers=self.headers)
@@ -147,17 +135,31 @@ class AmberAPI:
                 end   = datetime.strptime(i["endTime"], date_format) + UTC_OFFSET
 
                 if i["channelType"] == "general":
-                    price = i["perKwh"]   
-                    interval = PriceForecast(price=price, start_time=start, end_time=end)
+                    price = i["perKwh"] 
+                    demand_window = self.demand_window_present(i)
+
+                    interval = PriceForecast(price=price, start_time=start, end_time=end, demand_window=demand_window)
                     previous_general_prices.append(interval)
 
                 elif i["channelType"] == "feedIn":
-                    price = -i["perKwh"]   
-                    interval = PriceForecast(price=price, start_time=start, end_time=end)
+                    price = -i["perKwh"] 
+                    demand_window = self.demand_window_present(i)
+
+                    interval = PriceForecast(price=price, start_time=start, end_time=end, demand_window=demand_window)  
                     previous_feed_in_price.append(interval)
 
         return [previous_general_prices, previous_feed_in_price]
+    
+    def demand_window_present(self, interval):
+        demand_window = False
+        if(self.demand_tarrif):
+            try:
+                demand_window = bool(i['tariffInformation']['demandWindow'])
+            except:
+                    logger.warning(f"No demand window flag was found in api call but site is marked as having a demand tarrif. Interval Data '{interval}'")
         
+        return demand_window
+                
     def get_forecast(self, next_intervals, resolution, advanced_forecast = False):
         """Return 12 hours of prices from now for a given site."""
         if(resolution != 30 and resolution != 5):
@@ -180,16 +182,20 @@ class AmberAPI:
                     if("advancedPrice" in i and advanced_forecast == True):
                         price = i["advancedPrice"]["predicted"]
                     else:
-                        price = i["perKwh"]   
-                    interval = PriceForecast(price=price, start_time=start, end_time=end)
+                        price = i["perKwh"]
+                    demand_window = self.demand_window_present(i)
+
+                    interval = PriceForecast(price=price, start_time=start, end_time=end, demand_window=demand_window)   
                     general_price_forecast.append(interval)
 
                 elif i["channelType"] == "feedIn":
                     if("advancedPrice" in i and advanced_forecast == True):
                         price = -i["advancedPrice"]["predicted"]
                     else:
-                        price = -i["perKwh"]    
-                    interval = PriceForecast(price=price, start_time=start, end_time=end)
+                        price = -i["perKwh"]   
+                    demand_window = self.demand_window_present(i)
+
+                    interval = PriceForecast(price=price, start_time=start, end_time=end, demand_window=demand_window) 
                     feed_in_price_forecast.append(interval)
 
         return [general_price_forecast, feed_in_price_forecast]
@@ -204,34 +210,42 @@ class AmberAPI:
         amber_past_30min_intervals = max(N_30min - amber_forecast_30min_intervals, 0)  # Fill the rest of the sim with past prices
     
         # Get the 5 minutely price forecasts
-        [general_price_forecast_5_min, feed_in_price_forecast_5_min] = self.get_forecast(next_intervals=60//5, resolution=5, advanced_forecast=advanced_forecast)
-        feed_in_price_forecast_5_min = [round(feedIn.price) for feedIn in feed_in_price_forecast_5_min][0:11] # select only the first 12 forecast intervals (1 hr)
-        general_price_forecast_5_min = [round(general.price) for general in general_price_forecast_5_min][0:11]
+        [general_price_forecast_5_min_data, feed_in_price_forecast_5_min_data] = self.get_forecast(next_intervals=60//5, resolution=5, advanced_forecast=advanced_forecast)
+        feed_in_price_forecast_5_min = [round(feedIn.price) for feedIn in feed_in_price_forecast_5_min_data][0:11] # select only the first 12 forecast intervals (1 hr)
+        general_price_forecast_5_min = [round(general.price) for general in general_price_forecast_5_min_data][0:11]
+        demand_window_forecast_5_min = [general.demand_window for general in general_price_forecast_5_min_data][0:11]
 
         # Get the 30 minutely forecast
-        [general_price_forecast_30_min, feed_in_price_forecast_30_min] = self.get_forecast(next_intervals=amber_forecast_30min_intervals, resolution=30, advanced_forecast=advanced_forecast)
-        general_price_forecast_30_min = [round(pf.price) for pf in general_price_forecast_30_min]
-        feed_in_price_forecast_30_min = [round(pf.price) for pf in feed_in_price_forecast_30_min]
-        general_price_forecast_30_min_expanded = np.repeat(general_price_forecast_30_min,  steps_per_price)
+        [general_price_forecast_30_min_data, feed_in_price_forecast_30_min_data] = self.get_forecast(next_intervals=amber_forecast_30min_intervals, resolution=30, advanced_forecast=advanced_forecast)
+        feed_in_price_forecast_30_min = [round(feedIn.price) for feedIn in feed_in_price_forecast_30_min_data]
+        general_price_forecast_30_min = [round(general.price) for general in general_price_forecast_30_min_data]
+        demand_window_forecast_30_min = [general.demand_window for general in general_price_forecast_30_min_data]
+
         feed_in_price_forecast_30_min_expanded = np.repeat(feed_in_price_forecast_30_min, steps_per_price)
+        general_price_forecast_30_min_expanded = np.repeat(general_price_forecast_30_min,  steps_per_price)
+        demand_window_forecast_30_min_expanded = np.repeat(demand_window_forecast_30_min, steps_per_price)
 
 
         # Get the past prices to form the 2nd half of the 24hr forecast due to the 12hr limit on forecasts
-        [past_general_5_min, past_feed_in_5_min] = self.get_past_prices(amber_past_30min_intervals, resolution=30)
-        past_general_prices_5_min = [round(pf.price) for pf in past_general_5_min] # Extract the price and round it from the forecasts
-        past_feed_in_prices_5_min = [round(pf.price) for pf in past_feed_in_5_min]
-        past_general_prices_5_min = np.repeat(past_general_prices_5_min,  steps_per_price) # Expand the prices out to 5 minutely
-        past_feed_in_prices_5_min = np.repeat(past_feed_in_prices_5_min,  steps_per_price)
+        [past_general_30_min_data, past_feed_in_30_min_data] = self.get_past_prices(amber_past_30min_intervals, resolution=30)
+        past_feed_in_prices_30_min = [round(feedIn.price) for feedIn in past_feed_in_30_min_data]
+        past_general_prices_30_min = [round(general.price) for general in past_general_30_min_data] # Extract the price and round it from the forecasts
+        past_demand_windows_30_min = [general.demand_window for general in past_general_30_min_data]
 
+        past_feed_in_prices_30_min_expanded = np.repeat(past_feed_in_prices_30_min,  steps_per_price)
+        past_general_prices_30_min_expanded = np.repeat(past_general_prices_30_min,  steps_per_price) # Expand the prices out to 5 minutely, (getting the raw 5 minute data was too noisy)
+        past_demand_windows_30_min_expanded = np.repeat(past_demand_windows_30_min, steps_per_price)
 
-        general_price_forecast = np.append(general_price_forecast_30_min_expanded, past_general_prices_5_min) # append the past prices to the 12hr forecast to allow for a 24hr prediction
-        feed_in_price_forecast = np.append(feed_in_price_forecast_30_min_expanded, past_feed_in_prices_5_min)
+        feed_in_price_extrapolated_forecast = np.append(feed_in_price_forecast_30_min_expanded, past_feed_in_prices_30_min_expanded)
+        general_price_extrapolated_forecast = np.append(general_price_forecast_30_min_expanded, past_general_prices_30_min_expanded) # append the past prices to the 12hr forecast to allow for a 24hr prediction
+        demand_window_extrapolated_forecast = np.append(demand_window_forecast_30_min_expanded, past_demand_windows_30_min_expanded)
 
-        feed_in_price_forecast[0:len(feed_in_price_forecast_5_min)] = feed_in_price_forecast_5_min
-        general_price_forecast[0:len(general_price_forecast_5_min)] = general_price_forecast_5_min
+        feed_in_price_extrapolated_forecast[0:len(feed_in_price_forecast_5_min)] = feed_in_price_forecast_5_min
+        general_price_extrapolated_forecast[0:len(general_price_forecast_5_min)] = general_price_forecast_5_min
+        demand_window_extrapolated_forecast[0:len(demand_window_forecast_5_min)] = demand_window_forecast_5_min
 
         # Return extended forecast
-        return [general_price_forecast[:N_5min], feed_in_price_forecast[:N_5min]]
+        return [general_price_extrapolated_forecast[:N_5min], feed_in_price_extrapolated_forecast[:N_5min], demand_window_extrapolated_forecast[:N_5min]]
 
     def get_current_prices(self):
         url = (f"{self.base}/sites/{self.site_id}/prices/current")
@@ -247,7 +261,7 @@ class AmberAPI:
                     estimate = estimate or i['estimate']
 
         return [general_price, feed_in_price, estimate]
-    
+        
     def get_data(self, partial_update=False, forecast_hrs=None):
         [general_price, feed_in_price, estimate] = self.get_current_prices()
         
@@ -265,8 +279,6 @@ class AmberAPI:
             storted_general_forecast = self.data.general_12hr_forecast_sorted
             storted_feed_in_forecast = self.data.feedIn_12hr_forecast_sorted
 
-        
-            
         if(estimate and self.data != None): # if prices are an estimate, just pass the old not estimated prices through
             general_price = self.data.general_price
             feed_in_price = self.data.feedIn_price

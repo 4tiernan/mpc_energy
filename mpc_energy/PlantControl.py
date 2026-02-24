@@ -183,8 +183,20 @@ class Plant:
 
     def calculate_today_profit_cost(self):
         # Get today's historical data
-        hours_since_midnight = (datetime.datetime.now(HA_TZ) - datetime.datetime.now(HA_TZ).replace(hour=0, minute=0, second=0, microsecond=0)).total_seconds() / 3600
+        start = datetime.datetime.now(HA_TZ).replace(hour=0, minute=0, second=0, microsecond=0)
+        end = datetime.datetime.now(HA_TZ)
+        hours_since_midnight = (end - start).total_seconds() / 3600
         history = self.historical_data(hours=hours_since_midnight, bin_period=5)
+
+        # Check to see if the requested amount of data was recieved, use the configured default if not
+        if(not self.validate_returned_data_timedelta(data=history, requested_start=start, requested_end=end)):
+            configured_avg_load = config_manager.estimated_daily_load_energy_consumption 
+            logger.error(f"Insufficent data to calulate profit.")
+            return {
+                "total_export_revenue": 0,
+                "total_import_cost": 0,
+                "net_profit": 0
+            }
 
         # Convert lists to numpy arrays
         export_cumsum = np.array(history["grid_export_kwh"])

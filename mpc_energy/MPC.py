@@ -136,8 +136,8 @@ class MPC:
         constraints += [soc[0] == self.soc_init] # Set the inital soc 
         #constraints += [soc[-1] == min(self.soc_max*0.99, self.soc_init)] # Set the final soc to be close to the starting soc but limit to ensure possibility
 
-        self.prices_sell[0:24] = 10 # Allow testing of various pricings
-        self.prices_buy[0:24] = 11 
+        self.prices_sell[0:24] = 20 # Allow testing of various pricings
+        self.prices_buy[0:24] = 21 
 
         #self.prices_sell[100:150] = 0.50 # Allow testing of various pricings
         #self.prices_buy[100:150] = 0.70
@@ -209,7 +209,6 @@ class MPC:
         if(self.demand_tarrif):
             objective_list = objective_list + peak_demand * self.demand_tarrif_price # no dt multiply - it's a peak charge
 
-        logger.warning(f"Demand Cost: {self.demand_tarrif_price*peak_demand}")
 
         objective = cp.Minimize(
             cp.sum(objective_list))

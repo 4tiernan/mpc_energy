@@ -284,19 +284,29 @@ def plot_mpc_results(st, output):
         line=dict(color="purple")
     ), row=2, col=1)
 
-    fig.add_trace(go.Scatter(
-        x=time_index,
-        y=output["demand_window_forecast"][:-1],
-        name="Demand Window",
-        line=dict(color="Red")
-    ), row=2, col=1)
-
     # SOC constraint lines (only if present)
     if soc_min is not None:
         fig.add_hline(y=soc_min, row=2, col=1, line_dash="dash", line_color="red")
 
     if soc_max is not None:
         fig.add_hline(y=soc_max, row=2, col=1, line_dash="dash", line_color="red")
+
+    for t, dw in enumerate(output["demand_window_forecast"][:-1]):
+        if dw:
+            shapes.append(dict(
+                type="rect",
+                xref="x",
+                yref="y3",  # row 2's y-axis
+                x0=time_index[t],
+                x1=time_index[t] + datetime.timedelta(minutes=5),
+                y0=0,
+                y1=1,
+                yref="paper",
+                fillcolor="red",
+                opacity=0.2,
+                layer="below",
+                line_width=0,
+            ))
 
 
     # ===============================

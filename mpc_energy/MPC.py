@@ -315,8 +315,8 @@ class MPC:
 
             mqtt_client.publish("home/mpc/output", json.dumps(output), retain=True)
         
+            self.current_effective_price = self.determine_current_effective_price(output) # Determine the current effective price of electricity based on the MPC plan and current conditions. 
             
-
             return [output, plotted_output]
         
     def convert_to_python(self, obj): # Convert all np objects to python objects
@@ -393,6 +393,19 @@ class MPC:
         control_mode = self.determine_control_mode(output)
         return output, control_mode
 
+    def determine_current_effective_price(self, output):
+        """Determine the current effective price of electricity based on the MPC plan and current conditions. This can be used to control devices through HA based on the current value of electricity."""
+        grid_net_list = output["grid_net"] # if grid_net is positive we are importing power 
+        feedIn_price_list = output["prices_sell"]
+        general_price_list = output["prices_buy"]
+
+        for i, grid_net in enumerate(grid_net_list):
+            if(grid_net > self.power_threshold): # If there is significant grid import, set price to grid import price
+                return general_price_list[i]
+            elif(grid_net < -self.power_threshold): # If there is significant grid export, set price to grid export price
+                return feedIn_price_list[i]
+        return general_price_list[0] # Default to current grid price if no significant import or export is occouring
+    
     def display_results(self, output):
         logger.info(f"Profit: ${round(output['profit'], 2)}")
         #print(f"Solar Remaining {np.sum(solar_5min*(5/60))}")

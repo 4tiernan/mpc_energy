@@ -172,35 +172,6 @@ partial_update = False #Indicates wheather to do a full amber update or just the
 last_amber_update_timestamp = time.time()
 amber_data = amber.get_data(forecast_hrs=mpc.forecast_hrs)
 last_control_mode = ""
-
-def determine_effective_price(amber_data):
-    general_price = amber_data.general_price
-    feedIn_price = amber_data.feedIn_price
-    target_dispatch_price = rbc.target_dispatch_price
-    remaining_solar_today = plant.solar_kw_remaining_today
-    forecast_load_till_morning = rbc.kwh_required_remaining
-
-    base_load = plant.get_base_load_estimate() # kW estimated base load
-    solar_daytime = plant.solar_daytime # If producing more power than base load consider it during the solar day
-    available_energy = max(remaining_solar_today-10, 0) + plant.kwh_stored_available # kWh of energy available right now
-    energy_consumption_available = plant.kwh_till_full + plant.forecast_consumption_amount(forecast_till_time=datetime.time(18, 0, 0)) # kWh that can be used of the available solar
-
-    effective_dispatch_price = max(target_dispatch_price, feedIn_price)
-
-    if(general_price < 0):
-        return general_price
-    elif(solar_daytime): # Solar > base load estimate
-        if(remaining_solar_today > energy_consumption_available): # There should be excess power that would be sold at the feed in price or wasted
-            return max(feedIn_price, 0)
-        elif(available_energy > forecast_load_till_morning): # Energy used will cut into feed in profits 
-            return effective_dispatch_price
-        else:
-            return general_price
-    else: # Not solar daytime
-        if(plant.kwh_stored_available > forecast_load_till_morning): # More battery than required overnight, energy use will cut into feed in profits
-            return effective_dispatch_price
-        else:
-            return general_price # default to the general price
         
 def print_values(amber_data):
     logger.info("....")
@@ -233,7 +204,7 @@ def update_sensors(amber_data):
     
     ha_mqtt.system_state_sensor.set_state(EC.working_mode + f" {round(abs(plant.grid_power),1)}@{price} c/kWh ${round(plant.daily_net_profit,2)} profit")
     ha_mqtt.base_load_sensor.set_state(round(1000*plant.get_base_load_estimate(),2)) # converted to w from kW
-    ha_mqtt.effective_price_sensor.set_state(determine_effective_price(amber_data)) 
+    ha_mqtt.effective_price_sensor.set_state(mpc.current_effective_price) 
     ha_mqtt.avg_daily_load_sensor.set_state(round(plant.avg_daily_load,2))
 
 def run_controller(price_update=False):
@@ -246,7 +217,7 @@ def run_controller(price_update=False):
             automatic_control = True
             last_control_mode = "" # Reset flag so the approprate controller takes over
             logger.warning(f"Automatic Control turned on.")
-            
+
         if(selected_controller == "MPC"):
             if(last_control_mode != selected_controller or price_update == True):
                 mpc.run(amber_data) # Run the MPC Controller if the price updates (every 5 min) or if it was just selected as the new controller

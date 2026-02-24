@@ -125,7 +125,7 @@ class MPC:
         grid_export = cp.Variable(int(self.N_5min), nonneg=True)
 
         # Peak Demand Charge (if demand tarrif is applied)
-        peak_demand = cp.Variable(int(self.N_5min), nonneg=True) # Variable to represent the peak demand in the demand window, used for demand tarrif calculation.
+        peak_demand = cp.Variable(nonneg=True) # Variable to represent the peak demand in the demand window, used for demand tarrif calculation.
 
         # Inverter
         inverter_power = cp.Variable(int(self.N_5min), nonneg=False) # Discharge to grid is positive

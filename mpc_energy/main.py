@@ -229,15 +229,15 @@ def run_controller(price_update=False):
         # If auto control is on, run the energy controller and RBC (every 2 seconds as we need to keep track of some things)
         EC.run(amber_data=amber_data)
 
-    if(price_update and (selected_controller != "MPC" or automatic_control == False)):
-        mpc.run_optimisation(amber_data) # Run the MPC optimisation each time the price updates to keep the plot updated if the mpc.ran() function wasn't called
-
-
     else: # Automatic Control Turned off
         if(automatic_control == True):
             #EC.self_consumption()
             automatic_control = False
             logger.warning(f"Automatic Control turned off.")
+
+    if(price_update and (selected_controller != "MPC" or automatic_control == False)):
+        mpc.run_optimisation(amber_data) # Run the MPC optimisation each time the price updates to keep the plot updated if the mpc.ran() function wasn't called
+
 
 #update_sensors(amber_data)
 logger.info("Configuration complete. Running")

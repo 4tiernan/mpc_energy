@@ -5,7 +5,7 @@ A profit optimiser for home batteries with wholesale electricity pricing.
 <br/>
 <br/>
 ## 🚀 Getting Started
-👉 [Click here for onboarding instructions](./docs/ONBOARDING.md)
+👉 [Click here for onboarding instructions](https://github.com/4tiernan/mpc_energy/blob/main/docs/ONBOARDING.md)
 <br/>
 <br/>
 ## ⚠️ Important Safety Notice

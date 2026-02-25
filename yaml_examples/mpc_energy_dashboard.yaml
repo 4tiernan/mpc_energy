@@ -237,7 +237,7 @@ sections:
           - entity: sensor.sigen_plant_ems_work_mode
             name:
               type: entity
-          - entity: switch.sigen_plant_remote_ems_controled_by_home_assistant
+          - entity: switch.sigen_plant_remote_ems_controlled_by_home_assistant
             name: Remote EMS
           - entity: select.sigen_plant_remote_ems_control_mode
             name:

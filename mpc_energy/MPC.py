@@ -46,6 +46,8 @@ class MPC:
         self.amber_past_30min_intervals = self.N_30min - self.amber_forecast_30min_intervals  # Fill the rest of the sim with past prices
         self.amber_5min_intervals = (60//5)*12
 
+        self.load_inflation_percentage = 10 # Percentage to inflate the load forecast by to ensure we don't run out in the morning.
+
         self.dt_5min = 5/60      # 5 minutes in hours
 
         # Battery Settings
@@ -81,7 +83,7 @@ class MPC:
         # ---------- Forecasts ----------
         # Load Forecast
         load_power_states = self.plant.forecast_load_power(forecast_hours_from_now=self.forecast_hrs) # Calculate the average load power
-        self.load_5min = [powerstate.avg_state for powerstate in load_power_states]
+        self.load_5min = [powerstate.avg_state*(1+self.load_inflation_percentage/100.0) for powerstate in load_power_states]
         
         # Solar Forecast
         self.solar_5min = self.plant.forecast_solar_power(forecast_hours_from_now=self.forecast_hrs)

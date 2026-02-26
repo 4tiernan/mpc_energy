@@ -55,7 +55,7 @@ class RBC():
                      self.kwh_energy_available > self.kwh_required_remaining + 1)
         
         elif(mode == ControlMode.EXPORT_ALL_SOLAR):
-            return (self.solar_kwh_forecast_remaining + self.kwh_energy_available >= self.kwh_required_till_sundown + self.plant.kwh_till_full + 11 and
+            return (self.solar_kwh_forecast_remaining >= self.kwh_required_till_sundown + self.plant.kwh_till_full + 11 and
                      self.feedIn_price >= 2 and self.plant.solar_daytime)
         
         elif(mode == ControlMode.EXPORT_EXCESS_SOLAR):
@@ -73,7 +73,7 @@ class RBC():
                      self.kwh_energy_available <= self.kwh_required_remaining)
         
         elif(mode == ControlMode.EXPORT_ALL_SOLAR):
-            return (self.solar_kwh_forecast_remaining + self.kwh_energy_available < self.kwh_required_till_sundown + self.plant.kwh_till_full + 10 or
+            return (self.solar_kwh_forecast_remaining < self.kwh_required_till_sundown + self.plant.kwh_till_full + 10 or
                      self.feedIn_price < 2 or not self.plant.solar_daytime)
         
         elif(mode == ControlMode.EXPORT_EXCESS_SOLAR):

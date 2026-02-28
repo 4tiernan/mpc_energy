@@ -145,8 +145,8 @@ class MPC:
         constraints += [soc[0] == self.soc_init] # Set the inital soc 
         #constraints += [soc[-1] == min(self.soc_max*0.99, self.soc_init)] # Set the final soc to be close to the starting soc but limit to ensure possibility
 
-        #self.prices_sell[0:24] = 20 # Allow testing of various pricings
-        #self.prices_buy[0:24] = 21 
+        self.prices_sell[0:5] = -3 # Allow testing of various pricings
+        self.prices_buy[0:5] = 2 
 
         #self.prices_sell[100:150] = 0.50 # Allow testing of various pricings
         #self.prices_buy[100:150] = 0.70
@@ -207,7 +207,7 @@ class MPC:
         # Objective: Minimise cost including battery discharge cost
         # -------------------------------
 
-        full_battery_reward = 0.009  # $/kWh — tune this value
+        full_battery_reward = 0.001  # $/kWh — tune this value
 
         # Find end of TODAY's solar window (ignore tomorrow's solar)
         # Solar day = first time solar drops to ~0 after having been >0

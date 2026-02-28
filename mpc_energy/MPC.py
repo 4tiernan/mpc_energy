@@ -207,7 +207,7 @@ class MPC:
         # Objective: Minimise cost including battery discharge cost
         # -------------------------------
 
-        full_battery_reward = 0.0005  # $/kWh — tune this value
+        full_battery_reward = 0.0001  # $/kWh — tune this value
 
         # Find end of TODAY's solar window (ignore tomorrow's solar)
         # Solar day = first time solar drops to ~0 after having been >0

@@ -231,7 +231,6 @@ class MPC:
         )
 
         if solar_started and solar_end_index > 0:
-            logger.info(f"Solar Day ends at index {solar_end_index} time:{time_index[solar_end_index]}")
             objective_list = objective_list - full_battery_reward * soc[solar_end_index] # Encorage the battery to be full by the end of the solar day
 
 
@@ -261,6 +260,8 @@ class MPC:
             minute = (now.minute // 5) * 5
             now = now.replace(minute=minute)
             time_index = [now + timedelta(minutes=5 * i) for i in range(int(self.N_5min))]
+            if solar_started and solar_end_index > 0:
+                logger.info(f"Solar Day ends at index {solar_end_index} time:{time_index[solar_end_index]}")
 
             grid_kwh_import_per_interval = grid_import.value / self.steps_per_hr 
             grid_kwh_export_per_interval = grid_export.value / self.steps_per_hr 

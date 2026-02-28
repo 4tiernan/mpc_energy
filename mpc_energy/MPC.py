@@ -221,9 +221,7 @@ class MPC:
                 solar_end_index = t - 1  # last index with meaningful solar
                 break  # stop at first sunset — ignore tomorrow
 
-        if solar_started and solar_end_index > 0:
-            objective_list = objective_list - full_battery_reward * soc[solar_end_index] # Encorage the battery to be full by the end of the solar day
-
+        
         objective_list = (
             cp.multiply(grid_import, self.prices_buy) * self.dt_5min
             - cp.multiply(grid_export, self.prices_sell) * self.dt_5min
@@ -231,6 +229,10 @@ class MPC:
             + cp.multiply(self.solar_curtailment_penalty, solar_curtail) * self.dt_5min
             + cp.multiply(self.battery_min_export_cost, p_discharge) * self.dt_5min
         )
+
+        if solar_started and solar_end_index > 0:
+            objective_list = objective_list - full_battery_reward * soc[solar_end_index] # Encorage the battery to be full by the end of the solar day
+
 
         if(self.demand_tarrif):
             objective_list = objective_list + peak_demand * self.demand_tarrif_price # no dt multiply - it's a peak charge

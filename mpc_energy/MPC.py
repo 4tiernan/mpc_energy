@@ -206,21 +206,6 @@ class MPC:
         # -------------------------------
         # Objective: Minimise cost including battery discharge cost
         # -------------------------------
-
-        full_battery_reward = 0.0001  # $/kWh — tune this value
-
-        # Find end of TODAY's solar window (ignore tomorrow's solar)
-        # Solar day = first time solar drops to ~0 after having been >0
-        solar_started = False
-        solar_end_index = 0
-
-        for t in range(int(self.N_5min)):
-            if self.solar_5min[t] > self.load_5min[t]:
-                solar_started = True
-            elif solar_started and self.solar_5min[t] <= self.load_5min[t]:
-                solar_end_index = t - 1  # last index with meaningful solar
-                break  # stop at first sunset — ignore tomorrow
-
         
         objective_list = (
             cp.multiply(grid_import, self.prices_buy) * self.dt_5min
@@ -229,10 +214,6 @@ class MPC:
             + cp.multiply(self.solar_curtailment_penalty, solar_curtail) * self.dt_5min
             + cp.multiply(self.battery_min_export_cost, p_discharge) * self.dt_5min
         )
-
-        if solar_started and solar_end_index > 0:
-            objective_list = objective_list - cp.multiply(full_battery_reward, soc[solar_end_index]) # Encorage the battery to be full by the end of the solar day
-
 
         if(self.demand_tarrif):
             objective_list = objective_list + peak_demand * self.demand_tarrif_price # no dt multiply - it's a peak charge

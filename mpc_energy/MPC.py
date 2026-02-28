@@ -231,6 +231,7 @@ class MPC:
         )
 
         if solar_started and solar_end_index > 0:
+            logger.info(f"Solar Day ends at index {solar_end_index} time:{time_index[solar_end_index]}")
             objective_list = objective_list - full_battery_reward * soc[solar_end_index] # Encorage the battery to be full by the end of the solar day
 
 

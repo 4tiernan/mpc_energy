@@ -215,9 +215,9 @@ class MPC:
         solar_end_index = 0
 
         for t in range(int(self.N_5min)):
-            if self.solar_5min[t] > 0.05:
+            if self.solar_5min[t] > self.load_5min[t]:
                 solar_started = True
-            elif solar_started and self.solar_5min[t] <= 0.05:
+            elif solar_started and self.solar_5min[t] <= self.load_5min[t]:
                 solar_end_index = t - 1  # last index with meaningful solar
                 break  # stop at first sunset — ignore tomorrow
 

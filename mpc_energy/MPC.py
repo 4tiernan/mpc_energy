@@ -231,7 +231,7 @@ class MPC:
         )
 
         if solar_started and solar_end_index > 0:
-            objective_list = objective_list - cp.multiply(full_battery_reward * soc[solar_end_index]) # Encorage the battery to be full by the end of the solar day
+            objective_list = objective_list - cp.multiply(full_battery_reward, soc[solar_end_index]) # Encorage the battery to be full by the end of the solar day
 
 
         if(self.demand_tarrif):

@@ -203,7 +203,7 @@ class MPC:
                     constraints += [peak_demand >= grid_import[t]]
 
  
-        full_battery_reward = 0.021  # $/kWh — tune this value
+        full_battery_reward = self.grid_import_penalty_cost + 0.021  # $/kWh — tune this value
 
         # Find end of TODAY's solar window (ignore tomorrow's solar)
         # Solar day = first time solar drops to ~0 after having been >0

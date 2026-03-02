@@ -125,8 +125,7 @@ class MPC:
         self.prices_sell[10:15] = 0.0 # Allow testing of various pricings
         self.prices_buy[10:15] = 0.03
         
-        self.solar_5min[10:80] = 0
-        self.soc_init = 30
+        self.soc_init = self.soc_min
         #self.prices_sell[100:120] = 10 # Allow testing of various pricings
         #self.prices_buy[100:120] = 11
 
@@ -204,7 +203,7 @@ class MPC:
                     constraints += [peak_demand >= grid_import[t]]
 
  
-        full_battery_reward = 0.019  # $/kWh — tune this value
+        full_battery_reward = 0.021  # $/kWh — tune this value
 
         # Find end of TODAY's solar window (ignore tomorrow's solar)
         # Solar day = first time solar drops to ~0 after having been >0

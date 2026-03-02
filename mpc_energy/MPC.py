@@ -118,6 +118,18 @@ class MPC:
 
         self.prices_sell = self.prices_sell - 0.0001 # Not sure what this is for
 
+        logger.error("Messing with prices!!")
+        self.prices_sell[2:5] = -0.03 # Allow testing of various pricings
+        self.prices_buy[2:5] = 0.02 
+
+        self.prices_sell[10:15] = 0.0 # Allow testing of various pricings
+        self.prices_buy[10:15] = 0.03
+        
+        self.solar_5min[10:80] = 0
+        self.soc_init = self.soc_min
+        #self.prices_sell[100:120] = 10 # Allow testing of various pricings
+        #self.prices_buy[100:120] = 11
+
         start = time.time()
         # ----------- Variables -----------
         # Battery
@@ -144,23 +156,6 @@ class MPC:
         constraints = []
         constraints += [soc[0] == self.soc_init] # Set the inital soc 
         #constraints += [soc[-1] == min(self.soc_max*0.99, self.soc_init)] # Set the final soc to be close to the starting soc but limit to ensure possibility
-
-        logger.error("Messing with prices!!")
-        self.prices_sell[2:5] = -0.03 # Allow testing of various pricings
-        self.prices_buy[2:5] = 0.02 
-
-        self.prices_sell[10:15] = 0.0 # Allow testing of various pricings
-        self.prices_buy[10:15] = 0.03
-        
-        self.solar_5min[10:80] = 0
-        self.prices_sell[100:150] = 10 # Allow testing of various pricings
-        self.prices_buy[100:150] = 11
-
-        #zero_price_mask = (self.prices_sell == 0).astype(float) # Represents when prices are zero
-
-        #self.solar_export_soc_threshold = 0.9 * self.soc_max
-        #min_export_price_mask = (self.prices_sell < self.min_solar_export_price).astype(float) # Mask to represent when price is below min dispatch price (True if price is above min export price)
-        #battery_export = cp.Variable(int(self.N_5min), nonneg=True)
 
         for t in range(int(self.N_5min)):
             # SoC dynamics

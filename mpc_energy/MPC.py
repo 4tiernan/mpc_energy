@@ -209,7 +209,7 @@ class MPC:
                     constraints += [peak_demand >= grid_import[t]]
 
  
-        full_battery_reward = 0.0001  # $/kWh — tune this value
+        full_battery_reward = 0.019  # $/kWh — tune this value
 
         # Find end of TODAY's solar window (ignore tomorrow's solar)
         # Solar day = first time solar drops to ~0 after having been >0
@@ -236,15 +236,19 @@ class MPC:
             + cp.multiply(self.battery_min_export_cost, p_discharge) * self.dt_5min
         )
 
+        non_sum_objective_list = 0
+
         if solar_started and solar_end_index > 0:
-            objective_list = objective_list - cp.multiply(full_battery_reward, soc[solar_end_index]) # Encorage the battery to be full by the end of the solar day
+            non_sum_objective_list = non_sum_objective_list - cp.multiply(full_battery_reward, soc[solar_end_index]) # Encorage the battery to be full by the end of the solar day
 
         if(self.demand_tarrif):
-            objective_list = objective_list + peak_demand * self.demand_tarrif_price # no dt multiply - it's a peak charge
+            non_sum_objective_list = non_sum_objective_list + peak_demand * self.demand_tarrif_price # no dt multiply - it's a peak charge
 
 
         objective = cp.Minimize(
-            cp.sum(objective_list))
+            cp.sum(objective_list)
+            + non_sum_objective_list # Don't sum the one off objectives 
+        )
         
         # ---------- Solve ----------
         prob = cp.Problem(objective, constraints)

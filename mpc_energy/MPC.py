@@ -126,7 +126,7 @@ class MPC:
         self.prices_buy[10:15] = 0.03
         
         self.solar_5min[10:80] = 0
-        self.soc_init = self.soc_min
+        self.soc_init = 30
         #self.prices_sell[100:120] = 10 # Allow testing of various pricings
         #self.prices_buy[100:120] = 11
 

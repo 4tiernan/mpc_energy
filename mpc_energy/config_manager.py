@@ -49,6 +49,8 @@ battery_stored_energy_entity_id = get_entity_id("battery_stored_energy_entity_id
 battery_kwh_till_full_entity_id = get_entity_id("battery_kwh_till_full_entity_id")
 plant_solar_kwh_today_entity_id = get_entity_id("plant_solar_kwh_today_entity_id")
 plant_daily_load_kwh_entity_id = get_entity_id("plant_daily_load_kwh_entity_id")
+plant_daily_import_kwh_entity_id = get_entity_id("plant_daily_import_kwh_entity_id")
+plant_daily_export_kwh_entity_id = get_entity_id("plant_daily_export_kwh_entity_id")
 
 battery_rated_capacity_entity_id = get_entity_id("battery_rated_capacity_entity_id")
 backup_soc_entity_id = get_entity_id("backup_soc_entity_id")

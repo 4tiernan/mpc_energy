@@ -101,6 +101,12 @@ configuration:
   plant_daily_load_kwh_entity_id:
     name: Load Energy Consumed Today Entity (kWh)
 
+  plant_daily_import_kwh_entity_id:
+    name: Grid Import Energy Today Entity (kWh)
+  
+  plant_daily_export_kwh_entity_id:
+    name: Grid Export Energy Today Entity (kWh)
+
   battery_rated_capacity_entity_id:
     name: Battery Rated Storage Capacity Entity (kWh)
 

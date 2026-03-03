@@ -50,9 +50,7 @@ class MPC:
 
         self.dt_5min = 5/60      # 5 minutes in hours
 
-        # Battery Settings
-        self.soc_min = self.plant.kwh_backup_buffer
-        self.soc_max = self.battery_capacity
+        # Reward and penalty settings
         self.discharge_efficiency = 0.95
         self.battery_min_export_cost = 0.07  # $/kWh (Export will only occour ABOVE this value)
         self.grid_import_penalty_cost = 0.02 # $/kWh penalty for using grid power
@@ -62,6 +60,9 @@ class MPC:
         self.current_effective_price = 0 # Set to zero until we run an optimisation and determine the current effective price based on the MPC plan and current conditions
        
     def update_limits(self):
+        # Battery Settings
+        self.soc_min = self.plant.kwh_backup_buffer
+        self.soc_max = self.battery_capacity
         self.battery_capacity = self.plant.rated_capacity  # kWh
         self.solar_dc_max = self.plant.max_pv_power             # kW (DC limit for MPPTs)
         self.p_max_charge = self.plant.max_charge_power         # kW (Battery max charge rate)
@@ -118,9 +119,9 @@ class MPC:
 
         self.prices_sell = self.prices_sell - 0.0001 # Not sure what this is for
 
-        logger.error("Messing with prices!!")
-        self.prices_sell[180:] = 0.02 # Allow testing of various pricings
-        self.prices_buy[180:] = 0.05 
+        #logger.error("Messing with prices!!")
+        #self.prices_sell[180:] = 0.02 # Allow testing of various pricings
+        #self.prices_buy[180:] = 0.05 
 
         #self.prices_sell[10:65] = 0.0 # Allow testing of various pricings
         #self.prices_buy[10:65] = 0.04

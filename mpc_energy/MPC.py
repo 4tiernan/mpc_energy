@@ -122,8 +122,8 @@ class MPC:
         self.prices_sell[2:5] = -0.03 # Allow testing of various pricings
         self.prices_buy[2:5] = 0.02 
 
-        self.prices_sell[10:15] = 0.0 # Allow testing of various pricings
-        self.prices_buy[10:15] = 0.03
+        self.prices_sell[50:65] = 2 # Allow testing of various pricings
+        self.prices_buy[50:65] = 3
         
         self.soc_init = self.soc_min
         #self.prices_sell[100:120] = 10 # Allow testing of various pricings

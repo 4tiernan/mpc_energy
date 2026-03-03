@@ -215,7 +215,6 @@ class MPC:
             cp.multiply(grid_import, self.prices_buy) * self.dt_5min
             - cp.multiply(grid_export, self.prices_sell) * self.dt_5min
             + cp.multiply(grid_import, self.grid_import_penalty_cost) * self.dt_5min
-            + cp.multiply(self.solar_curtailment_penalty, solar_curtail) * self.dt_5min
             + cp.multiply(self.battery_min_export_cost, p_discharge) * self.dt_5min
             - cp.multiply(self.maintain_soc_reward, soc[0:-1]) # Small reward for maintaining higher SOC throughout the day
         )

@@ -118,9 +118,9 @@ class MPC:
 
         self.prices_sell = self.prices_sell - 0.0001 # Not sure what this is for
 
-        #logger.error("Messing with prices!!")
-        #self.prices_sell[2:5] = -0.03 # Allow testing of various pricings
-        #self.prices_buy[2:5] = 0.02 
+        logger.error("Messing with prices!!")
+        self.prices_sell[180:] = 0.02 # Allow testing of various pricings
+        self.prices_buy[180:] = 0.05 
 
         #self.prices_sell[10:65] = 0.0 # Allow testing of various pricings
         #self.prices_buy[10:65] = 0.04

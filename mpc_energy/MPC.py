@@ -55,7 +55,7 @@ class MPC:
         self.battery_min_export_cost = 0.07  # $/kWh (Export will only occour ABOVE this value)
         self.grid_import_penalty_cost = 0.02 # $/kWh penalty for using grid power
         self.full_battery_reward = self.grid_import_penalty_cost + 0.021  # $/kWh — tune this value to encourage the battery to be full by the end of the solar day
-        self.maintain_soc_reward = 0.0002 # $/kWh / interval reward for maintaining higher SOC throughout the day
+        self.maintain_soc_reward = 0 #0.0002 # $/kWh / interval reward for maintaining higher SOC throughout the day
         self.demand_tarrif = demand_tarrif # True if the selected site has a demand tarrif applied
         self.current_effective_price = 0 # Set to zero until we run an optimisation and determine the current effective price based on the MPC plan and current conditions
        

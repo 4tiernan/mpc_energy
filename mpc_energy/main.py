@@ -112,11 +112,16 @@ while(started == False):
         from RBC import RBC
         from MPC import MPC
         from energy_controller import EnergyController
+        elapsed_time("controller Imports")
+        start_timer()
         from ha_api import HomeAssistantAPI
         import ha_mqtt
+        elapsed_time("Home Assistant Imports")
+        start_timer()
         from amber_api import AmberAPI
         from PlantControl import Plant
-        elapsed_time("Imports")
+        elapsed_time("Amber API and Plant Imports")
+
 
         start_timer()
         amber = AmberAPI(config_manager.amber_api_key, config_manager.amber_site_id, demand_price=config_manager.amber_demand_price, errors=True)

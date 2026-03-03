@@ -56,8 +56,8 @@ class MPC:
         self.discharge_efficiency = 0.95
         self.battery_min_export_cost = 0.07  # $/kWh (Export will only occour ABOVE this value)
         self.grid_import_penalty_cost = 0.02 # $/kWh penalty for using grid power
-        self.solar_curtailment_penalty = 0 # $/kWh just enough to encorage use of the solar
-        self.min_solar_export_price = 0.02 # $/kWh minimum price to sell solar 
+        self.full_battery_reward = self.grid_import_penalty_cost + 0.021  # $/kWh — tune this value to encourage the battery to be full by the end of the solar day
+        self.maintain_soc_reward = 0.000002 # $/kWh / interval reward for maintaining higher SOC throughout the day
         self.demand_tarrif = demand_tarrif # True if the selected site has a demand tarrif applied
         self.current_effective_price = 0 # Set to zero until we run an optimisation and determine the current effective price based on the MPC plan and current conditions
        
@@ -167,15 +167,6 @@ class MPC:
             constraints += [p_charge[t] <= self.p_max_charge]
             constraints += [p_discharge[t] <= self.p_max_discharge]
 
-            # Limit export to only occour at reasonable prices until the battery is near full
-            #if self.prices_sell[t] < self.min_solar_export_price:
-            #    excess_solar = max(self.solar_5min[t] - self.load_5min[t], 0)
-            #    constraints += [grid_export[t] <= excess_solar * (soc[t] / self.soc_max)]
-            
-            # Limit battery discharge export based on price
-            #if(self.prices_sell[t] < self.battery_min_export_cost):
-            #    constraints += [(p_discharge[t] <= max(0, self.load_5min[t] - self.solar_5min[t]))]
-
             # DC Solar Limits
             constraints += [solar_used[t] <= self.solar_5min[t],    # Solar cannot exceed forecast
                             solar_used[t] <= self.solar_dc_max,     # DC MPPT Limit
@@ -202,8 +193,6 @@ class MPC:
                 if self.demand_window_forecast[t] > 0:
                     constraints += [peak_demand >= grid_import[t]]
 
- 
-        full_battery_reward = self.grid_import_penalty_cost + 0.021  # $/kWh — tune this value
 
         # Find end of TODAY's solar window (ignore tomorrow's solar)
         # Solar day = first time solar drops to ~0 after having been >0
@@ -228,12 +217,13 @@ class MPC:
             + cp.multiply(grid_import, self.grid_import_penalty_cost) * self.dt_5min
             + cp.multiply(self.solar_curtailment_penalty, solar_curtail) * self.dt_5min
             + cp.multiply(self.battery_min_export_cost, p_discharge) * self.dt_5min
+            - cp.multiply(self.maintain_soc_reward, soc[0:-1]) # Small reward for maintaining higher SOC throughout the day
         )
 
         non_sum_objective_list = 0
 
         if solar_started and solar_end_index > 0:
-            non_sum_objective_list = non_sum_objective_list - cp.multiply(full_battery_reward, soc[solar_end_index]) # Encorage the battery to be full by the end of the solar day
+            non_sum_objective_list = non_sum_objective_list - cp.multiply(self.full_battery_reward, soc[solar_end_index]) # Encorage the battery to be full by the end of the solar day
 
         if(self.demand_tarrif):
             non_sum_objective_list = non_sum_objective_list + peak_demand * self.demand_tarrif_price # no dt multiply - it's a peak charge

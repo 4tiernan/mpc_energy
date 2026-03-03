@@ -27,7 +27,7 @@ class HomeAssistantAPI:
     def check_api_running(self): #Checks to see if we can connect to the ha api
         url = f"{self.base_url}/api/"
         r = requests.get(url, headers=self.headers, params=None)
-        r.raise_for_status()
+        #r.raise_for_status()
         response = r.json()
         return response.get("message") == "API running."
 

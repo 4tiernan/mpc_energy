@@ -4,7 +4,6 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 import logging
-import time
 
 logger = logging.getLogger(__name__)
 
@@ -26,9 +25,7 @@ class HomeAssistantAPI:
 
     def check_api_running(self): #Checks to see if we can connect to the ha api
         url = f"{self.base_url}/api/"
-        r = requests.get(url, headers=self.headers, params=None)
-        #r.raise_for_status()
-        response = r.json()
+        response = self.ha_request(url, "get")
         return response.get("message") == "API running."
 
     def ha_request(self, url, method, data=None, params = None, headers = None):
@@ -50,12 +47,7 @@ class HomeAssistantAPI:
                 entity_id = url.split("/api/states/")[-1]
                 logger.error(f"Able to connect to HA API but the entity {entity_id} was not found. Is it disabled?")
             else:
-                while(not self.check_api_running()): # If we can't connect to the HA API, wait and retry until we can. This is to handle the case where the add-on starts before HA is fully up and running.
-                    logger.error(f"Unable to connect to HA API, retrying in 30 seconds")
-                    time.sleep(30)
-                    
-                return self.ha_request(url, method, data, params, headers)
-
+                raise Exception(f"Unable to connect to HA, exception: {e}")
     
     def get_state(self, entity_id):
         url = f"{self.base_url}/api/states/{entity_id}"

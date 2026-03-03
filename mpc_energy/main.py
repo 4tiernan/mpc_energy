@@ -8,17 +8,6 @@ import colorlog
 import config_manager
 import const
 
-start_time = time.time()
-def start_timer():
-    global start_time
-    start_time = time.time()
-    return start_time
-
-def elapsed_time(code_block_name="Code Block"):
-    global start_time
-    elapsed = time.time() - start_time
-    logger.info(f"{code_block_name} took {round(elapsed, 2)} seconds")
-    return elapsed
 
 # Create a color formatter
 formatter = colorlog.ColoredFormatter(
@@ -108,41 +97,28 @@ def ensure_remote_ems(): # Ensures the remote EMS switch is on provided the auto
 
 while(started == False):
     try:
-        start_timer()
         from RBC import RBC
         from MPC import MPC
         from energy_controller import EnergyController
-        elapsed_time("controller Imports")
-        start_timer()
         from ha_api import HomeAssistantAPI
         import ha_mqtt
-        elapsed_time("Home Assistant Imports")
-        start_timer()
         from amber_api import AmberAPI
         from PlantControl import Plant
-        elapsed_time("Amber API and Plant Imports")
 
-
-        start_timer()
         amber = AmberAPI(config_manager.amber_api_key, config_manager.amber_site_id, demand_price=config_manager.amber_demand_price, errors=True)
         #amber_data = amber.get_data()
-        elapsed_time("Amber API Setup")
 
-        start_timer()
         ha = HomeAssistantAPI(
             base_url=const.HA_API_URL,
             token=const.HA_TOKEN,
             errors=True
         )
-        elapsed_time("Home Assistant API Setup")
         
-        start_timer()
         plant = Plant(ha) 
-        elapsed_time("Plant Setup")
+
         
         ensure_remote_ems()
         
-        start_timer()
         EC = EnergyController(
             ha=ha,
             ha_mqtt=ha_mqtt,
@@ -162,10 +138,8 @@ while(started == False):
             plant=plant,
             EC=EC, 
             demand_tarrif=amber.demand_tarrif
-        ) 
-        elapsed_time("Controllers Setup")    
+        )     
 
-        start_timer()
         # Start Streamlit dashboard
         streamlit_proc = subprocess.Popen([
             sys.executable,
@@ -180,7 +154,6 @@ while(started == False):
             "--server.enableXsrfProtection=false",
             "--theme.base=light"
         ])
-        elapsed_time("Streamlit Dashboard Setup")
 
 
         #logger.info("Streamlit dashboard started")  
@@ -251,9 +224,6 @@ def run_controller(price_update=False):
         else: # Selected Controller must be safe mode
             EC.self_consumption()
 
-        if(last_control_mode != selected_controller):
-            logger.warning(f"Controller changed from {last_control_mode} to {selected_controller}")
-            
         last_control_mode = selected_controller # Reset the controller tracker
  
         # If auto control is on, run the energy controller and RBC (every 2 seconds as we need to keep track of some things)

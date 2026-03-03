@@ -1,6 +1,6 @@
-name: "MPC Energy Dev"
+name: "MPC Energy"
 description: "A profit optimiser for home batteries with wholesale electricity pricing."
-version: "0.1.45"
+version: "0.1.21"
 slug: "mpc_energy"
 init: false
 arch:
@@ -65,8 +65,6 @@ options:
   battery_kwh_till_full_entity_id: "sensor.sigen_plant_available_max_charging_capacity"
   plant_solar_kwh_today_entity_id: "sensor.sigen_plant_daily_pv_energy"
   plant_daily_load_kwh_entity_id: "sensor.sigen_plant_daily_load_consumption"
-  plant_daily_import_kwh_entity_id: "sensor.sigen_plant_daily_grid_import_energy"
-  plant_daily_export_kwh_entity_id: "sensor.sigen_plant_daily_grid_export_energy"
   
   battery_rated_capacity_entity_id: "sensor.sigen_plant_rated_energy_capacity"
   backup_soc_entity_id: "number.sigen_plant_ess_backup_state_of_charge"
@@ -119,8 +117,6 @@ schema:
   battery_kwh_till_full_entity_id: str
   plant_solar_kwh_today_entity_id: str
   plant_daily_load_kwh_entity_id: str
-  plant_daily_import_kwh_entity_id: str
-  plant_daily_export_kwh_entity_id: str
   
   battery_rated_capacity_entity_id: str
   backup_soc_entity_id: str

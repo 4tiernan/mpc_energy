@@ -246,6 +246,9 @@ def run_controller(price_update=False):
         else: # Selected Controller must be safe mode
             EC.self_consumption()
 
+        if(last_control_mode != selected_controller):
+            logger.warning(f"Controller changed from {last_control_mode} to {selected_controller}")
+            
         last_control_mode = selected_controller # Reset the controller tracker
  
         # If auto control is on, run the energy controller and RBC (every 2 seconds as we need to keep track of some things)

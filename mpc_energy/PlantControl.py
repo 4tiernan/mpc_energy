@@ -138,8 +138,8 @@ class Plant:
         solar_power_state_history = self.ha.get_history(config_manager.solar_power_entity_id, start_time=start, end_time=end)
         load_power_state_history = self.ha.get_history(config_manager.load_power_entity_id, start_time=start, end_time=end)
         grid_power_state_history = self.ha.get_history(config_manager.grid_power_entity_id, start_time=start, end_time=end)
-        grid_import_kwh_state_history = self.ha.get_history("sensor.sigen_plant_daily_grid_import_energy", start_time=start, end_time=end)
-        grid_export_kwh_state_history = self.ha.get_history("sensor.sigen_plant_daily_grid_export_energy", start_time=start, end_time=end)
+        grid_import_kwh_state_history = self.ha.get_history(config_manager.plant_daily_import_kwh_entity_id, start_time=start, end_time=end)
+        grid_export_kwh_state_history = self.ha.get_history(config_manager.plant_daily_export_kwh_entity_id, start_time=start, end_time=end)
 
         feed_in_state_history = self.ha.get_history("sensor.mpc_energy_manager_device_feed_in_price", start_time=start, end_time=end) 
         general_price_state_history = self.ha.get_history("sensor.mpc_energy_manager_device_general_price", start_time=start, end_time=end)
@@ -322,7 +322,16 @@ class Plant:
         a = current_control_mode != control_mode or curent_discharge_limit != discharge or curent_charge_limit != charge
         b = curent_pv_limit != pv or curent_export_limit != grid_export or curent_import_limit != grid_import
 
-        if(a or b):
+        wrong_control_mode = current_control_mode != control_mode
+        wrong_discharge_limit = curent_discharge_limit != discharge
+        wrong_charge_limit = curent_charge_limit != charge
+        wrong_pv_limit = curent_pv_limit != pv
+        wrong_export_limit = curent_export_limit != grid_export
+        wrong_import_limit = curent_import_limit != grid_import
+
+        any_limits_wrong = wrong_control_mode or wrong_discharge_limit or wrong_charge_limit or wrong_pv_limit or wrong_export_limit or wrong_import_limit
+
+        if any_limits_wrong:          
             self.set_control_limits(control_mode, discharge, charge, pv, grid_export, grid_import)
             logger.info(f"{working_mode} !!!")
             time.sleep(5) # Allow time for HA to update

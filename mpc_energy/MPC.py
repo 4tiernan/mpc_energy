@@ -253,7 +253,7 @@ class MPC:
             now = now.replace(minute=minute)
             time_index = [now + timedelta(minutes=5 * i) for i in range(int(self.N_5min))]
             if solar_started and solar_end_index > 0:
-                logger.info(f"Solar Day ends at index {solar_end_index} time:{time_index[solar_end_index]}  soc:{soc[solar_end_index]} reward: {full_battery_reward * soc[solar_end_index]}")
+                logger.info(f"Solar Day ends at index {solar_end_index} time:{time_index[solar_end_index]}")
 
 
             grid_kwh_import_per_interval = grid_import.value / self.steps_per_hr 

@@ -3,7 +3,6 @@ A profit optimiser for home batteries with wholesale electricity pricing.
 <img width="2614" height="1465" alt="image" src="https://github.com/user-attachments/assets/0f053133-56cd-49b7-815b-8fd2dbcb6717" />
 
 <br/>
-<br/>
 
 ##  🚀 Getting Started
 
@@ -11,6 +10,14 @@ A profit optimiser for home batteries with wholesale electricity pricing.
 <br/>
 <br/>
 <br/>
+
+## FAQ
+If you're having issues or the controller is doing something weird, please view the FAQ's [here](https://github.com/4tiernan/mpc_energy/blob/main/docs/FAQ.md)
+
+<br/>
+<br/>
+<br/>
+
 ## ⚠️ Important Safety Notice
 
 This home assitant app automatically controls energy systems such as batteries, inverters, and grid import/export.

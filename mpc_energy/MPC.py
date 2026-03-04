@@ -73,6 +73,8 @@ class MPC:
     # Update any values or forecasts required to run the sim
     def update_values(self, amber_data, inject_real_values = True):   
         self.plant.update_data()
+        self.update_limits() # Update the limits in case the user has changed any config values that affect the limits since the last update
+        
         current_soc = (self.plant.battery_soc / 100)*self.soc_max
         self.soc_init = min(current_soc, self.soc_max) #constrain the soc to within limits to stop solver from doing weird stuff
 

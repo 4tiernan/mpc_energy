@@ -58,6 +58,7 @@ class MPC:
         self.maintain_soc_reward = 0 #0.0002 # $/kWh / interval reward for maintaining higher SOC throughout the day
         self.demand_tarrif = demand_tarrif # True if the selected site has a demand tarrif applied
         self.current_effective_price = 0 # Set to zero until we run an optimisation and determine the current effective price based on the MPC plan and current conditions
+        
        
     def update_limits(self):
         # Battery Settings

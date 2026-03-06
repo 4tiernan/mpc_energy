@@ -12,9 +12,6 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-HA_TZ = ZoneInfo("Australia/Brisbane") 
-
-
 import json
 import paho.mqtt.client as mqtt
 import const
@@ -26,10 +23,11 @@ mqtt_client.connect(const.MQTT_HOST, const.MQTT_PORT)
 mqtt_client.loop_start()
 
 class MPC:
-    def __init__(self, ha, plant, EC, demand_tarrif):
+    def __init__(self, ha, plant, EC, local_tz, demand_tarrif):
         self.plant = plant
         self.ha = ha
         self.EC = EC
+        self.local_tz = local_tz
 
         self.power_threshold = 0.2 # Threshold when comparing power values
 
@@ -59,7 +57,6 @@ class MPC:
         self.demand_tarrif = demand_tarrif # True if the selected site has a demand tarrif applied
         self.current_effective_price = 0 # Set to zero until we run an optimisation and determine the current effective price based on the MPC plan and current conditions
         
-       
     def update_limits(self):
         # Battery Settings
         self.battery_capacity = self.plant.rated_capacity  # kWh
@@ -253,12 +250,13 @@ class MPC:
             grid_net = (grid_import.value - grid_export.value).tolist()
             #hours = np.arange(int(self.N_5min)) * self.dt_5min
 
-            now = datetime.now(HA_TZ).replace(second=0, microsecond=0)
+            now = datetime.now(self.local_tz).replace(second=0, microsecond=0)
             minute = (now.minute // 5) * 5
             now = now.replace(minute=minute)
             time_index = [now + timedelta(minutes=5 * i) for i in range(int(self.N_5min))]
-            if solar_started and solar_end_index > 0:
-                logger.info(f"Solar Day ends at index {solar_end_index} time:{time_index[solar_end_index]}")
+            
+            # if solar_started and solar_end_index > 0:
+            #     logger.info(f"Solar Day ends at index {solar_end_index} time:{time_index[solar_end_index]}")
 
 
             grid_kwh_import_per_interval = grid_import.value / self.steps_per_hr 

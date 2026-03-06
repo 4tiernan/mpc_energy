@@ -12,8 +12,6 @@ import config_manager
 
 logger = logging.getLogger(__name__)
 
-HA_TZ = ZoneInfo("Australia/Brisbane") 
-
 @dataclass
 class BinnedStateClass:
     states: list[Any] # States that make up the avg
@@ -24,6 +22,7 @@ class BinnedStateClass:
 class Plant:
     def __init__(self, ha):
         self.ha = ha
+        self.local_tz = ha.local_tz
         self.control_mode_options = [
             "Standby",
             "Maximum Self Consumption",
@@ -49,6 +48,7 @@ class Plant:
         self.base_load_estimate = None
 
         self.update_data()
+        
     def get_config_entry_value(self, entry_id): # Try to get the value from a config entry that is either a string float or an entity id
         try:
             val = float(entry_id)
@@ -116,7 +116,7 @@ class Plant:
                 ...
             ]
         """
-        now = datetime.datetime.now(HA_TZ)
+        now = datetime.datetime.now(self.local_tz)
         rounded_now = self.round_minutes(time=now, nearest_minute=bin_period)
         start = self.round_minutes(time=rounded_now - datetime.timedelta(hours=hours), nearest_minute=bin_period)
         end = now
@@ -185,8 +185,8 @@ class Plant:
 
     def calculate_today_profit_cost(self):
         # Get today's historical data
-        start = datetime.datetime.now(HA_TZ).replace(hour=0, minute=0, second=0, microsecond=0)
-        end = datetime.datetime.now(HA_TZ)
+        start = datetime.datetime.now(self.local_tz).replace(hour=0, minute=0, second=0, microsecond=0)
+        end = datetime.datetime.now(self.local_tz)
         hours_since_midnight = (end - start).total_seconds() / 3600
         history = self.historical_data(hours=hours_since_midnight, bin_period=5)
 
@@ -350,12 +350,12 @@ class Plant:
             raise(f"Requested control mode '{control_mode}' is not a valid control mode!")
     
     def calculate_base_load(self, days_ago = 7): # Calculate base load in kW
-        today = datetime.datetime.now(HA_TZ).date()
+        today = datetime.datetime.now(self.local_tz).date()
         end_date = today - datetime.timedelta(days=1)
         start_date = end_date - datetime.timedelta(days=days_ago)
 
-        start = datetime.datetime.combine(start_date, datetime.time.min, tzinfo=HA_TZ)
-        end = datetime.datetime.combine(end_date, datetime.time.min, tzinfo=HA_TZ)
+        start = datetime.datetime.combine(start_date, datetime.time.min, tzinfo=self.local_tz)
+        end = datetime.datetime.combine(end_date, datetime.time.min, tzinfo=self.local_tz)
 
         load_state_history = self.ha.get_history(config_manager.load_power_entity_id, start_time=start, end_time=end)
 
@@ -548,12 +548,12 @@ class Plant:
             dt = dt + datetime.timedelta(minutes=time_bucket_size)
 
 
-        today = datetime.datetime.now(HA_TZ).date()
+        today = datetime.datetime.now(self.local_tz).date()
         end_date = today - datetime.timedelta(days=1)
         start_date = end_date - datetime.timedelta(days=days_ago)
 
-        start = datetime.datetime.combine(start_date, datetime.time.min, tzinfo=HA_TZ)
-        end = datetime.datetime.combine(end_date, datetime.time.min, tzinfo=HA_TZ)
+        start = datetime.datetime.combine(start_date, datetime.time.min, tzinfo=self.local_tz)
+        end = datetime.datetime.combine(end_date, datetime.time.min, tzinfo=self.local_tz)
 
 
         history = self.ha.get_history(config_manager.plant_daily_load_kwh_entity_id, start_time=start, end_time=end)
@@ -615,7 +615,7 @@ class Plant:
                     minute=(state.time.minute // time_bucket_size) * time_bucket_size,
                     second=0,
                     microsecond=0,
-                    tzinfo=HA_TZ
+                    tzinfo=self.local_tz
                     )
                                 
                 # If it doesn't match, then it should belong in the next bin, thus increment to the next bin
@@ -691,7 +691,7 @@ class Plant:
         return avg_day
 
     def round_forecast_times(self, forecast_hours_from_now=None, forecast_till_time=None):
-        rounded_current_time = self.round_minutes(datetime.datetime.now(HA_TZ), nearest_minute=5)
+        rounded_current_time = self.round_minutes(datetime.datetime.now(self.local_tz), nearest_minute=5)
         if(forecast_hours_from_now):
             if(forecast_hours_from_now > 24):
                 raise Exception(f"Unable to provide forecast more than 24hrs in the future. {forecast_hours_from_now} hrs requested")

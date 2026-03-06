@@ -1,7 +1,7 @@
 import requests
 import time
 import numpy as np
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from dataclasses import dataclass
 import logging
 
@@ -200,7 +200,6 @@ class AmberAPI:
     
     # Get the 5 min, 30 min and past prices and combine into a 5 minutely 'forecast' that extends past the 12 hr limit
     def get_extrapolated_forecast(self, hours, advanced_forecast = False): 
-        steps_per_price = 30 // 5 # = 6
         N_30min = int(hours / (30/60)) # Number of 30 min segments requested
         N_5min = int(hours / (5/60))   # Number of 5 min segments requested
 
@@ -209,41 +208,57 @@ class AmberAPI:
     
         # Get the 5 minutely price forecasts
         [general_price_forecast_5_min_data, feed_in_price_forecast_5_min_data] = self.get_forecast(next_intervals=60//5, resolution=5, advanced_forecast=advanced_forecast)
-        feed_in_price_forecast_5_min = [round(feedIn.price) for feedIn in feed_in_price_forecast_5_min_data][0:12] # select only the first 12 forecast intervals (1 hr)
-        general_price_forecast_5_min = [round(general.price) for general in general_price_forecast_5_min_data][0:12]
-        demand_window_forecast_5_min = [general.demand_window for general in general_price_forecast_5_min_data][0:12]
 
         # Get the 30 minutely forecast
         [general_price_forecast_30_min_data, feed_in_price_forecast_30_min_data] = self.get_forecast(next_intervals=amber_forecast_30min_intervals, resolution=30, advanced_forecast=advanced_forecast)
-        feed_in_price_forecast_30_min = [round(feedIn.price) for feedIn in feed_in_price_forecast_30_min_data]
-        general_price_forecast_30_min = [round(general.price) for general in general_price_forecast_30_min_data]
-        demand_window_forecast_30_min = [general.demand_window for general in general_price_forecast_30_min_data]
 
-        feed_in_price_forecast_30_min_expanded = np.repeat(feed_in_price_forecast_30_min, steps_per_price)
-        general_price_forecast_30_min_expanded = np.repeat(general_price_forecast_30_min,  steps_per_price)
-        demand_window_forecast_30_min_expanded = np.repeat(demand_window_forecast_30_min, steps_per_price)
-
-
-        # Get the past prices to form the 2nd half of the 24hr forecast due to the 12hr limit on forecasts
+        # Getz the past prices to form the 2nd half of the 24hr forecast due to the 12hr limit on forecasts
         [past_general_30_min_data, past_feed_in_30_min_data] = self.get_past_prices(amber_past_30min_intervals, resolution=30)
-        past_feed_in_prices_30_min = [round(feedIn.price) for feedIn in past_feed_in_30_min_data]
-        past_general_prices_30_min = [round(general.price) for general in past_general_30_min_data] # Extract the price and round it from the forecasts
-        past_demand_windows_30_min = [general.demand_window for general in past_general_30_min_data]
 
-        past_feed_in_prices_30_min_expanded = np.repeat(past_feed_in_prices_30_min,  steps_per_price)
-        past_general_prices_30_min_expanded = np.repeat(past_general_prices_30_min,  steps_per_price) # Expand the prices out to 5 minutely, (getting the raw 5 minute data was too noisy)
-        past_demand_windows_30_min_expanded = np.repeat(past_demand_windows_30_min, steps_per_price)
+        # Build a 5-minute forecast keyed by the timestamps returned by Amber.
+        # Start with 30-minute intervals expanded to 5-minute points, then overwrite
+        # those points with the native 5-minute data where available.
+        general_points = {}
+        feed_in_points = {}
+        demand_window_points = {}
 
-        feed_in_price_extrapolated_forecast = np.append(feed_in_price_forecast_30_min_expanded, past_feed_in_prices_30_min_expanded)
-        general_price_extrapolated_forecast = np.append(general_price_forecast_30_min_expanded, past_general_prices_30_min_expanded) # append the past prices to the 12hr forecast to allow for a 24hr prediction
-        demand_window_extrapolated_forecast = np.append(demand_window_forecast_30_min_expanded, past_demand_windows_30_min_expanded)
+        def normalize_time(ts: datetime):
+            # Amber can return timestamps with a few extra seconds (e.g. xx:30:01).
+            # Normalise to exact minute boundaries so 5-minute keys align correctly.
+            return ts.replace(second=0, microsecond=0)
 
-        feed_in_price_extrapolated_forecast[0:len(feed_in_price_forecast_5_min)] = feed_in_price_forecast_5_min
-        general_price_extrapolated_forecast[0:len(general_price_forecast_5_min)] = general_price_forecast_5_min
-        demand_window_extrapolated_forecast[0:len(demand_window_forecast_5_min)] = demand_window_forecast_5_min
+        def add_intervals(general_intervals, feed_in_intervals, time_offset=timedelta(0)):
+            for general, feed_in in zip(general_intervals, feed_in_intervals):
+                start_time = normalize_time(general.start_time) + time_offset
+                end_time = normalize_time(general.end_time) + time_offset
+
+                interval_minutes = int((end_time - start_time).total_seconds() // 60)
+                steps = max(interval_minutes // 5, 0)
+
+                for step in range(steps):
+                    t = start_time + timedelta(minutes=step * 5)
+                    general_points[t] = round(general.price)
+                    feed_in_points[t] = round(feed_in.price)
+                    demand_window_points[t] = bool(general.demand_window)
+
+        add_intervals(general_price_forecast_30_min_data, feed_in_price_forecast_30_min_data)
+        # Shift "past" intervals forward by one day so they fill the post-12h horizon.
+        add_intervals(past_general_30_min_data, past_feed_in_30_min_data, time_offset=timedelta(days=1))
+
+        # Overwrite with native 5-minute data where available
+        for general, feed_in in zip(general_price_forecast_5_min_data, feed_in_price_forecast_5_min_data):
+            point_time = normalize_time(general.start_time)
+            general_points[point_time] = round(general.price)
+            feed_in_points[point_time] = round(feed_in.price)
+            demand_window_points[point_time] = bool(general.demand_window)
+
+        ordered_times = sorted(general_points.keys())
+        general_price_extrapolated_forecast = [general_points[t] for t in ordered_times]
+        feed_in_price_extrapolated_forecast = [feed_in_points[t] for t in ordered_times]
+        demand_window_extrapolated_forecast = [demand_window_points[t] for t in ordered_times]
 
         # Return extended forecast
-        return [general_price_extrapolated_forecast[:N_5min], feed_in_price_extrapolated_forecast[:N_5min], demand_window_extrapolated_forecast[:N_5min]]
+        return [general_price_extrapolated_forecast[:N_5min], feed_in_price_extrapolated_forecast[:N_5min], demand_window_extrapolated_forecast[:N_5min], ordered_times[:N_5min]]
 
     def get_current_prices(self):
         url = (f"{self.base}/sites/{self.site_id}/prices/current")
@@ -282,7 +297,7 @@ class AmberAPI:
             feed_in_price = self.data.feedIn_price
 
         if((not estimate and forecast_hrs != None) or self.data == None):
-            [general_extrapolated_forecast, feedIn_extrapolated_forecast, demand_window_extrapolated_forecast] = self.get_extrapolated_forecast(hours=forecast_hrs)
+            [general_extrapolated_forecast, feedIn_extrapolated_forecast, demand_window_extrapolated_forecast, extrapolated_timestamps] = self.get_extrapolated_forecast(hours=forecast_hrs)
         else:
             general_extrapolated_forecast = self.data.general_extrapolated_forecast
             feedIn_extrapolated_forecast = self.data.feedIn_extrapolated_forecast
@@ -304,8 +319,19 @@ class AmberAPI:
             demand_window_extrapolated_forecast=demand_window_extrapolated_forecast
             )
         return self.data
-      
+'''      
+from zoneinfo import ZoneInfo
+HA_TZ = ZoneInfo("Australia/Brisbane")
 
+amber = AmberAPI("", "", HA_TZ,7)
+fg,ff = amber.get_forecast(30,30)
+r = [[i.demand_window, i.start_time] for i in fg]
+
+g,f,d,t = amber.get_extrapolated_forecast(24)
+
+for i in range(len(g)):
+    print(f"{d[i]} {g[i]} {t[i]}")
+'''
 '''
 from api_token_secrets import HA_URL, HA_TOKEN, AMBER_API_TOKEN, SITE_ID
 amber = AmberAPI(AMBER_API_TOKEN, SITE_ID, errors=True)

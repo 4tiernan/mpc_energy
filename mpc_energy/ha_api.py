@@ -2,7 +2,7 @@ import requests
 from typing import Any, Dict, Optional
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from zoneinfo import ZoneInfo
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 import logging
 import time
 
@@ -13,7 +13,7 @@ class History:
     state: float
     time: datetime
 
-HA_TZ = ZoneInfo("Australia/Brisbane") 
+DEFAULT_TZ = ZoneInfo("Australia/Brisbane") 
 
 class HomeAssistantAPI:
     def __init__(self, base_url, token, errors):
@@ -23,6 +23,22 @@ class HomeAssistantAPI:
             "Content-Type": "application/json"
         }
         self.errors = errors
+        self.local_tz = self.get_timezone()
+
+    def get_timezone(self):
+        url = f"{self.base_url}/api/config"
+        try:
+            response = self.ha_request(url=url, method='get')
+            timezone_name = response.get("time_zone")
+            if timezone_name:
+                logger.info(f"Timezone from HA config: {timezone_name}")
+                return ZoneInfo(timezone_name)
+        except ZoneInfoNotFoundError:
+            logger.error("Timezone returned by HA is invalid. Falling back to Australia/Brisbane.")
+        except Exception:
+            logger.error("Unable to get timezone from HA config. Falling back to Australia/Brisbane.")
+
+        return DEFAULT_TZ
 
     def check_api_running(self): #Checks to see if we can connect to the ha api
         url = f"{self.base_url}/api/"
@@ -102,7 +118,7 @@ class HomeAssistantAPI:
         
         for i in response[0]:
             state_time = datetime.fromisoformat(i["last_updated"])
-            state_time = state_time.astimezone(HA_TZ)
+            state_time = state_time.astimezone(self.local_tz)
             if(type == float):
                 try:
                     state_value = float(i["state"])

@@ -116,18 +116,21 @@ while(started == False):
         from amber_api import AmberAPI
         from PlantControl import Plant
 
-
-        amber = AmberAPI(config_manager.amber_api_key, config_manager.amber_site_id, demand_price=config_manager.amber_demand_price, errors=True)
-        #amber_data = amber.get_data()
-
         ha = HomeAssistantAPI(
             base_url=const.HA_API_URL,
             token=const.HA_TOKEN,
             errors=True
         )
+
+        amber = AmberAPI(
+            config_manager.amber_api_key,
+            config_manager.amber_site_id,
+            local_tz=ha.local_tz,
+            demand_price=config_manager.amber_demand_price,
+            errors=True
+        )
         
         plant = Plant(ha) 
-        
         
         EC = EnergyController(
             ha=ha,
@@ -147,6 +150,7 @@ while(started == False):
             ha=ha,
             plant=plant,
             EC=EC, 
+            local_tz=ha.local_tz,
             demand_tarrif=amber.demand_tarrif
         ) 
 

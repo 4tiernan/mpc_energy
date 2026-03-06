@@ -1,7 +1,7 @@
 import requests
 import time
 import numpy as np
-from datetime import datetime, timedelta
+from datetime import datetime, timezone
 from dataclasses import dataclass
 import logging
 
@@ -31,13 +31,11 @@ class amber_data:
     demand_window_extrapolated_forecast: list[bool]  # True for each 5-min interval that falls in a demand window
     
 
-UTC_OFFSET = timedelta(hours=10) #UTC time, +10 for Brisbane
-
-
 class AmberAPI:
-    def __init__(self, api_key, site_id, demand_price="", errors=True):
+    def __init__(self, api_key, site_id, local_tz=None, demand_price="", errors=True):
         self.api_key = api_key
         self.site_id = site_id
+        self.local_tz = local_tz
         self.base = "https://api.amber.com.au/v1"
 
         self.headers = {
@@ -135,8 +133,8 @@ class AmberAPI:
         response = self.send_request(url)
         if(len(response) >= 2):
             for i in response:
-                start = datetime.strptime(i["startTime"], date_format) + UTC_OFFSET
-                end   = datetime.strptime(i["endTime"], date_format) + UTC_OFFSET
+                start = datetime.strptime(i["startTime"], date_format).replace(tzinfo=timezone.utc).astimezone(self.local_tz)
+                end   = datetime.strptime(i["endTime"], date_format).replace(tzinfo=timezone.utc).astimezone(self.local_tz)
 
                 if i["channelType"] == "general":
                     price = i["perKwh"] 
@@ -177,8 +175,8 @@ class AmberAPI:
         response = self.send_request(url)
         if(len(response) >= 2):
             for i in response:
-                start = datetime.strptime(i["startTime"], date_format) + UTC_OFFSET
-                end   = datetime.strptime(i["endTime"], date_format) + UTC_OFFSET
+                start = datetime.strptime(i["startTime"], date_format).replace(tzinfo=timezone.utc).astimezone(self.local_tz)
+                end   = datetime.strptime(i["endTime"], date_format).replace(tzinfo=timezone.utc).astimezone(self.local_tz)
 
                 if i["channelType"] == "general":
                     if("advancedPrice" in i and advanced_forecast == True):

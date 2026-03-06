@@ -209,9 +209,9 @@ class AmberAPI:
     
         # Get the 5 minutely price forecasts
         [general_price_forecast_5_min_data, feed_in_price_forecast_5_min_data] = self.get_forecast(next_intervals=60//5, resolution=5, advanced_forecast=advanced_forecast)
-        feed_in_price_forecast_5_min = [round(feedIn.price) for feedIn in feed_in_price_forecast_5_min_data][0:11] # select only the first 12 forecast intervals (1 hr)
-        general_price_forecast_5_min = [round(general.price) for general in general_price_forecast_5_min_data][0:11]
-        demand_window_forecast_5_min = [general.demand_window for general in general_price_forecast_5_min_data][0:11]
+        feed_in_price_forecast_5_min = [round(feedIn.price) for feedIn in feed_in_price_forecast_5_min_data][0:12] # select only the first 12 forecast intervals (1 hr)
+        general_price_forecast_5_min = [round(general.price) for general in general_price_forecast_5_min_data][0:12]
+        demand_window_forecast_5_min = [general.demand_window for general in general_price_forecast_5_min_data][0:12]
 
         # Get the 30 minutely forecast
         [general_price_forecast_30_min_data, feed_in_price_forecast_30_min_data] = self.get_forecast(next_intervals=amber_forecast_30min_intervals, resolution=30, advanced_forecast=advanced_forecast)

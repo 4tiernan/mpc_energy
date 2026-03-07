@@ -3,7 +3,7 @@
 
 type: sections
 max_columns: 4
-title: Example Dashboard
+title: MPC Example Dashboard
 path: add-on-data
 sections:
   - type: grid
@@ -26,7 +26,7 @@ sections:
           model: sigenergy
           three_phase: true
           modern: false
-          autarky: energy
+          autarky: "no"
           auto_scale: true
         battery:
           show_daily: true
@@ -41,29 +41,12 @@ sections:
           linear_gradient: true
           show_absolute: false
           max_power: 20000
-          soc_end_of_charge: 100
-          energy: 40300
+          soc_end_of_charge: number.sigen_plant_ess_charge_cut_off_state_of_charge
+          energy: sensor.sigen_plant_rated_energy_capacity
           colour: "#ff5792"
           charge_colour: "#359cfd"
-          shutdown_soc_offgrid: 0
-          shutdown_soc: 5
-        battery2:
-          energy: 0
-          shutdown_soc: 20
-          soc_end_of_charge: 100
-          invert_power: false
-          hide_soc: false
-          colour: "#ffc0cb"
-          show_remaining_energy: true
-          remaining_energy_to_shutdown: false
-          show_absolute: false
-          auto_scale: true
-          dynamic_colour: true
-          linear_gradient: true
-          animate: true
-          path_threshold: 100
-          navigate: ""
-          invert_flow: false
+          shutdown_soc_offgrid: number.sigen_plant_ess_discharge_cut_off_state_of_charge
+          shutdown_soc: number.sigen_plant_ess_backup_state_of_charge
         solar:
           show_daily: true
           display_mode: 2
@@ -192,6 +175,7 @@ sections:
           - entity: sensor.mpc_energy_manager_device_alive_time
             name:
               type: entity
+            secondary_info: last-updated
           - entity: sensor.mpc_energy_manager_device_average_daily_load
             name:
               type: entity

@@ -199,9 +199,6 @@ class HomeAssistantAPI:
             config_manager.charge_cutoff_soc_entity_id,
             config_manager.battery_max_charge_power_limit_entity_id,
             config_manager.battery_max_discharge_power_limit_entity_id,
-            config_manager.export_max_power_limit_entity_id,
-            config_manager.import_max_power_limit_entity_id,
-            config_manager.pv_max_power_limit_entity_id,
             config_manager.battery_kwh_till_full_entity_id,
             config_manager.battery_max_charge_power_limit_entity_id,
             config_manager.battery_max_discharge_power_limit_entity_id

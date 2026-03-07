@@ -75,7 +75,7 @@ class HomeAssistantAPI:
         except Exception as e:
             if(self.check_api_running()):
                 entity_id = url.split("/api/states/")[-1]
-                logger.error(f"Able to connect to HA API but the entity '{entity_id}' was not found. Is it disabled?")
+                logger.error(f"Able to connect to HA API but the entity '{entity_id}' was not found. Is it disabled? Error details: '{str(e)}'")
                 exit()
             else:
                 while(not self.check_api_running()): # If we can't connect to the HA API, wait and retry until we can. This is to handle the case where the add-on starts before HA is fully up and running.

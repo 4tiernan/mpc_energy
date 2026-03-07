@@ -7,7 +7,7 @@ import config_manager
 import const
 from mpc_logger import logger
 
-start_time = time.time()
+app_start_timestamp = time.time()
 def start_timer():
     global start_time
     start_time = time.time()
@@ -274,7 +274,7 @@ while True:
         if(time.time() - last_loop_timestamp >= 30): # Run the loop every 30 seconds to reduce CPU usage
             last_loop_timestamp = time.time()
             main_loop_code()
-            ha_mqtt.alive_time_sensor.set_state(round(time.time()-start_time,1))
+            ha_mqtt.alive_time_sensor.set_state(round(time.time()-app_start_timestamp,1))
 
         time.sleep(1) # Sleep a little to reduce CPU usage, we don't need to check the time constantly
         

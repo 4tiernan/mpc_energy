@@ -51,7 +51,7 @@ options:
   solcast_solar_kwh_remaining_today_entity_id: "sensor.solcast_pv_forecast_forecast_remaining_today"
   solcast_solar_power_this_hour_entity_id: "sensor.solcast_pv_forecast_forecast_this_hour"
 
-  ha_ems_control_switch_entity_id: "switch.sigen_plant_remote_ems_controled_by_home_assistant"
+  ha_ems_control_switch_entity_id: "switch.sigen_plant_remote_ems_controlled_by_home_assistant"
   ems_control_mode_entity_id: "select.sigen_plant_remote_ems_control_mode"
 
   load_power_entity_id: "sensor.sigen_plant_consumed_power"

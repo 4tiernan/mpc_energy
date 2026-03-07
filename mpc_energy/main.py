@@ -3,10 +3,9 @@ import sys
 import time
 import datetime
 import traceback
-import logging
-import colorlog
 import config_manager
 import const
+from mpc_logger import logger
 
 start_time = time.time()
 def start_timer():
@@ -19,43 +18,6 @@ def elapsed_time(code_block_name="Code Block"):
     elapsed = time.time() - start_time
     logger.info(f"{code_block_name} took {round(elapsed, 2)} seconds")
     return elapsed
-
-# Create a color formatter
-formatter = colorlog.ColoredFormatter(
-    "%(log_color)s%(asctime)s [%(levelname)s] %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
-    log_colors={
-        'DEBUG':    'cyan',
-        'INFO':     'green',
-        'WARNING':  'yellow',
-        'ERROR':    'red',
-        'CRITICAL': 'bold_red',
-    }
-)
-# Create a handler
-handler = logging.StreamHandler()
-handler.setFormatter(formatter)
-
-# Set up the logger
-logger = colorlog.getLogger()
-logger.addHandler(handler)
-logger.setLevel(logging.INFO)
-
-
-# Configure logging with timestamps without milliseconds
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S"  # <- remove milliseconds
-)
-logger = logging.getLogger(__name__)
-
-
-# Silence logger spam
-logging.getLogger("ha_mqtt_discoverable").setLevel(logging.WARNING)
-logging.getLogger("ha_mqtt_discoverable.sensors").setLevel(logging.WARNING)
-logging.getLogger("matplotlib.font_manager").setLevel(logging.WARNING)
-
 
 if(not config_manager.accepted_risks):
     logger.error("You must toggle the accept risks switch to acknowledge the risks associated with use of this software before being able to use the app.")

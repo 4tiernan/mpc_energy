@@ -1,8 +1,6 @@
 from enum import Enum
-from dataclasses import dataclass
-import logging
+from mpc_logger import logger
 
-logger = logging.getLogger(__name__)
 
 class ControlMode(Enum):
     SELF_CONSUMPTION = "Self Consumption"

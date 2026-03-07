@@ -8,9 +8,7 @@ from zoneinfo import ZoneInfo
 import matplotlib.dates as mdates
 import time
 from energy_controller import ControlMode
-import logging
-
-logger = logging.getLogger(__name__)
+from mpc_logger import logger
 
 import json
 import paho.mqtt.client as mqtt

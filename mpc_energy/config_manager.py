@@ -1,8 +1,7 @@
 # Module to retreive the config values from the app configuration page, App must be reloaded for changes to take effect
 import json
-import logging
+from mpc_logger import logger
 
-logger = logging.getLogger(__name__)
 
 with open("/data/options.json") as f:
     options = json.load(f)

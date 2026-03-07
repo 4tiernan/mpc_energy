@@ -7,10 +7,10 @@ import math
 import pandas as pd
 from collections import defaultdict
 from typing import Any
-import logging
 import config_manager
+from mpc_logger import logger
 
-logger = logging.getLogger(__name__)
+
 
 @dataclass
 class BinnedStateClass:

@@ -3,9 +3,8 @@ import time
 import numpy as np
 from datetime import datetime, timezone, timedelta
 from dataclasses import dataclass
-import logging
+from mpc_logger import logger
 
-logger = logging.getLogger(__name__)
 
 @dataclass
 class PriceForecast:

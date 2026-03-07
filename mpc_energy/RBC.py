@@ -1,8 +1,7 @@
 from energy_controller import ControlMode
-import logging
 import config_manager
+from mpc_logger import logger
 
-logger = logging.getLogger(__name__)
 
 class RBC():    
     def __init__(self, ha, ha_mqtt, plant, EC, buffer_percentage_remaining=35, max_discharge_rate = 15):

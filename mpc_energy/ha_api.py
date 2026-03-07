@@ -1,12 +1,10 @@
 import requests
-from typing import Any, Dict, Optional
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
-import logging
 import time
+from mpc_logger import logger
 
-logger = logging.getLogger(__name__)
 
 @dataclass
 class History:

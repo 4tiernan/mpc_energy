@@ -154,9 +154,7 @@ def set_sensor_if_changed(sensor, value):
     
 # Update HA MQTT sensors
 def update_sensors(amber_data):
-    start_timer()
     rbc.update_values(amber_data=amber_data)
-    elapsed_time("RBC Update") 
 
     set_sensor_if_changed(ha_mqtt.max_feedIn_sensor, round(amber_data.feedIn_max_forecast_price))
     set_sensor_if_changed(ha_mqtt.current_feedIn_sensor, round(amber_data.feedIn_price))
@@ -182,7 +180,7 @@ def update_sensors(amber_data):
         price = amber_data.general_price
         grid_status = "I"
     
-    set_sensor_if_changed(ha_mqtt.system_state_sensor, EC.working_mode + f" {round(abs(plant.grid_power),1)}@{price+grid_status} c/kWh ${round(plant.daily_net_profit,2)} profit")
+    set_sensor_if_changed(ha_mqtt.system_state_sensor, EC.working_mode + f" {round(abs(plant.grid_power),1)}@{price}{grid_status} c/kWh ${round(plant.daily_net_profit,2)} profit")
     set_sensor_if_changed(ha_mqtt.base_load_sensor, round(1000*plant.get_base_load_estimate(),2)) # converted to w from kW
     set_sensor_if_changed(ha_mqtt.effective_price_sensor, round(mpc.current_effective_price*100)) 
     set_sensor_if_changed(ha_mqtt.avg_daily_load_sensor, round(plant.avg_daily_load,2))

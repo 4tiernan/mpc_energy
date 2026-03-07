@@ -176,12 +176,3 @@ class HomeAssistantAPI:
         data = data or {}
         url = f"{self.base_url}/api/events/{event_type}"
         return self.ha_request(url=url, method='post', data=data)
-
-
-ha = HomeAssistantAPI(
-    base_url="http://192.168.0.130:8123",
-    token="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiI4ZGU5YzI0NGEyNmE0ZjlmYWU2YTM3Njg2OGI5NDQwMyIsImlhdCI6MTc3Mjg0NTQzNSwiZXhwIjoyMDg4MjA1NDM1fQ.t5MCbnPDkwlgXtVk962lMCFcdNJ6Bcce91WEjipea6g",
-    errors=True
-)
-
-print(ha.get_numeric_state("number.sigen_plant_ess_backup_state_of_charge"))

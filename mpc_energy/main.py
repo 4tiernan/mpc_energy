@@ -76,7 +76,6 @@ while(started == False):
         ha = HomeAssistantAPI(
             base_url=const.HA_API_URL,
             token=const.HA_TOKEN,
-            errors=True
         )
 
         

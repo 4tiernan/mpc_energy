@@ -15,13 +15,16 @@ class History:
 DEFAULT_TZ = ZoneInfo("Australia/Brisbane") 
 
 class HomeAssistantAPI:
-    def __init__(self, base_url, token, errors):
+    def __init__(self, base_url, token):
         self.base_url = base_url.rstrip('/')
         self.headers = {
             "Authorization": f"Bearer {token}",
             "Content-Type": "application/json"
         }
-        self.errors = errors
+
+        self.session = requests.Session()
+        self.session.headers.update(self.headers)
+
         self.local_tz = self.get_timezone()
         self.check_required_entities()
 
@@ -43,30 +46,28 @@ class HomeAssistantAPI:
     def check_api_running(self): #Checks to see if we can connect to the ha api
         url = f"{self.base_url}/api/"
         try:
-            r = requests.get(url, headers=self.headers, params=None)
+            r = self.session.get(url, headers=self.headers, params=None)
             response = r.json()
         except:
             return False
         
         return response.get("message") == "API running."
 
-    def ha_request(self, url, method, data=None, params = None, headers = None):
+    def ha_request(self, url, method, data=None, params = None):
         def log_status(r):
             status_code = r.status_code
             if(status_code == 401):
                 logger.error("Unauthorized when connecting to HA API. Please check your token and ensure it has the necessary permissions.")
                 exit()
 
-        if(headers == None):
-            headers = self.headers
         try:
             if(method =='get'):
-                r = requests.get(url, headers=headers, params=params)
+                r = self.session.get(url, headers=self.headers, params=params)
                 log_status(r)
                 r.raise_for_status()
                 return r.json()
             elif(method == 'post'):
-                r = requests.post(url, json=data, headers=headers)
+                r = self.session.post(url, json=data, headers=self.headers)
                 log_status(r)
                 r.raise_for_status()
                 return r.json()

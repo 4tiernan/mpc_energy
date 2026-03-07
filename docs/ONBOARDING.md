@@ -53,6 +53,7 @@ Configuration:
 * PV Max Power Limit
 
 Diagnostic:
+* Rated Energy Capacity
 * Available Max Charging Capacity
 * Available Max Discharging Capacity
 * ESS Rated Charging Power

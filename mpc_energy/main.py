@@ -216,7 +216,6 @@ def run_controller(price_update=False):
         mpc.run_optimisation(amber_data) # Run the MPC optimisation each time the price updates to keep the plot updated if the mpc.ran() function wasn't called
 
 
-#update_sensors(amber_data)
 logger.info("Configuration complete. Running")
 
 # Code runs every 2 seconds (to reduce cpu usage)
@@ -251,15 +250,24 @@ def main_loop_code():
             logger.info(f"Seconds till next update: {round(next_amber_update_timestamp - time.time())}")
             logger.info("....")
     
-    run_controller() # Run the selected controller         
+    start_timer()
+    run_controller() # Run the selected controller  
+    elapsed_time("Controller Run")
+    
+    start_timer()
     update_sensors(amber_data)
+    elapsed_time("Sensor Update") 
 
+last_loop_timestamp = 0
 while True:
-    try:        
-        main_loop_code()
-        time.sleep(2)
+    try:
+        if(time.time() - last_loop_timestamp >= 2): # Run the loop every 2 seconds to reduce CPU usage
+            last_loop_timestamp = time.time()
+            main_loop_code()
+            ha_mqtt.alive_time_sensor.set_state(round(time.time()-start_time,1))
 
-        ha_mqtt.alive_time_sensor.set_state(round(time.time()-start_time,1))
+        time.sleep(0.1) # Sleep a little to reduce CPU usage, we don't need to check the time constantly
+        
 
     except KeyboardInterrupt:
         logger.error("Keyboard Interrupt, Shutting down...")

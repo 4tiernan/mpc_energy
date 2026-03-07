@@ -335,9 +335,20 @@ class Plant:
             self.set_control_limits(control_mode, discharge, charge, pv, grid_export, grid_import)
             logger.info(f"{working_mode} !!!")
             time.sleep(5) # Allow time for HA to update
+    
+    def ensure_remote_ems(self): # Ensures the remote EMS switch is on provided the automatic control switch is on
+        if(self.ha.get_state(config_manager.ha_ems_control_switch_entity_id)['state'] != "on"):
+                logger.warning(f"Remote EMS switch is '{self.ha.get_state(config_manager.ha_ems_control_switch_entity_id)['state']}', turning on to allow control.")
+                self.ha.set_switch_state(config_manager.ha_ems_control_switch_entity_id, True)
+                time.sleep(2) # delay to ensure the change has time to become effective
+            
+
 
     def set_control_limits(self, control_mode, discharge, charge, pv, grid_export, grid_import): # Set the control limits to the desired values
         #if(self.get_plant_mode() != control_mode):
+        self.ensure_remote_ems() # Make sure the EMS is able to be controlled
+
+
         self.ha.set_number(config_manager.battery_discharge_limiter_entity_id, discharge)
         self.ha.set_number(config_manager.battery_charge_limiter_entity_id, charge)
         self.ha.set_number(config_manager.pv_limiter_entity_id, pv)

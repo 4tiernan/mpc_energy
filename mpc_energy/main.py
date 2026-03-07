@@ -62,11 +62,6 @@ def PrintError(e):
     logger.warning("Trying again after 30 seconds")
     time.sleep(30)
 
-def ensure_remote_ems(): # Ensures the remote EMS switch is on provided the automatic control switch is on
-    if(ha_mqtt.automatic_control_switch.state == True):
-            ha.set_switch_state(config_manager.ha_ems_control_switch_entity_id, True)
-            time.sleep(2) # delay to ensure the change has time to become effective
-
 
 while(started == False):
     try:
@@ -84,8 +79,7 @@ while(started == False):
             errors=True
         )
 
-        ensure_remote_ems() # Make sure the EMS is able to be controlled if automatic control is on
-
+        
         amber = AmberAPI(
             config_manager.amber_api_key,
             config_manager.amber_site_id,
@@ -226,8 +220,6 @@ logger.info("Configuration complete. Running")
 # Code runs every 2 seconds (to reduce cpu usage)
 def main_loop_code():
     global automatic_control, next_amber_update_timestamp, partial_update, amber_data, last_control_mode
-
-    ensure_remote_ems() # Check Remote EMS switch is active
 
     if(time.time() >= next_amber_update_timestamp):
         if(partial_update):

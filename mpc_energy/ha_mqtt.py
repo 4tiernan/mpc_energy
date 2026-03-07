@@ -271,6 +271,8 @@ def initalise_entities(): # Initalise entities and get them discovered by the ha
     import_cost_sensor.set_state(0)
     export_profit_sensor.set_state(0)
     net_profit_sensor.set_state(0)
+    profit_remaining_today_sensor.set_state(0)
+    profit_tomorrow_sensor.set_state(0)
     time.sleep(10)
 
 

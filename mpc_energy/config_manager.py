@@ -9,7 +9,7 @@ with open("/data/options.json") as f:
 def get_entity_id(key, default=None):
     value = options.get(key, default)
     if((value == None or value == "") and default == None):
-        logger.error(f"Missing required configuration: {key}. \n Please ensure this is set in the app configuration page and restart the app.")
+        logger.error(f"Missing required configuration: {key}. \n Please ensure this value has been set in the app configuration page and restart the app.")
         exit()
     return value
 

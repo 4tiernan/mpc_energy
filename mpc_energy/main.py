@@ -145,37 +145,43 @@ last_amber_update_timestamp = time.time()
 amber_data = amber.get_data(forecast_hrs=mpc.forecast_hrs)
 last_control_mode = ""
         
-    
+sensor_state_cache = {}
+
+def set_sensor_if_changed(sensor, value):
+    cache_key = id(sensor)
+    if sensor_state_cache.get(cache_key) != value:
+        sensor.set_state(value)
+        sensor_state_cache[cache_key] = value   
     
 # Update HA MQTT sensors
 def update_sensors(amber_data):
     rbc.update_values(amber_data=amber_data)
-    ha_mqtt.max_feedIn_sensor.set_state(round(amber_data.feedIn_max_forecast_price))
-    ha_mqtt.current_feedIn_sensor.set_state(round(amber_data.feedIn_price))
-    ha_mqtt.current_general_price_sensor.set_state(round(amber_data.general_price))
-    ha_mqtt.kwh_discharged_sensor.set_state(round(plant.kwh_till_full, 2))
-    ha_mqtt.kwh_remaining_sensor.set_state(round(plant.kwh_stored_available, 2))
-    ha_mqtt.target_discharge_sensor.set_state(round(rbc.target_dispatch_price))
-    ha_mqtt.kwh_required_overnight_sensor.set_state(round(rbc.kwh_required_remaining, 2))    
-    ha_mqtt.kwh_required_till_sundown_sensor.set_state(round(rbc.kwh_required_till_sundown, 2))
-    ha_mqtt.amber_api_calls_remaining_sensor.set_state(amber.rate_limit_remaining)
-    ha_mqtt.working_mode_sensor.set_state(EC.working_mode)
-    
-    ha_mqtt.import_cost_sensor.set_state(plant.daily_import_cost)
-    ha_mqtt.export_profit_sensor.set_state(plant.daily_export_profit)
-    ha_mqtt.net_profit_sensor.set_state(plant.daily_net_profit)
-    ha_mqtt.profit_remaining_today_sensor.set_state(mpc.profit_remaining_today)
-    ha_mqtt.profit_tomorrow_sensor.set_state(mpc.profit_tomorrow)
+    set_sensor_if_changed(ha_mqtt.max_feedIn_sensor, round(amber_data.feedIn_max_forecast_price))
+    set_sensor_if_changed(ha_mqtt.current_feedIn_sensor, round(amber_data.feedIn_price))
+    set_sensor_if_changed(ha_mqtt.current_general_price_sensor, round(amber_data.general_price))
+    set_sensor_if_changed(ha_mqtt.kwh_discharged_sensor, round(plant.kwh_till_full, 2))
+    set_sensor_if_changed(ha_mqtt.kwh_remaining_sensor, round(plant.kwh_stored_available, 2))
+    set_sensor_if_changed(ha_mqtt.target_discharge_sensor, round(rbc.target_dispatch_price))
+    set_sensor_if_changed(ha_mqtt.kwh_required_overnight_sensor, round(rbc.kwh_required_remaining, 2))    
+    set_sensor_if_changed(ha_mqtt.kwh_required_till_sundown_sensor, round(rbc.kwh_required_till_sundown, 2))
+    set_sensor_if_changed(ha_mqtt.amber_api_calls_remaining_sensor, amber.rate_limit_remaining)
+    set_sensor_if_changed(ha_mqtt.working_mode_sensor, EC.working_mode)
+
+    set_sensor_if_changed(ha_mqtt.import_cost_sensor, plant.daily_import_cost)
+    set_sensor_if_changed(ha_mqtt.export_profit_sensor, plant.daily_export_profit)
+    set_sensor_if_changed(ha_mqtt.net_profit_sensor, plant.daily_net_profit)
+    set_sensor_if_changed(ha_mqtt.profit_remaining_today_sensor, mpc.profit_remaining_today)
+    set_sensor_if_changed(ha_mqtt.profit_tomorrow_sensor, mpc.profit_tomorrow)
 
     if(plant.grid_power < 0):
         price = amber_data.feedIn_price
     else:
         price = amber_data.general_price
     
-    ha_mqtt.system_state_sensor.set_state(EC.working_mode + f" {round(abs(plant.grid_power),1)}@{price} c/kWh ${round(plant.daily_net_profit,2)} profit")
-    ha_mqtt.base_load_sensor.set_state(round(1000*plant.get_base_load_estimate(),2)) # converted to w from kW
-    ha_mqtt.effective_price_sensor.set_state(round(mpc.current_effective_price*100)) 
-    ha_mqtt.avg_daily_load_sensor.set_state(round(plant.avg_daily_load,2))
+    set_sensor_if_changed(ha_mqtt.system_state_sensor, EC.working_mode + f" {round(abs(plant.grid_power),1)}@{price} c/kWh ${round(plant.daily_net_profit,2)} profit")
+    set_sensor_if_changed(ha_mqtt.base_load_sensor, round(1000*plant.get_base_load_estimate(),2)) # converted to w from kW
+    set_sensor_if_changed(ha_mqtt.effective_price_sensor, round(mpc.current_effective_price*100)) 
+    set_sensor_if_changed(ha_mqtt.avg_daily_load_sensor, round(plant.avg_daily_load,2))
 
 def run_controller(price_update=False):
     global automatic_control, last_control_mode
@@ -228,7 +234,7 @@ def main_loop_code():
         else:
             amber_data = amber.get_data(forecast_hrs=mpc.forecast_hrs)
 
-        ha_mqtt.estimated_price_status_sensor.set_state(int(amber_data.prices_estimated))
+        set_sensor_if_changed(ha_mqtt.estimated_price_status_sensor, int(amber_data.prices_estimated))
 
         if(amber_data.prices_estimated): # If prices are estimated, don't use them
             seconds_till_next_update = 5

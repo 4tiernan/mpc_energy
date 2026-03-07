@@ -84,6 +84,8 @@ while(started == False):
             errors=True
         )
 
+        ensure_remote_ems() # Make sure the EMS is able to be controlled if automatic control is on
+
         amber = AmberAPI(
             config_manager.amber_api_key,
             config_manager.amber_site_id,

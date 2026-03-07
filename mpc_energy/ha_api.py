@@ -91,7 +91,7 @@ class HomeAssistantAPI:
                         f" with status '{status_code}'. Error details: '{str(e)}'"
                         f" Response body: '{response_text}'"
                     )
-                    return None
+                    exit()
                 else:
                     entity_id = entity_id or url.split("/api/states/")[-1]
                     logger.error(

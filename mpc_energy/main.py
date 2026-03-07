@@ -164,6 +164,8 @@ def update_sensors(amber_data):
     ha_mqtt.import_cost_sensor.set_state(plant.daily_import_cost)
     ha_mqtt.export_profit_sensor.set_state(plant.daily_export_profit)
     ha_mqtt.net_profit_sensor.set_state(plant.daily_net_profit)
+    ha_mqtt.profit_remaining_today_sensor.set_state(mpc.profit_remaining_today)
+    ha_mqtt.profit_tomorrow_sensor.set_state(mpc.profit_tomorrow)
 
     if(plant.grid_power < 0):
         price = amber_data.feedIn_price

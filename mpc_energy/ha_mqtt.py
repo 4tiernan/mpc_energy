@@ -195,6 +195,18 @@ net_profit_sensor = CreateSensor(
     unit_of_measurement="$"
 )
 
+profit_remaining_today_sensor = CreateSensor(
+    name = "Profit Remaining Today",
+    unique_id="profit_remaining_today",
+    unit_of_measurement="$"
+)
+
+profit_tomorrow_sensor = CreateSensor(
+    name = "Profit Tomorrow",
+    unique_id="profit_tomorrow",
+    unit_of_measurement="$"
+)
+
 
 target_discharge_sensor = CreateSensor(
     name = "Target Discharge Price",

@@ -54,6 +54,10 @@ class MPC:
         self.maintain_soc_reward = 0 #0.0002 # $/kWh / interval reward for maintaining higher SOC throughout the day
         self.demand_tarrif = demand_tarrif # True if the selected site has a demand tarrif applied
         self.current_effective_price = 0 # Set to zero until we run an optimisation and determine the current effective price based on the MPC plan and current conditions
+
+        # Profit Variables
+        self.profit_remaining_today = 0
+        self.profit_tomorrow = 0
         
     def update_limits(self):
         # Battery Settings
@@ -287,7 +291,8 @@ class MPC:
             solar_used_power = [round(x, 2) for x in solar_used.value.tolist()]
             load_power = [round(x, 2) for x in self.load_5min]
 
-
+            self.profit_remaining_today = round(float(forecast_profit_today), 2)
+            self.profit_tomorrow = round(float(forecast_profit_tomorrow), 2)
 
             # store it in shared dict
             output = {
@@ -300,8 +305,8 @@ class MPC:
                 "prices_buy": self.prices_buy.tolist(),
                 "prices_sell": self.prices_sell.tolist(),
                 "profit_already_today": float(self.daily_profit),
-                "profit_remaining_today": float(forecast_profit_today),
-                "profit_tomorrow": float(forecast_profit_tomorrow),
+                "profit_remaining_today": self.profit_remaining_today,
+                "profit_tomorrow": self.profit_tomorrow,
                 "inverter_power": inverter_power,
                 "solar_forecast": solar_forecast_power,
                 "solar_used": solar_used_power,

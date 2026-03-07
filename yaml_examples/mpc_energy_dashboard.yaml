@@ -257,6 +257,13 @@ sections:
           - entity: sensor.mpc_energy_manager_device_net_profits_today
             name:
               type: entity
+          - entity: sensor.mpc_energy_manager_device_profit_remaining_today
+            secondary_info: none
+            name:
+              type: entity
+          - entity: sensor.mpc_energy_manager_device_profit_tomorrow
+            name:
+              type: entity
         title: Finances
     column_span: 4
 cards: []

@@ -24,15 +24,18 @@ Click the 'Generate a new Token' button, give it a name and take note of the API
 <br>
 
 ## 2️⃣ Required Integrations
-Solcast Solar Forecasting (HACS):<br>
-Follow Instructions Provided [here](https://github.com/BJReplay/ha-solcast-solar?tab=readme-ov-file#solcast-requirements).
+#### Solcast Solar Forecasting (HACS):
+* Follow Instructions Provided [here](https://github.com/BJReplay/ha-solcast-solar?tab=readme-ov-file#solcast-requirements).
 
-Home Assistant MQTT: <br>
-Setup the [MQTT](https://www.home-assistant.io/integrations/mqtt) integration and the required mosquito broker. Keep the MQTT login details handy to enter into the app config.
+#### Home Assistant MQTT Integration and Mosquitto Broker App: <br>
+* Setup the [MQTT](https://www.home-assistant.io/integrations/mqtt) integration and the **required mosquito broker app**. Keep the MQTT login details handy to enter into the app config.
 
-Sigenergy (HACS):<br>
-Setup the [Sigenergy](https://github.com/TypQxQ/Sigenergy-Local-Modbus?tab=readme-ov-file) integration.<br>
-**Note: The controls are disabled by default for saftey, please enable them as per the integration's instructions.**
+#### Sigenergy (HACS):<br>
+* Setup the [Sigenergy](https://github.com/TypQxQ/Sigenergy-Local-Modbus?tab=readme-ov-file) integration.
+* **Note: The controls are disabled by default for saftey, please enable them as per the integration's instructions.**
+
+<br>
+<br>
 
 ### You will need to enable the following entities in the Sigenergy Integration:
 Controls:
@@ -127,7 +130,8 @@ The Max Export Power is set by your inverter max AC power or you connection expo
 1. Open the MPC Energy add-on page.
 2. Enable **Start on boot** and the **watch dog**
 3. Click **Start**.
-4. Verify logs to ensure the app starts correctly. If the app throws an error regarding an entity, check that the default entity exists and if not correct it according. If the app throws another error check the FAQs and issues to try and resolve, else create a issue to get it looked into.
+4. Verify logs to ensure the app starts correctly, this can take a minute or two.
+5. If the app throws an error regarding an entity, check that the default entity exists and if not correct it according. If the app throws another error check the FAQs and issues to try and resolve, else create a issue to get it looked into.
 
 <br>
 

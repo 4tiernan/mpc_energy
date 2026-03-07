@@ -252,7 +252,13 @@ class AmberAPI:
             feed_in_points[point_time] = round(feed_in.price)
             demand_window_points[point_time] = bool(general.demand_window)
 
-        ordered_times = sorted(general_points.keys())
+        ordered_times = sorted(general_points.keys()) # Get the timestamps in order so we can return lists of prices in the correct sequence.
+
+        # Trim to the current time so we don't return extrapolated points that are in the past.
+        current_time = datetime.now(self.local_tz if self.local_tz is not None else timezone.utc)
+        current_5min_slot = current_time.replace(second=0, microsecond=0) - timedelta(minutes=current_time.minute % 5)
+        ordered_times = [t for t in ordered_times if t >= current_5min_slot]
+
         general_price_extrapolated_forecast = [general_points[t] for t in ordered_times]
         feed_in_price_extrapolated_forecast = [feed_in_points[t] for t in ordered_times]
         demand_window_extrapolated_forecast = [demand_window_points[t] for t in ordered_times]
@@ -319,6 +325,7 @@ class AmberAPI:
             demand_window_extrapolated_forecast=demand_window_extrapolated_forecast
             )
         return self.data
+
 '''      
 from zoneinfo import ZoneInfo
 HA_TZ = ZoneInfo("Australia/Brisbane")

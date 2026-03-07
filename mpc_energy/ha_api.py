@@ -5,7 +5,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 import time
 from mpc_logger import logger
 import config_manager
-
+import traceback
 
 
 @dataclass
@@ -24,6 +24,7 @@ class HomeAssistantAPI:
         }
         self.errors = errors
         self.local_tz = self.get_timezone()
+        self.check_required_entities()
 
     def get_timezone(self):
         url = f"{self.base_url}/api/config"
@@ -76,6 +77,7 @@ class HomeAssistantAPI:
             if(self.check_api_running()):
                 entity_id = url.split("/api/states/")[-1]
                 logger.error(f"Able to connect to HA API but the entity '{entity_id}' was not found. Is it disabled? URL: '{url}' Error details: '{str(e)}'")
+                traceback.print_exc()
                 exit()
             else:
                 while(not self.check_api_running()): # If we can't connect to the HA API, wait and retry until we can. This is to handle the case where the add-on starts before HA is fully up and running.

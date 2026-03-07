@@ -43,7 +43,7 @@ class HomeAssistantAPI:
     def check_api_running(self): #Checks to see if we can connect to the ha api
         url = f"{self.base_url}/api/"
         try:
-            r = requests.get(url, headers=self.headers, params=None, timeout=5)
+            r = requests.get(url, headers=self.headers, params=None)
             response = r.json()
         except:
             return False
@@ -61,12 +61,12 @@ class HomeAssistantAPI:
             headers = self.headers
         try:
             if(method =='get'):
-                r = requests.get(url, headers=headers, params=params, timeout=5)
+                r = requests.get(url, headers=headers, params=params)
                 log_status(r)
                 r.raise_for_status()
                 return r.json()
             elif(method == 'post'):
-                r = requests.post(url, json=data, headers=headers, timeout=5)
+                r = requests.post(url, json=data, headers=headers)
                 log_status()
                 r.raise_for_status()
                 return r.json()

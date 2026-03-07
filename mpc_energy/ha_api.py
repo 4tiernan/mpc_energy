@@ -67,7 +67,7 @@ class HomeAssistantAPI:
                 return r.json()
             elif(method == 'post'):
                 r = requests.post(url, json=data, headers=headers)
-                log_status()
+                log_status(r)
                 r.raise_for_status()
                 return r.json()
             else: 

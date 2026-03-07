@@ -90,11 +90,7 @@ class Plant:
         self.load_power = self.ha.get_numeric_state(config_manager.load_power_entity_id)
         self.avg_daily_load = self.get_load_avg(days_ago=self.load_avg_days)[-1].avg_state
 
-        profit_cost_dict = self.calculate_today_profit_cost()
-
-        self.daily_import_cost = profit_cost_dict['total_import_cost']
-        self.daily_export_profit = profit_cost_dict['total_export_revenue']
-        self.daily_net_profit = profit_cost_dict['net_profit']
+        self.calculate_today_profit_cost()
         
         self.hours_till_full = 0
         self.hours_till_empty = 0
@@ -217,15 +213,9 @@ class Plant:
         cost_per_bin = import_kwh_bin * prices_buy
 
         # Sum up total profit, total cost, net profit
-        total_profit = np.sum(profit_per_bin)
-        total_cost = np.sum(cost_per_bin)
-        net_profit = total_profit - total_cost
-
-        return {
-            "total_export_revenue": round(total_profit, 2),
-            "total_import_cost": round(total_cost, 2),
-            "net_profit": round(net_profit, 2)
-        }
+        self.daily_export_profit = np.sum(profit_per_bin)
+        self.daily_import_cost = np.sum(cost_per_bin)
+        self.daily_net_profit = self.daily_export_profit - self.daily_import_cost
     
     def old_unused_bin_data(self, history_array, bin_period_minutes, bin_qty=None):
 

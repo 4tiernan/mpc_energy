@@ -157,8 +157,7 @@ def update_sensors(amber_data):
     start_timer()
     rbc.update_values(amber_data=amber_data)
     elapsed_time("RBC Update") 
-    
-    start_timer()
+
     set_sensor_if_changed(ha_mqtt.max_feedIn_sensor, round(amber_data.feedIn_max_forecast_price))
     set_sensor_if_changed(ha_mqtt.current_feedIn_sensor, round(amber_data.feedIn_price))
     set_sensor_if_changed(ha_mqtt.current_general_price_sensor, round(amber_data.general_price))
@@ -178,14 +177,15 @@ def update_sensors(amber_data):
 
     if(plant.grid_power < 0):
         price = amber_data.feedIn_price
+        grid_status = "E"
     else:
         price = amber_data.general_price
+        grid_status = "I"
     
-    set_sensor_if_changed(ha_mqtt.system_state_sensor, EC.working_mode + f" {round(abs(plant.grid_power),1)}@{price} c/kWh ${round(plant.daily_net_profit,2)} profit")
+    set_sensor_if_changed(ha_mqtt.system_state_sensor, EC.working_mode + f" {round(abs(plant.grid_power),1)}@{price+grid_status} c/kWh ${round(plant.daily_net_profit,2)} profit")
     set_sensor_if_changed(ha_mqtt.base_load_sensor, round(1000*plant.get_base_load_estimate(),2)) # converted to w from kW
     set_sensor_if_changed(ha_mqtt.effective_price_sensor, round(mpc.current_effective_price*100)) 
     set_sensor_if_changed(ha_mqtt.avg_daily_load_sensor, round(plant.avg_daily_load,2))
-    elapsed_time("Sensor Update") 
 
 def run_controller(price_update=False):
     global automatic_control, last_control_mode
@@ -228,9 +228,10 @@ def run_controller(price_update=False):
 
 logger.info("Configuration complete. Running")
 
-# Code runs every 2 seconds (to reduce cpu usage)
+# Code runs every 30 seconds (to reduce cpu usage)
 def main_loop_code():
     global automatic_control, next_amber_update_timestamp, partial_update, amber_data, last_control_mode
+    plant.update_data() # Update the plant data once for everything else to use.
 
     if(time.time() >= next_amber_update_timestamp):
         if(partial_update):
@@ -272,12 +273,12 @@ def main_loop_code():
 last_loop_timestamp = 0
 while True:
     try:
-        if(time.time() - last_loop_timestamp >= 2): # Run the loop every 2 seconds to reduce CPU usage
+        if(time.time() - last_loop_timestamp >= 30): # Run the loop every 30 seconds to reduce CPU usage
             last_loop_timestamp = time.time()
             main_loop_code()
             ha_mqtt.alive_time_sensor.set_state(round(time.time()-start_time,1))
 
-        time.sleep(0.1) # Sleep a little to reduce CPU usage, we don't need to check the time constantly
+        time.sleep(1) # Sleep a little to reduce CPU usage, we don't need to check the time constantly
         
 
     except KeyboardInterrupt:

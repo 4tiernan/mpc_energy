@@ -126,10 +126,9 @@ class EnergyController():
     
     def run(self, amber_data):
         self.last_working_mode = self.working_mode
-        self.mainain_control_mode()
+        self.maintain_control_mode()
 
-    def mainain_control_mode(self): # Maintain the current control mode (mainly export all solar)
-        self.plant.update_data()
+    def maintain_control_mode(self): # Maintain the current control mode (mainly export all solar)
         if(self.working_mode == ControlMode.EXPORT_ALL_SOLAR.value):
             self.export_all_solar()
                 

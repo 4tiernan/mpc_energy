@@ -32,7 +32,6 @@ class RBC():
         self.last_control_mode = self.plant.get_plant_mode()
 
     def update_values(self, amber_data):
-        self.plant.update_data()
         self.MINIMUM_BATTERY_DISPATCH_PRICE = config_manager.battery_discharge_cost
         self.feedIn_price = amber_data.feedIn_price
         self.solar_kwh_forecast_remaining = self.plant.solar_kw_remaining_today

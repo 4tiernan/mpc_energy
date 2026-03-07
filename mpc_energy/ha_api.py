@@ -105,7 +105,7 @@ class HomeAssistantAPI:
                     logger.error(f"Unable to connect to HA API, retrying in 30 seconds")
                     time.sleep(30)
                     
-                return self.ha_request(url, method, data, params, headers)
+                return self.ha_request(url, method, data, params)
 
     
     def get_state(self, entity_id):

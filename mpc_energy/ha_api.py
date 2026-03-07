@@ -5,7 +5,6 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 import time
 from mpc_logger import logger
 import config_manager
-import traceback
 
 
 @dataclass
@@ -75,10 +74,31 @@ class HomeAssistantAPI:
                 raise Exception(f"Method not get or post: {method}")
         except Exception as e:
             if(self.check_api_running()):
-                entity_id = url.split("/api/states/")[-1]
-                logger.error(f"Able to connect to HA API but the entity '{entity_id}' was not found. Is it disabled? URL: '{url}' Error details: '{str(e)}'")
-                traceback.print_stack()
-                exit()
+                entity_id = None
+                if data and isinstance(data, dict):
+                    entity_id = data.get("entity_id")
+
+                if "/api/services/" in url:
+                    service_path = url.split("/api/services/")[-1]
+                    response_text = ""
+                    status_code = None
+                    if isinstance(e, requests.exceptions.HTTPError) and e.response is not None:
+                        status_code = e.response.status_code
+                        response_text = e.response.text
+
+                    logger.error(
+                        f"HA service call '{service_path}' failed for entity '{entity_id}'"
+                        f" with status '{status_code}'. Error details: '{str(e)}'"
+                        f" Response body: '{response_text}'"
+                    )
+                    return None
+                else:
+                    entity_id = entity_id or url.split("/api/states/")[-1]
+                    logger.error(
+                        f"Able to connect to HA API but the entity '{entity_id}' was not found."
+                        f" Is it disabled? Error details: '{str(e)}'"
+                    )
+                    exit()
             else:
                 while(not self.check_api_running()): # If we can't connect to the HA API, wait and retry until we can. This is to handle the case where the add-on starts before HA is fully up and running.
                     logger.error(f"Unable to connect to HA API, retrying in 30 seconds")

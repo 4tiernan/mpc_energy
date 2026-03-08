@@ -50,7 +50,7 @@ while not mqtt_queue.empty():
     st.session_state.data_received = True
 
 if not st.session_state.data_received:
-    st_autorefresh(interval=10, key="mqtt_fast_refresh") # Refresh the page instantly if there is no MQTT data
+    st_autorefresh(interval=100, key="mqtt_fast_refresh") # Refresh the page instantly if there is no MQTT data
 
 
 

@@ -120,5 +120,4 @@ class ControlModeOverrideManager:
             return False
 
         self.apply_override_mode(self.state["mode"])
-        logger.info("Override active")
         return True

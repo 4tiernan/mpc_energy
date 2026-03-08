@@ -48,6 +48,15 @@ class ControlModeOverrideManager:
     def reset(self):
         self.state = {"active": False, "mode": None, "expiry_timestamp": 0, "start_price": None}
 
+    def get_price_for_mode(self, mode, amber_data):
+        ''' Selects the import or export price based on whether the selected mode will import or export power.'''
+        import_price_modes = ["Grid Import"]
+
+        if(mode in import_price_modes):
+            return amber_data.general_price
+
+        return amber_data.feedIn_price
+
     def run(self, amber_data):
         requested_mode = self.ha_mqtt.control_mode_override_selector.state
 
@@ -57,8 +66,8 @@ class ControlModeOverrideManager:
                 self.reset()
             return False
 
-        current_price = amber_data.feedIn_price if self.plant.grid_power < 0 else amber_data.general_price
-        this needs fixing to only use feed in or general from start of man control
+        price_mode = self.state["mode"] if self.state["active"] else requested_mode
+        current_price = self.get_price_for_mode(price_mode, amber_data)
 
         if(not self.state["active"] or self.state["mode"] != requested_mode):
             duration_minutes = self.parse_override_duration_minutes()

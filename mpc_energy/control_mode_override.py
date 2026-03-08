@@ -76,6 +76,10 @@ class ControlModeOverrideManager:
     def run(self, amber_data):
         requested_mode = self.ha_mqtt.control_mode_override_selector.state
 
+        # Keep active override latched if selector state briefly drops to None.
+        if(self.state["active"] and requested_mode is None):
+            requested_mode = self.state["mode"]
+
         if(requested_mode is None or requested_mode == "Disabled"):
             if(self.state["active"]):
                 logger.warning("Control mode override disabled by user.")
@@ -123,4 +127,5 @@ class ControlModeOverrideManager:
             return False
 
         self.apply_override_mode(self.state["mode"])
+        logger.info("Override active")
         return True

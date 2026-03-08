@@ -199,7 +199,8 @@ def run_controller(price_update=False):
 
     if(control_mode_override_manager.run(amber_data)): # If the user selects manual control, don't allow another controller to run.
         last_control_mode = "Manual Override"
-        mpc.run_optimisation(amber_data) # Run the MPC optimisation each time the price updates to keep the plot updated
+        if(price_update):
+            mpc.run_optimisation(amber_data) # Run the MPC optimisation each time the price updates to keep the plot updated
         return
     
     if(last_control_mode == "Manual Override"):

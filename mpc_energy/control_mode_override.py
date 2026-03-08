@@ -7,27 +7,38 @@ class ControlModeOverrideManager:
         self.ha_mqtt = ha_mqtt
         self.energy_controller = energy_controller
         self.plant = plant
-        self.state = {"active": False, "mode": None, "expiry_timestamp": 0, "start_price": None}
+        self.state = {
+            "active": False,
+            "mode": None,
+            "expiry_timestamp": 0,
+            "start_price": None,
+            "duration_selection": None
+        }
 
     def parse_override_duration_minutes(self):
         selected_duration = self.ha_mqtt.control_mode_override_duration_selector.state
         if(selected_duration is None):
-            return 15
+            selected_duration = "15"
 
         if(selected_duration == "Till Price Change"):
-            return None
+            return selected_duration, None
 
         try:
             duration_minutes = int(selected_duration)
         except ValueError:
             logger.warning(f"Invalid override duration '{selected_duration}'. Falling back to 15 minutes.")
-            return 15
+            return "15", 15
 
         if(duration_minutes not in [5, 15, 30, 60]):
             logger.warning(f"Unsupported override duration '{duration_minutes}'. Falling back to 15 minutes.")
-            return 15
+            return "15", 15
 
-        return duration_minutes
+        return str(duration_minutes), duration_minutes
+
+    def get_expiry_timestamp(self, duration_minutes):
+        if(duration_minutes is None):
+            return 0
+        return time.time() + duration_minutes * 60
 
     def apply_override_mode(self, mode):
         if(mode == "Dispatching"):
@@ -46,10 +57,15 @@ class ControlModeOverrideManager:
             raise Exception(f"Unsupported control mode override '{mode}'")
 
     def reset(self):
-        self.state = {"active": False, "mode": None, "expiry_timestamp": 0, "start_price": None}
+        self.state = {
+            "active": False,
+            "mode": None,
+            "expiry_timestamp": 0,
+            "start_price": None,
+            "duration_selection": None
+        }
 
     def get_price_for_mode(self, mode, amber_data):
-        ''' Selects the import or export price based on whether the selected mode will import or export power. '''
         import_price_modes = ["Grid Import"]
 
         if(mode in import_price_modes):
@@ -66,18 +82,16 @@ class ControlModeOverrideManager:
                 self.reset()
             return False
 
-        price_mode = self.state["mode"] if self.state["active"] else requested_mode
-        current_price = self.get_price_for_mode(price_mode, amber_data)
+        duration_selection, duration_minutes = self.parse_override_duration_minutes()
 
-        if(not self.state["active"] or self.state["mode"] != requested_mode):
-            duration_minutes = self.parse_override_duration_minutes()
-            expiry_timestamp = 0 if duration_minutes is None else time.time() + duration_minutes * 60
-
+        if(not self.state["active"] or self.state["mode"] != requested_mode): # Initalise the override
+            current_price = self.get_price_for_mode(requested_mode, amber_data)
             self.state = {
                 "active": True,
                 "mode": requested_mode,
-                "expiry_timestamp": expiry_timestamp,
-                "start_price": current_price
+                "expiry_timestamp": self.get_expiry_timestamp(duration_minutes),
+                "start_price": current_price,
+                "duration_selection": duration_selection
             }
 
             if(duration_minutes is None):
@@ -85,13 +99,24 @@ class ControlModeOverrideManager:
             else:
                 logger.warning(f"Control mode override started: {requested_mode} for {duration_minutes} minutes (until price changes).")
 
-        if(current_price != self.state["start_price"]):
+        elif(self.state["duration_selection"] != duration_selection): # If the override is in progress but the duration changes, update the duration and log the change. 
+            self.state["duration_selection"] = duration_selection
+            self.state["expiry_timestamp"] = self.get_expiry_timestamp(duration_minutes)
+
+            if(duration_minutes is None):
+                logger.warning(f"Control mode override updated: {requested_mode} now running until price changes.")
+            else:
+                logger.warning(f"Control mode override updated: {requested_mode} timer reset to {duration_minutes} minutes.")
+
+        current_price = self.get_price_for_mode(self.state["mode"], amber_data)
+
+        if(self.ha_mqtt.control_mode_override_duration_selector.state == "Till Price Change" and current_price != self.state["start_price"]): # If the price trigger is selected and the price changes, end the override
             logger.warning(f"Control mode override ended due to price change from {self.state['start_price']} to {current_price} c/kWh.")
             self.reset()
             self.ha_mqtt.control_mode_override_selector.set_state("Disabled")
             return False
 
-        if(self.state["expiry_timestamp"] > 0 and time.time() >= self.state["expiry_timestamp"]):
+        if(self.state["expiry_timestamp"] > 0 and time.time() >= self.state["expiry_timestamp"]): # If the expiry timestamp is set and its expired, end the override. 
             logger.warning(f"Control mode override ended after requested duration in mode {self.state['mode']}.")
             self.reset()
             self.ha_mqtt.control_mode_override_selector.set_state("Disabled")

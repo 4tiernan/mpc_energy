@@ -269,12 +269,16 @@ def main_loop_code():
     
 
 last_loop_timestamp = 0
+last_alive_time_timestamp = 0
 while True:
     try:
         if(time.time() - last_loop_timestamp >= 30): # Run the loop every 30 seconds to reduce CPU usage
             last_loop_timestamp = time.time()
             main_loop_code()
-            ha_mqtt.alive_time_sensor.set_state(round(time.time()-app_start_timestamp,1))
+        
+        if(time.time() - int(last_alive_time_timestamp) >= 1):
+            last_alive_time_timestamp = time.time()
+            ha_mqtt.alive_time_sensor.set_state(round(time.time()-app_start_timestamp))
 
         time.sleep(1) # Sleep a little to reduce CPU usage, we don't need to check the time constantly
         

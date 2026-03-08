@@ -213,9 +213,9 @@ class Plant:
         cost_per_bin = import_kwh_bin * prices_buy
 
         # Sum up total profit, total cost, net profit
-        self.daily_export_profit = round(np.sum(profit_per_bin), 2)
-        self.daily_import_cost = round(np.sum(cost_per_bin), 2)
-        self.daily_net_profit = round(self.daily_export_profit - self.daily_import_cost, 2)
+        self.daily_export_profit = np.sum(profit_per_bin)
+        self.daily_import_cost = np.sum(cost_per_bin)
+        self.daily_net_profit = self.daily_export_profit - self.daily_import_cost
     
     def old_unused_bin_data(self, history_array, bin_period_minutes, bin_qty=None):
 

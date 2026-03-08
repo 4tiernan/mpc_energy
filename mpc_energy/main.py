@@ -167,11 +167,11 @@ def update_sensors(amber_data):
     set_sensor_if_changed(ha_mqtt.amber_api_calls_remaining_sensor, amber.rate_limit_remaining)
     set_sensor_if_changed(ha_mqtt.working_mode_sensor, EC.working_mode)
 
-    set_sensor_if_changed(ha_mqtt.import_cost_sensor, plant.daily_import_cost)
-    set_sensor_if_changed(ha_mqtt.export_profit_sensor, plant.daily_export_profit)
-    set_sensor_if_changed(ha_mqtt.net_profit_sensor, plant.daily_net_profit)
-    set_sensor_if_changed(ha_mqtt.profit_remaining_today_sensor, mpc.profit_remaining_today)
-    set_sensor_if_changed(ha_mqtt.profit_tomorrow_sensor, mpc.profit_tomorrow)
+    set_sensor_if_changed(ha_mqtt.import_cost_sensor, round(plant.daily_import_cost, 2))
+    set_sensor_if_changed(ha_mqtt.export_profit_sensor, round(plant.daily_export_profit, 2))
+    set_sensor_if_changed(ha_mqtt.net_profit_sensor, round(plant.daily_net_profit, 2))
+    set_sensor_if_changed(ha_mqtt.profit_remaining_today_sensor, round(mpc.profit_remaining_today, 2))
+    set_sensor_if_changed(ha_mqtt.profit_tomorrow_sensor, round(mpc.profit_tomorrow, 2))
 
     if(plant.grid_power < 0):
         price = amber_data.feedIn_price

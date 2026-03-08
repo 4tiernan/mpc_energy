@@ -54,10 +54,12 @@ Configuration:
 
 Diagnostic:
 * Rated Energy Capacity
+* Max Active Power
 * Available Max Charging Capacity
 * Available Max Discharging Capacity
 * ESS Rated Charging Power
 * ESS Rated Discharging Power
+
 
 
 

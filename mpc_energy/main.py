@@ -193,10 +193,10 @@ def run_controller(price_update=False):
     # If Auto control has been TURNED on, print a msg and reset flag
     selected_controller = ha_mqtt.energy_controller_selector.state
 
-    #if(control_mode_override_manager.run(amber_data)): # If the user selects manual control, don't allow another controller to run.
-    #    last_control_mode = "Manual Override"
-    #    mpc.run_optimisation(amber_data) # Run the MPC optimisation each time the price updates to keep the plot updated
-    #    return
+    if(control_mode_override_manager.run(amber_data)): # If the user selects manual control, don't allow another controller to run.
+        last_control_mode = "Manual Override"
+        mpc.run_optimisation(amber_data) # Run the MPC optimisation each time the price updates to keep the plot updated
+        return
 
     if(ha_mqtt.automatic_control_switch.state == True):
         if(automatic_control == False):

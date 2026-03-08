@@ -49,7 +49,7 @@ class ControlModeOverrideManager:
         self.state = {"active": False, "mode": None, "expiry_timestamp": 0, "start_price": None}
 
     def get_price_for_mode(self, mode, amber_data):
-        ''' Selects the import or export price based on whether the selected mode will import or export power.'''
+        ''' Selects the import or export price based on whether the selected mode will import or export power. '''
         import_price_modes = ["Grid Import"]
 
         if(mode in import_price_modes):

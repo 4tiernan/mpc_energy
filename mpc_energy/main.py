@@ -159,6 +159,10 @@ def set_sensor_if_changed(sensor, value):
 def update_sensors(amber_data):
     rbc.update_values(amber_data=amber_data)
 
+    override_status = control_mode_override_manager.state['active']
+    override_mode = control_mode_override_manager.state['mode']
+    opperating_mode = override_mode if override_status else EC.working_mode
+
     set_sensor_if_changed(ha_mqtt.max_feedIn_sensor, round(amber_data.feedIn_max_forecast_price))
     set_sensor_if_changed(ha_mqtt.current_feedIn_sensor, round(amber_data.feedIn_price))
     set_sensor_if_changed(ha_mqtt.current_general_price_sensor, round(amber_data.general_price))
@@ -168,7 +172,7 @@ def update_sensors(amber_data):
     set_sensor_if_changed(ha_mqtt.kwh_required_overnight_sensor, round(rbc.kwh_required_remaining, 2))    
     set_sensor_if_changed(ha_mqtt.kwh_required_till_sundown_sensor, round(rbc.kwh_required_till_sundown, 2))
     set_sensor_if_changed(ha_mqtt.amber_api_calls_remaining_sensor, amber.rate_limit_remaining)
-    set_sensor_if_changed(ha_mqtt.working_mode_sensor, EC.working_mode)
+    set_sensor_if_changed(ha_mqtt.working_mode_sensor, opperating_mode)
 
     set_sensor_if_changed(ha_mqtt.import_cost_sensor, round(plant.daily_import_cost, 2))
     set_sensor_if_changed(ha_mqtt.export_profit_sensor, round(plant.daily_export_profit, 2))
@@ -183,7 +187,7 @@ def update_sensors(amber_data):
         price = amber_data.general_price
         grid_status = "I"
     
-    set_sensor_if_changed(ha_mqtt.system_state_sensor, EC.working_mode + f" {round(abs(plant.grid_power),1)}{grid_status}@{price} c/kWh ${round(plant.daily_net_profit,2)} profit")
+    set_sensor_if_changed(ha_mqtt.system_state_sensor, opperating_mode + f" {round(abs(plant.grid_power),1)}{grid_status}@{price} c/kWh ${round(plant.daily_net_profit,2)} profit")
     set_sensor_if_changed(ha_mqtt.base_load_sensor, round(1000*plant.get_base_load_estimate(),2)) # converted to w from kW
     set_sensor_if_changed(ha_mqtt.effective_price_sensor, round(mpc.current_effective_price*100)) 
     set_sensor_if_changed(ha_mqtt.avg_daily_load_sensor, round(plant.avg_daily_load,2))
@@ -197,6 +201,24 @@ def run_controller(price_update=False):
         last_control_mode = "Manual Override"
         mpc.run_optimisation(amber_data) # Run the MPC optimisation each time the price updates to keep the plot updated
         return
+    
+    if(last_control_mode == "Manual Override"):
+        if(ha_mqtt.automatic_control_switch.state == True):
+            logger.warning(f"Manual override finished. Returning control to {selected_controller}.")
+
+            if(selected_controller == "MPC"):
+                mpc.run(amber_data)
+            elif(selected_controller == "RBC"):
+                rbc.run(amber_data)
+            else:
+                EC.self_consumption()
+
+            last_control_mode = selected_controller
+
+        else: # If automatic control is off, turn back to safe mode
+            logger.warning(f"Manual override finished. Returning control to Safe Mode.")
+            EC.self_consumption()
+
 
     if(ha_mqtt.automatic_control_switch.state == True):
         if(automatic_control == False):

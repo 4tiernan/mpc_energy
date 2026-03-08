@@ -226,7 +226,7 @@ def run_controller(price_update=False):
 
 logger.info("Configuration complete. Running")
 
-# Code runs every 30 seconds (to reduce cpu usage)
+# Code runs every 10 seconds (to reduce cpu usage)
 def main_loop_code():
     global automatic_control, next_amber_update_timestamp, partial_update, amber_data, last_control_mode
     plant.update_data() # Update the plant data once for everything else to use.
@@ -272,7 +272,7 @@ last_loop_timestamp = 0
 last_alive_time_timestamp = 0
 while True:
     try:
-        if(time.time() - last_loop_timestamp >= 30): # Run the loop every 30 seconds to reduce CPU usage
+        if(time.time() - last_loop_timestamp >= 10): # Run the loop every 10 seconds to reduce CPU usage
             last_loop_timestamp = time.time()
             main_loop_code()
         

@@ -216,70 +216,6 @@ class Plant:
         self.daily_export_profit = np.sum(profit_per_bin)
         self.daily_import_cost = np.sum(cost_per_bin)
         self.daily_net_profit = self.daily_export_profit - self.daily_import_cost
-    
-    def old_unused_bin_data(self, history_array, bin_period_minutes, bin_qty=None):
-
-        if not history_array:
-            return []
-
-        # Ensure sorted by time
-        history_array = sorted(history_array, key=lambda x: x.time)
-
-        bin_delta = datetime.timedelta(minutes=bin_period_minutes)
-
-        # Align first bin to the nearest lower boundary
-        first_time = history_array[0].time
-        bin_start = first_time - datetime.timedelta(
-            minutes=first_time.minute % bin_period_minutes,
-            seconds=first_time.second,
-            microseconds=first_time.microsecond,
-        )
-
-        bins = defaultdict(list)
-
-        for item in history_array:
-            try:
-                value = float(item.state)
-            except (ValueError, TypeError):
-                continue  # skip non-numeric states
-
-            # Determine which bin this belongs to
-            seconds_since_start = (item.time - bin_start).total_seconds()
-            bin_index = int(seconds_since_start // bin_delta.total_seconds())
-            current_bin_start = bin_start + bin_index * bin_delta
-
-            bins[current_bin_start].append(value)
-
-
-        # Build output
-        result = []
-        bin_keys = sorted(bins.keys())
-        if bin_qty is not None:
-            bin_keys = bin_keys[-bin_qty:]# Get the bin_qty number of most recent bins
-
-            if len(bin_keys) < bin_qty: # Add in missing bins that weren't filled 
-                missing = bin_qty - len(bin_keys)
-
-                if bin_keys:
-                    earliest_time = bin_keys[0]
-                else:
-                    # fallback if no bins exist
-                    earliest_time = history_array[-1].time
-
-                # generate missing bins BEFORE earliest_time
-                for i in range(missing, 0, -1):
-                    bin_time = earliest_time - i * bin_delta
-                    result.append(
-                        BinnedStateClass(states=[], avg_state=0, time=bin_time)
-                    )
-
-
-        for start_time in bin_keys:
-            values = bins[start_time]
-            avg_value = round(sum(values) / len(values), 2)
-            result.append(BinnedStateClass(states=values, avg_state=avg_value, time=start_time))
-
-        return result
 
     def display_data(self):
         self.update_data()
@@ -297,10 +233,6 @@ class Plant:
         else:   
             return f"{int(hours)} hours {round((hours%1)*60)} minutes"
 
-    def update_ha_monitoring_entities():
-        raise("SET THIS UP")
-        #time till full/empty
-    
     def check_control_limits(self, working_mode, control_mode, discharge, charge, pv, grid_export, grid_import): # Check if control limits match desired values and change them if required. 
         current_control_mode = self.get_plant_mode()
         curent_discharge_limit = self.ha.get_numeric_state(config_manager.battery_discharge_limiter_entity_id)
@@ -332,8 +264,6 @@ class Plant:
                 self.ha.set_switch_state(config_manager.ha_ems_control_switch_entity_id, True)
                 time.sleep(2) # delay to ensure the change has time to become effective
             
-
-
     def set_control_limits(self, control_mode, discharge, charge, pv, grid_export, grid_import): # Set the control limits to the desired values
         #if(self.get_plant_mode() != control_mode):
         self.ensure_remote_ems() # Make sure the EMS is able to be controlled

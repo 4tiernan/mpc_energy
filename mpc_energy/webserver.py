@@ -70,7 +70,7 @@ h1 {
 
 
 if(not st.session_state.data_received): # Don't continue if no mqtt data
-    st.info("Waiting for MQTT data")
+    st.info("Waiting for MQTT data from MPC Energy. If this message persists for more than a few seconds, check the MPC Energy Log and reload this page.")
 else:
     # -----------------------------
     # Convert time strings to datetime objects

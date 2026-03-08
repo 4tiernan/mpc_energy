@@ -250,6 +250,26 @@ estimated_price_status_sensor = CreateSensor(
     unit_of_measurement=""
 )
 
+control_mode_override_selector = CreateSelectInput(
+    name="Control Mode Override",
+    unique_id="control_mode_override",
+    options=[
+        "Disabled",
+        "Self Consumption",
+        "Exporting Excess Solar",
+        "Exporting All Solar",
+        "Dispatching",
+        "Grid Import",
+        "Solar To Load"
+    ]
+)
+
+control_mode_override_duration_selector = CreateSelectInput(
+    name="Control Mode Override Duration",
+    unique_id="control_mode_override_duration",
+    options=["5", "15", "30", "60", "Till Price Change"]
+)
+
 def initalise_entities(): # Initalise entities and get them discovered by the ha mqtt service
     automatic_control_switch.set_state(False)
     working_mode_sensor.set_state("Self Consumption")
@@ -273,6 +293,8 @@ def initalise_entities(): # Initalise entities and get them discovered by the ha
     net_profit_sensor.set_state(0)
     profit_remaining_today_sensor.set_state(0)
     profit_tomorrow_sensor.set_state(0)
+    control_mode_override_selector.set_state("Disabled")
+    control_mode_override_duration_selector.set_state("15")
     time.sleep(10)
 
 

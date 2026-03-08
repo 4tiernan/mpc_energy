@@ -72,6 +72,7 @@ while(started == False):
         import ha_mqtt
         from amber_api import AmberAPI
         from PlantControl import Plant
+        from control_mode_override import ControlModeOverrideManager
 
         ha = HomeAssistantAPI(
             base_url=const.HA_API_URL,
@@ -94,6 +95,8 @@ while(started == False):
             ha_mqtt=ha_mqtt,
             plant=plant
         )
+
+        control_mode_override_manager = ControlModeOverrideManager(ha_mqtt=ha_mqtt, energy_controller=EC, plant=plant)
 
         rbc = RBC(
             ha=ha, 
@@ -189,6 +192,10 @@ def run_controller(price_update=False):
     global automatic_control, last_control_mode
     # If Auto control has been TURNED on, print a msg and reset flag
     selected_controller = ha_mqtt.energy_controller_selector.state
+
+    if(control_mode_override_manager.run(amber_data)): # If the user selects manual control, don't allow another controller to run.
+        last_control_mode = "Manual Override"
+        return
 
     if(ha_mqtt.automatic_control_switch.state == True):
         if(automatic_control == False):

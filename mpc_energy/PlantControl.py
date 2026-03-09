@@ -608,10 +608,22 @@ class Plant:
 
             interval = avg_day[index] # Update the interval var with the latest data after cleaning
         
-        for interval in avg_day:
-            if(len(interval.states) == 0):
-                raise Exception(f"Failed to get state data for {interval.time} time period")
-            interval.avg_state = round(sum(interval.states) / len(interval.states), 2)
+        configured_avg_load = config_manager.estimated_daily_load_energy_consumption
+        last_known_avg_state = None
+        for index, interval in enumerate(avg_day):
+            valid_states = [state for state in interval.states if state is not None]
+            if(len(valid_states) == 0):
+                configured_interval_avg = round((index / len(avg_day)) * configured_avg_load, 2)
+                interval.avg_state = configured_interval_avg
+                if(last_known_avg_state is not None):
+                    interval.avg_state = max(last_known_avg_state, configured_interval_avg)
+                logger.warning(f"Using configured fallback load for {interval.time} time period")
+                last_known_avg_state = interval.avg_state
+            
+            else:
+                interval.avg_state = round(sum(valid_states) / len(valid_states), 2)
+                last_known_avg_state = interval.avg_state
+
 
             #print(f"avg: {interval.state} states: {interval.states}")
 

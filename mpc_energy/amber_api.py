@@ -79,7 +79,7 @@ class AmberAPI:
             self.seconds_till_rate_limit_reset = 0
 
         #print(f"Seconds till reset: {self.seconds_till_rate_limit_reset}")
-        #logger.info(f"Amber Site Retreval HTML status Code: {r.status_code}, response: {r.json()}")
+        logger.info(f"Amber Site Retreval HTML status Code: {r.status_code}, response: {r.json()}")
         # Check for rate limiting
         if r.status_code == 429:
             if self.seconds_till_rate_limit_reset:

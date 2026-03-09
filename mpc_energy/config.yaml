@@ -1,6 +1,6 @@
 name: "MPC Energy Dev"
 description: "A profit optimiser for home batteries with wholesale electricity pricing."
-version: "0.2.58"
+version: "0.2.59"
 slug: "mpc_energy"
 url: "https://github.com/4tiernan/mpc_energy"
 init: false
@@ -8,8 +8,7 @@ arch:
   - amd64
   - aarch64
 
-hassio_api: true 
-homeassistant_api: true
+hassio_api: true homeassistant_api: true
 
 ingress: true
 ingress_port: 8501

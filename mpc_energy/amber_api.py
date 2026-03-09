@@ -4,6 +4,12 @@ import numpy as np
 from datetime import datetime, timezone, timedelta
 from dataclasses import dataclass
 from mpc_logger import logger
+from exceptions import (
+    AmberAPIConnectionError,
+    AmberAPIRequestError,
+    AmberAPITimeoutError,
+    AmberAPIError,
+)
 
 
 @dataclass
@@ -74,14 +80,14 @@ class AmberAPI:
         try:
             r = self.session.get(url, headers=self.headers, timeout=(connect_timeout,response_timeout))
         except requests.exceptions.Timeout:
-            raise Exception("Amber API timeout") from None # from None removes the crazy traceback from the .get call
+            raise AmberAPITimeoutError("Amber API timeout. Your internet connection may be down, or the Amber server may be unavailable.") from None
 
         except requests.exceptions.ConnectionError:
-            raise Exception("Amber API connection error") from None
+            raise AmberAPIConnectionError("Amber API connection error") from None
            
 
         except requests.exceptions.RequestException as e:
-            raise Exception(f"Amber API error: {e}") from None
+            raise AmberAPIRequestError(f"Amber API error: {e}") from None
             
 
         self.rate_limit_remaining = r.headers.get("RateLimit-Remaining")
@@ -124,7 +130,7 @@ class AmberAPI:
         if(response):
             return response
         else:
-            raise Exception("Failed to retrieve sites from API.")
+            raise AmberAPIError("Failed to retrieve sites from API.")
             
 
     
@@ -143,7 +149,7 @@ class AmberAPI:
                 
             return False
         else:
-            raise Exception("Failed to check for demand tarrif.")
+            raise AmberAPIError("Failed to check for demand tarrif.")
 
     def get_past_prices(self, previous_intervals, resolution):
         """Return historic prices for a given site."""
@@ -179,7 +185,7 @@ class AmberAPI:
             return [previous_general_prices, previous_feed_in_price]
         
         else:
-            raise Exception("Failed to get past price data.")
+            raise AmberAPIError("Failed to get past price data.")
     
     def demand_window_present(self, interval):
         demand_window = False
@@ -231,7 +237,7 @@ class AmberAPI:
             return [general_price_forecast, feed_in_price_forecast]
 
         else:
-            raise Exception("Failed to get price forecast data")
+            raise AmberAPIError("Failed to get price forecast data")
     
     # Get the 5 min, 30 min and past prices and combine into a 5 minutely 'forecast' that extends past the 12 hr limit
     def get_extrapolated_forecast(self, hours, advanced_forecast = False): 
@@ -317,7 +323,7 @@ class AmberAPI:
 
             return [general_price, feed_in_price, estimate]
         else:
-            raise Exception("Failed to get current price data from Amber API")
+            raise AmberAPIError("Failed to get current price data from Amber API")
         
     def get_data(self, partial_update=False, forecast_hrs=None):
         [general_price, feed_in_price, estimate] = self.get_current_prices()

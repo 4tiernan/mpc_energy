@@ -5,6 +5,7 @@ import datetime
 import traceback
 import config_manager
 import const
+from exceptions import MPCEnergyError
 from mpc_logger import logger
 
 app_start_timestamp = time.time()
@@ -57,8 +58,9 @@ logger.info("------------------------  Starting MPC Energy App  ----------------
 started = False
 
 def PrintError(e):
-    logger.warning(f"Exception occoured: {e}")
-    traceback.print_exc() # Prints the full traceback to the console
+    logger.error(f"Exception occoured: {e}")
+    if(not isinstance(e, MPCEnergyError)):
+        traceback.print_exc() # Prints the full traceback to the console for unexpected errors
     logger.warning("Trying again after 30 seconds")
     time.sleep(30)
 
@@ -72,7 +74,7 @@ def FailSafe(e):
     except:
         logger.error("Failed to put system into safe mode after detecting an error.")       
         
-        
+
 while(started == False):
     try:
         from RBC import RBC

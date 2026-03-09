@@ -41,6 +41,8 @@ class AmberAPI:
             "Authorization": f"Bearer {self.api_key}",
             "Accept": "application/json"
         }
+        self.session = requests.Session()
+        self.session.headers.update(self.headers)
         self.errors = True
         self.rate_limit_remaining = None
         self.seconds_till_rate_limit_reset = None
@@ -66,7 +68,9 @@ class AmberAPI:
                 logger.info("No demand tarrif detected continuning normally.")
 
     def send_request(self, url):
-        r = requests.get(url, headers=self.headers)
+        connect_timeout = 10
+        response_timeout = 30
+        r = self.session.get(url, headers=self.headers, timeout=(connect_timeout,response_timeout))
         self.rate_limit_remaining = r.headers.get("RateLimit-Remaining")
         self.seconds_till_rate_limit_reset = r.headers.get("RateLimit-Reset")
         if(self.rate_limit_remaining != None):

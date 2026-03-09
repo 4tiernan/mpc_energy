@@ -62,7 +62,17 @@ def PrintError(e):
     logger.warning("Trying again after 30 seconds")
     time.sleep(30)
 
-
+def FailSafe(e):
+    global EC, ha_mqtt
+    PrintError(e)
+    try:
+        if(ha_mqtt.automatic_control_switch.state == True):
+            EC.self_consumption()
+            logger.warning("Succsesfully put system into safe mode after detecting an error.")        
+    except:
+        logger.error("Failed to put system into safe mode after detecting an error.")       
+        
+        
 while(started == False):
     try:
         from RBC import RBC
@@ -134,7 +144,7 @@ while(started == False):
 
         started = True
     except Exception as e:
-        PrintError(e)
+        FailSafe(e)
         
 
 start_time = time.time()
@@ -320,6 +330,6 @@ while True:
         break
     
     except Exception as e:
-        PrintError(e)
+        FailSafe(e)
 
     

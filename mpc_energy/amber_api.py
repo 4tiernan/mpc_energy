@@ -74,14 +74,14 @@ class AmberAPI:
         try:
             r = self.session.get(url, headers=self.headers, timeout=(connect_timeout,response_timeout))
         except requests.exceptions.Timeout:
-            raise Exception("Amber API timeout")
+            raise Exception("Amber API timeout") from None # from None removes the crazy traceback from the .get call
 
         except requests.exceptions.ConnectionError:
-            raise Exception("Amber API connection error")
+            raise Exception("Amber API connection error") from None
            
 
         except requests.exceptions.RequestException as e:
-            raise Exception(f"Amber API error: {e}")
+            raise Exception(f"Amber API error: {e}") from None
             
 
         self.rate_limit_remaining = r.headers.get("RateLimit-Remaining")

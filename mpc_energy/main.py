@@ -155,8 +155,8 @@ automatic_control = True # var to keep track of whether the auto control switch 
 
 next_amber_update_timestamp = time.time() #time to run the next amber update
 partial_update = False #Indicates wheather to do a full amber update or just the current prices (if only estimated prices)
-last_amber_update_timestamp = time.time()
-amber_data = amber.get_data(forecast_hrs=mpc.forecast_hrs)
+
+#amber_data = amber.get_data(forecast_hrs=mpc.forecast_hrs)
 last_control_mode = ""
         
 sensor_state_cache = {}

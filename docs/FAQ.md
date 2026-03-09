@@ -18,4 +18,8 @@ Note: If your site is on a demand tarrif, provided you have entered the demand t
 #### 5. The controller forecasts a large profit for the day but it doesn't eventuate. 
 The controller uses the Amber price forecasts to estimate profit remaing today and tomorrow. Unfortunately these forecasts are not very accurate, especially when forecasting more than an hour or so into the future. Thus, unfortunately there is not much we can do to improve this.
 
+#### 6. [ERROR] Able to connect to HA API but the entity 'switch.sigen_plant_remote_ems_controled_by_home_assistant' was not found. Is it disabled?
+This error is caused by an update that occoured in the Sigenergy Integration that renamed this entity id from 'controled' to controlled'. If you come across this issue, please update the 'HA EMS Control Switch Entity' entity id in your MPC's config tab.
+
+
 ##### Please feel free to pop an issue in with the documentation label if you have issues with something and we can try to improve the docs to help others out who come accross the same issue. 

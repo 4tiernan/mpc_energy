@@ -70,7 +70,20 @@ class AmberAPI:
     def send_request(self, url):
         connect_timeout = 10
         response_timeout = 30
-        r = self.session.get(url, headers=self.headers, timeout=(connect_timeout,response_timeout))
+
+        try:
+            r = self.session.get(url, headers=self.headers, timeout=(connect_timeout,response_timeout))
+        except requests.exceptions.Timeout:
+            raise Exception("Amber API timeout")
+
+        except requests.exceptions.ConnectionError:
+            raise Exception("Amber API connection error")
+           
+
+        except requests.exceptions.RequestException as e:
+            raise Exception(f"Amber API error: {e}")
+            
+
         self.rate_limit_remaining = r.headers.get("RateLimit-Remaining")
         self.seconds_till_rate_limit_reset = r.headers.get("RateLimit-Reset")
         if(self.rate_limit_remaining != None):
@@ -83,7 +96,7 @@ class AmberAPI:
             self.seconds_till_rate_limit_reset = 0
 
         #print(f"Seconds till reset: {self.seconds_till_rate_limit_reset}")
-        logger.info(f"Amber Site Retreval HTML status Code: {r.status_code}, response: {r.json()}")
+        #logger.info(f"Amber Site Retreval HTML status Code: {r.status_code}, response: {r.json()}")
         # Check for rate limiting
         if r.status_code == 429:
             if self.seconds_till_rate_limit_reset:
@@ -107,7 +120,13 @@ class AmberAPI:
     def get_sites(self):
         """Return all sites linked to your Amber account."""
         url = f"{self.base}/sites"
-        return self.send_request(url)
+        response = self.send_request(url)
+        if(response):
+            return response
+        else:
+            raise Exception("Failed to retrieve sites from API.")
+            
+
     
     def check_for_demand_tarrif(self):
         """Returns True if the site selected has a demand tarrif, else False"""
@@ -115,14 +134,16 @@ class AmberAPI:
 
         response = self.send_request(url)
 
-        if(len(response) >= 2):
+        if(response, len(response) >= 2):
             for i in response:
                 if 'tariffInformation' in i:
                     tarrif_info = i['tariffInformation']
                     if("demandWindow" in tarrif_info): # Check to see if the demand window key exists in the tarrif information, indicating the user is on a demand tarrif. 
                         return True
                 
-        return False
+            return False
+        else:
+            raise Exception("Failed to check for demand tarrif.")
 
     def get_past_prices(self, previous_intervals, resolution):
         """Return historic prices for a given site."""
@@ -137,7 +158,8 @@ class AmberAPI:
         date_format = "%Y-%m-%dT%H:%M:%SZ"
 
         response = self.send_request(url)
-        if(len(response) >= 2):
+            
+        if(response and len(response) >= 2):
             for i in response:
                 start = datetime.strptime(i["startTime"], date_format).replace(tzinfo=timezone.utc).astimezone(self.local_tz)
                 end   = datetime.strptime(i["endTime"], date_format).replace(tzinfo=timezone.utc).astimezone(self.local_tz)
@@ -154,7 +176,10 @@ class AmberAPI:
                     interval = PriceForecast(price=price, start_time=start, end_time=end, demand_window=False)  
                     previous_feed_in_price.append(interval)
 
-        return [previous_general_prices, previous_feed_in_price]
+            return [previous_general_prices, previous_feed_in_price]
+        
+        else:
+            raise Exception("Failed to get past price data.")
     
     def demand_window_present(self, interval):
         demand_window = False
@@ -179,7 +204,8 @@ class AmberAPI:
         date_format = "%Y-%m-%dT%H:%M:%SZ"
 
         response = self.send_request(url)
-        if(len(response) >= 2):
+
+        if(response and len(response) >= 2):
             for i in response:
                 start = datetime.strptime(i["startTime"], date_format).replace(tzinfo=timezone.utc).astimezone(self.local_tz)
                 end   = datetime.strptime(i["endTime"], date_format).replace(tzinfo=timezone.utc).astimezone(self.local_tz)
@@ -202,7 +228,10 @@ class AmberAPI:
                     interval = PriceForecast(price=price, start_time=start, end_time=end, demand_window=False) 
                     feed_in_price_forecast.append(interval)
 
-        return [general_price_forecast, feed_in_price_forecast]
+            return [general_price_forecast, feed_in_price_forecast]
+
+        else:
+            raise Exception("Failed to get price forecast data")
     
     # Get the 5 min, 30 min and past prices and combine into a 5 minutely 'forecast' that extends past the 12 hr limit
     def get_extrapolated_forecast(self, hours, advanced_forecast = False): 
@@ -276,7 +305,8 @@ class AmberAPI:
         url = (f"{self.base}/sites/{self.site_id}/prices/current")
 
         response = self.send_request(url)
-        if(len(response) >= 2):
+        
+        if(response and len(response) >= 2):
             for i in response:
                 if(i["channelType"] == "general"):
                     general_price = i["perKwh"]
@@ -285,7 +315,9 @@ class AmberAPI:
                     feed_in_price = -i["perKwh"]
                     estimate = estimate or i['estimate']
 
-        return [general_price, feed_in_price, estimate]
+            return [general_price, feed_in_price, estimate]
+        else:
+            raise Exception("Failed to get current price data from Amber API")
         
     def get_data(self, partial_update=False, forecast_hrs=None):
         [general_price, feed_in_price, estimate] = self.get_current_prices()

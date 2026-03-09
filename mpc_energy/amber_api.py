@@ -79,10 +79,9 @@ class AmberAPI:
             self.seconds_till_rate_limit_reset = 0
 
         #print(f"Seconds till reset: {self.seconds_till_rate_limit_reset}")
-        logger.info(f"Amber Site Retreval HTML status Code: {r.status_code}, response: {r.json()}")
+        #logger.info(f"Amber Site Retreval HTML status Code: {r.status_code}, response: {r.json()}")
         # Check for rate limiting
         if r.status_code == 429:
-
             if self.seconds_till_rate_limit_reset:
                 logger.error(f"Exceeded Amber API request rate limit.")
                 logger.error(f"Waiting {self.seconds_till_rate_limit_reset+5} seconds before retrying")
@@ -94,6 +93,10 @@ class AmberAPI:
                 logger.error(f"Waiting 10 seconds before retrying")
                 time.sleep(10)
             return self.send_request(url)
+
+        elif r.status_code == 403:
+            logger.error("API key provided for Amber API does not have authorisation to access the Amber API. Please check the key is correct or create a new key.")
+            exit()
         
         return r.json()
 

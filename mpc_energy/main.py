@@ -152,6 +152,7 @@ while(started == False):
 start_time = time.time()
 last_amber_update_timestamp = 0
 automatic_control = True # var to keep track of whether the auto control switch is on
+last_real_price_timestamp = time.time() # var to keep track of when the last real price update was received to trigger safe mode if the price updates stop working
 
 next_amber_update_timestamp = time.time() #time to run the next amber update
 partial_update = False #Indicates wheather to do a full amber update or just the current prices (if only estimated prices)
@@ -271,7 +272,7 @@ logger.info("Configuration complete. Running")
 
 # Code runs every 10 seconds (to reduce cpu usage)
 def main_loop_code():
-    global automatic_control, next_amber_update_timestamp, partial_update, amber_data, last_control_mode
+    global automatic_control, next_amber_update_timestamp, partial_update, amber_data, last_control_mode, last_real_price_timestamp
     plant.update_data() # Update the plant data once for everything else to use.
 
     if(time.time() >= next_amber_update_timestamp):
@@ -286,7 +287,13 @@ def main_loop_code():
             seconds_till_next_update = 5
             partial_update = True # Make the next update a partial one
             logger.info(f"Prices are estimated, running partial update without price update. Will update prices in {seconds_till_next_update} seconds.")
+
+            if(time.time() - last_real_price_timestamp > 300): # If it's been more than 5 minutes since we've received a real price update, trigger safe mode
+                logger.warning("Putting system in safe mode due to lack of real price updates.")
+                EC.self_consumption() # Put the system into safe mode
+                
         else: # If prices are real, use them
+            last_real_price_timestamp = time.time() # Update the last real price timestamp to prevent false triggering of safe mode
             partial_update = False
             real_price_offset = 30 # seconds after the period begins when the real price starts
             now_datetime = datetime.datetime.now()

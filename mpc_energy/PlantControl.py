@@ -298,11 +298,11 @@ class Plant:
                 config_value_float = float(config_value)
             except:
                 unavailable_ids.append(f"{entity_id}\n")
-        
-        logger.error(f"The required entities are not enabled or don't exist. Please check they are enabled and spelt correctly:")
-        for id in unavailable_ids:
-            logger.error(id)
-        exit()
+        if(len(unavailable_ids) > 0):
+            logger.error(f"The required entities are not enabled or don't exist. Please check they are enabled and spelt correctly:")
+            for id in unavailable_ids:
+                logger.error(id)
+            exit()
 
 
     def set_control_limits(self, control_mode, discharge, charge, pv, grid_export, grid_import): # Set the control limits to the desired values

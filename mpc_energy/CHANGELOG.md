@@ -3,7 +3,7 @@
 * Improved Amber API auth logging
 * Added fallback to safemode when error occours or Amber price remains estimated for more than 5 minutes
 * Improved missing load data detection and repair
-* Checking required entities before full startup
+* Checking required entities before full     startup
 
 
 ## 0.2.50

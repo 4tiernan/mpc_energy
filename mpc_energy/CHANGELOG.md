@@ -5,6 +5,7 @@
 * Improved missing load data detection and repair
 * Checking required entities before full startup
 * Inproved management for missing data from Amber API
+* Added load data vaildation to stop MPC from failing infeasible 
 
 
 ## 0.2.50

@@ -399,7 +399,7 @@ class AmberAPI:
         feed_in_price_extrapolated_forecast, feed_missing = fill_from_points(feed_in_points, ordered_times, default_value=-10)
         demand_window_extrapolated_forecast, demand_missing = fill_from_points(demand_window_points, ordered_times, default_value=True)
 
-        if general_missing or feed_missing or (self.demand_tariff and demand_missing):
+        if general_missing or feed_missing or (self.demand_tarrif and demand_missing):
             if(self.demand_tarrif):
                 logger.warning(
                     "Amber extrapolated forecast required gap fill. Missing bin QTYs: (general=%s, feed-in=%s, demand-window=%s).",

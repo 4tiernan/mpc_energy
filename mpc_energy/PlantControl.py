@@ -288,7 +288,7 @@ class Plant:
         for entity_id in entity_ids:
             try:
                 self.ha.get_state(entity_id)
-            except Exception as e:
+            except:
                 unavailable_ids.append(f"{entity_id}\n")
 
         raise Exception(f"The required entities are not enabled or don't exist. Please check they are enabled and spelt correctly: \n {unavailable_ids}")

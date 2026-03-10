@@ -21,5 +21,8 @@ The controller uses the Amber price forecasts to estimate profit remaing today a
 #### 6. [ERROR] Able to connect to HA API but the entity 'switch.sigen_plant_remote_ems_controled_by_home_assistant' was not found. Is it disabled?
 This error is caused by an update that occoured in the Sigenergy Integration that renamed this entity id from 'controled' to controlled'. If you come across this issue, please update the 'HA EMS Control Switch Entity' entity id in your MPC's config tab.
 
+#### 7. [WARNING] Amber extrapolated forecast required gap fill.
+This warning means we failed to get all the required data for the MPC plan and we are using default values to stitch the plan together. The default values heavily discorage the MPC from interacting with the grid during these times as we don't know what the prices are. 
+
 
 ##### Please feel free to pop an issue in with the documentation label if you have issues with something and we can try to improve the docs to help others out who come accross the same issue. 

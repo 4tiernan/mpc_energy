@@ -396,18 +396,27 @@ class AmberAPI:
             return filled, missing_count
 
         general_price_extrapolated_forecast, general_missing = fill_from_points(general_points, ordered_times, default_value=50)
-        feed_in_price_extrapolated_forecast, feed_missing = fill_from_points(feed_in_points, ordered_times, default_value=0)
+        feed_in_price_extrapolated_forecast, feed_missing = fill_from_points(feed_in_points, ordered_times, default_value=-10)
         demand_window_extrapolated_forecast, demand_missing = fill_from_points(demand_window_points, ordered_times, default_value=True)
 
-        if general_missing or feed_missing or demand_missing:
-            logger.warning(
-                "Amber extrapolated forecast required gap fill over %s bins (general=%s, feed-in=%s, demand-window=%s).",
-                N_5min,
-                general_missing,
-                feed_missing,
-                demand_missing,
-            )
-            logger.warning("Missing points were filled with default values (general=50 c/kWh, feed-in=0 c/kWh, demand-window=True). This will impact MPC performance.")
+        if general_missing or feed_missing or (self.demand_tariff and demand_missing):
+            if(self.demand_tarrif):
+                logger.warning(
+                    "Amber extrapolated forecast required gap fill. Missing bin QTYs: (general=%s, feed-in=%s, demand-window=%s).",
+                    N_5min,
+                    general_missing,
+                    feed_missing,
+                    demand_missing,
+                )
+                logger.warning("Missing points were filled with default values (general=50 c/kWh, feed-in=-10 c/kWh, demand-window=True). This will impact MPC performance.")
+            else:
+                logger.warning(
+                    "Amber extrapolated forecast required gap fill. Missing bin QTYs: (general=%s, feed-in=%s).",
+                    N_5min,
+                    general_missing,
+                    feed_missing,
+                )
+                logger.warning("Missing points were filled with default values (general=50 c/kWh, feed-in=-10 c/kWh). This will impact MPC performance.")
 
         # Return extended forecast with guaranteed length.
         return [general_price_extrapolated_forecast, feed_in_price_extrapolated_forecast, demand_window_extrapolated_forecast, ordered_times]

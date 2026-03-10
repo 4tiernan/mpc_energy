@@ -5,6 +5,7 @@ import datetime
 import traceback
 import config_manager
 import const
+from exceptions import MPCEnergyError
 from mpc_logger import logger
 
 app_start_timestamp = time.time()
@@ -57,11 +58,21 @@ logger.info("------------------------  Starting MPC Energy App  ----------------
 started = False
 
 def PrintError(e):
-    logger.warning(f"Exception occoured: {e}")
-    traceback.print_exc() # Prints the full traceback to the console
+    logger.error(f"Exception occoured: {e}")
+    if(not isinstance(e, MPCEnergyError)):
+        traceback.print_exc() # Prints the full traceback to the console for unexpected errors
     logger.warning("Trying again after 30 seconds")
-    time.sleep(30)
 
+def FailSafe(e):
+    global EC, ha_mqtt
+    PrintError(e)
+    try:
+        if(ha_mqtt.automatic_control_switch.state == True):
+            EC.self_consumption()
+            logger.warning("Succsesfully put system into safe mode after detecting an error.")        
+    except:
+        logger.error("Failed to put system into safe mode after detecting an error.")       
+        
 
 while(started == False):
     try:
@@ -134,17 +145,18 @@ while(started == False):
 
         started = True
     except Exception as e:
-        PrintError(e)
+        FailSafe(e)
         
 
 start_time = time.time()
 last_amber_update_timestamp = 0
 automatic_control = True # var to keep track of whether the auto control switch is on
+last_real_price_timestamp = time.time() # var to keep track of when the last real price update was received to trigger safe mode if the price updates stop working
 
 next_amber_update_timestamp = time.time() #time to run the next amber update
 partial_update = False #Indicates wheather to do a full amber update or just the current prices (if only estimated prices)
-last_amber_update_timestamp = time.time()
-amber_data = amber.get_data(forecast_hrs=mpc.forecast_hrs)
+
+#amber_data = amber.get_data(forecast_hrs=mpc.forecast_hrs)
 last_control_mode = ""
         
 sensor_state_cache = {}
@@ -159,6 +171,10 @@ def set_sensor_if_changed(sensor, value):
 def update_sensors(amber_data):
     rbc.update_values(amber_data=amber_data)
 
+    override_status = control_mode_override_manager.state['active']
+    override_mode = control_mode_override_manager.state['mode']
+    opperating_mode = override_mode if override_status else EC.working_mode
+
     set_sensor_if_changed(ha_mqtt.max_feedIn_sensor, round(amber_data.feedIn_max_forecast_price))
     set_sensor_if_changed(ha_mqtt.current_feedIn_sensor, round(amber_data.feedIn_price))
     set_sensor_if_changed(ha_mqtt.current_general_price_sensor, round(amber_data.general_price))
@@ -168,7 +184,7 @@ def update_sensors(amber_data):
     set_sensor_if_changed(ha_mqtt.kwh_required_overnight_sensor, round(rbc.kwh_required_remaining, 2))    
     set_sensor_if_changed(ha_mqtt.kwh_required_till_sundown_sensor, round(rbc.kwh_required_till_sundown, 2))
     set_sensor_if_changed(ha_mqtt.amber_api_calls_remaining_sensor, amber.rate_limit_remaining)
-    set_sensor_if_changed(ha_mqtt.working_mode_sensor, EC.working_mode)
+    set_sensor_if_changed(ha_mqtt.working_mode_sensor, opperating_mode)
 
     set_sensor_if_changed(ha_mqtt.import_cost_sensor, round(plant.daily_import_cost, 2))
     set_sensor_if_changed(ha_mqtt.export_profit_sensor, round(plant.daily_export_profit, 2))
@@ -183,7 +199,7 @@ def update_sensors(amber_data):
         price = amber_data.general_price
         grid_status = "I"
     
-    set_sensor_if_changed(ha_mqtt.system_state_sensor, EC.working_mode + f" {round(abs(plant.grid_power),1)}{grid_status}@{price} c/kWh ${round(plant.daily_net_profit,2)} profit")
+    set_sensor_if_changed(ha_mqtt.system_state_sensor, opperating_mode + f" {round(abs(plant.grid_power),1)}{grid_status}@{price} c/kWh ${round(plant.daily_net_profit,2)} profit")
     set_sensor_if_changed(ha_mqtt.base_load_sensor, round(1000*plant.get_base_load_estimate(),2)) # converted to w from kW
     set_sensor_if_changed(ha_mqtt.effective_price_sensor, round(mpc.current_effective_price*100)) 
     set_sensor_if_changed(ha_mqtt.avg_daily_load_sensor, round(plant.avg_daily_load,2))
@@ -193,10 +209,29 @@ def run_controller(price_update=False):
     # If Auto control has been TURNED on, print a msg and reset flag
     selected_controller = ha_mqtt.energy_controller_selector.state
 
-    #if(control_mode_override_manager.run(amber_data)): # If the user selects manual control, don't allow another controller to run.
-    #    last_control_mode = "Manual Override"
-    #    mpc.run_optimisation(amber_data) # Run the MPC optimisation each time the price updates to keep the plot updated
-    #    return
+    if(control_mode_override_manager.run(amber_data)): # If the user selects manual control, don't allow another controller to run.
+        last_control_mode = "Manual Override"
+        if(price_update):
+            mpc.run_optimisation(amber_data) # Run the MPC optimisation each time the price updates to keep the plot updated
+        return
+    
+    if(last_control_mode == "Manual Override"):
+        if(ha_mqtt.automatic_control_switch.state == True):
+            logger.warning(f"Manual override finished. Returning control to {selected_controller}.")
+
+            if(selected_controller == "MPC"):
+                mpc.run(amber_data)
+            elif(selected_controller == "RBC"):
+                rbc.run(amber_data)
+            else:
+                EC.self_consumption()
+
+            last_control_mode = selected_controller
+
+        else: # If automatic control is off, turn back to safe mode
+            logger.warning(f"Manual override finished. Returning control to Safe Mode.")
+            EC.self_consumption()
+
 
     if(ha_mqtt.automatic_control_switch.state == True):
         if(automatic_control == False):
@@ -236,7 +271,7 @@ logger.info("Configuration complete. Running")
 
 # Code runs every 10 seconds (to reduce cpu usage)
 def main_loop_code():
-    global automatic_control, next_amber_update_timestamp, partial_update, amber_data, last_control_mode
+    global automatic_control, next_amber_update_timestamp, partial_update, amber_data, last_control_mode, last_real_price_timestamp
     plant.update_data() # Update the plant data once for everything else to use.
 
     if(time.time() >= next_amber_update_timestamp):
@@ -251,7 +286,13 @@ def main_loop_code():
             seconds_till_next_update = 5
             partial_update = True # Make the next update a partial one
             logger.info(f"Prices are estimated, running partial update without price update. Will update prices in {seconds_till_next_update} seconds.")
+
+            if(time.time() - last_real_price_timestamp > 300): # If it's been more than 5 minutes since we've received a real price update, trigger safe mode
+                logger.warning("Putting system in safe mode due to lack of real price updates.")
+                EC.self_consumption() # Put the system into safe mode
+                
         else: # If prices are real, use them
+            last_real_price_timestamp = time.time() # Update the last real price timestamp to prevent false triggering of safe mode
             partial_update = False
             real_price_offset = 30 # seconds after the period begins when the real price starts
             now_datetime = datetime.datetime.now()
@@ -297,6 +338,7 @@ while True:
         break
     
     except Exception as e:
-        PrintError(e)
+        FailSafe(e)
+        time.sleep(30)
 
     

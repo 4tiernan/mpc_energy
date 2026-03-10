@@ -4,7 +4,6 @@
 type: sections
 max_columns: 4
 title: MPC Example Dashboard
-path: add-on-data
 sections:
   - type: grid
     cards:

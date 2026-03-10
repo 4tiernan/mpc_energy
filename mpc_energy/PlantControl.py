@@ -23,6 +23,8 @@ class Plant:
     def __init__(self, ha):
         self.ha = ha
         self.local_tz = ha.local_tz
+        self.check_for_enabled_entites() # Check to make sure all the required entities are enabled before starting the app to prevent issues later on.
+
         self.control_mode_options = [
             "Standby",
             "Maximum Self Consumption",
@@ -263,7 +265,46 @@ class Plant:
                 logger.warning(f"Remote EMS switch is '{self.ha.get_state(config_manager.ha_ems_control_switch_entity_id)['state']}', turning on to allow control.")
                 self.ha.set_switch_state(config_manager.ha_ems_control_switch_entity_id, True)
                 time.sleep(2) # delay to ensure the change has time to become effective
-            
+
+    def check_for_enabled_entites(self): # Checks to make sure all the entities needed for control are available and enabled, if not it raises an error
+        entity_ids = [
+            config_manager.ha_ems_control_switch_entity_id,
+            config_manager.ems_control_mode_entity_id,
+            config_manager.backup_soc_entity_id,
+            config_manager.charge_cutoff_soc_entity_id,
+            config_manager.battery_max_discharge_power_limit_entity_id,
+            config_manager.battery_max_charge_power_limit_entity_id,
+            config_manager.battery_rated_capacity_entity_id,
+            config_manager.inverter_max_power_limit_entity_id,
+            config_manager.battery_kwh_till_full_entity_id,
+            config_manager.battery_stored_energy_entity_id,
+            config_manager.battery_max_charge_power_limit_entity_id,
+            config_manager.battery_max_discharge_power_limit_entity_id
+        ]
+        unavailable_ids = []
+        for entity_id in entity_ids:
+            try:
+                self.ha.get_state(entity_id)
+            except:
+                unavailable_ids.append(f"{entity_id}\n")
+
+        numeric_ids = [
+            config_manager.pv_max_power_limit_entity_id,
+            config_manager.import_max_power_limit_entity_id,
+            config_manager.export_max_power_limit_entity_id
+        ]
+        for config_value in numeric_ids:
+            try:
+                config_value_float = float(config_value)
+            except:
+                unavailable_ids.append(f"{entity_id}\n")
+        if(len(unavailable_ids) > 0):
+            logger.error(f"The required entities are not enabled or don't exist. Please check they are enabled and spelt correctly:")
+            for id in unavailable_ids:
+                logger.error(id)
+            exit()
+
+
     def set_control_limits(self, control_mode, discharge, charge, pv, grid_export, grid_import): # Set the control limits to the desired values
         #if(self.get_plant_mode() != control_mode):
         self.ensure_remote_ems() # Make sure the EMS is able to be controlled
@@ -608,10 +649,22 @@ class Plant:
 
             interval = avg_day[index] # Update the interval var with the latest data after cleaning
         
-        for interval in avg_day:
-            if(len(interval.states) == 0):
-                raise Exception(f"Failed to get state data for {interval.time} time period")
-            interval.avg_state = round(sum(interval.states) / len(interval.states), 2)
+        configured_avg_load = config_manager.estimated_daily_load_energy_consumption
+        last_known_avg_state = None
+        for index, interval in enumerate(avg_day):
+            valid_states = [state for state in interval.states if state is not None]
+            if(len(valid_states) == 0):
+                configured_interval_avg = round((index / len(avg_day)) * configured_avg_load, 2)
+                interval.avg_state = configured_interval_avg
+                if(last_known_avg_state is not None):
+                    interval.avg_state = max(last_known_avg_state, configured_interval_avg)
+                logger.warning(f"Using configured fallback load for {interval.time} time period")
+                last_known_avg_state = interval.avg_state
+            
+            else:
+                interval.avg_state = round(sum(valid_states) / len(valid_states), 2)
+                last_known_avg_state = interval.avg_state
+
 
             #print(f"avg: {interval.state} states: {interval.states}")
 

@@ -26,7 +26,6 @@ class HomeAssistantAPI:
         self.session.headers.update(self.headers)
 
         self.local_tz = self.get_timezone()
-        self.check_required_entities()
 
     def get_timezone(self):
         url = f"{self.base_url}/api/config"
@@ -211,32 +210,5 @@ class HomeAssistantAPI:
         url = f"{self.base_url}/api/events/{event_type}"
         return self.ha_request(url=url, method='post', data=data)
     
-
-    def check_required_entities(self):
-        entity_ids = [
-            config_manager.ha_ems_control_switch_entity_id,
-            config_manager.ems_control_mode_entity_id,
-            config_manager.backup_soc_entity_id,
-            config_manager.charge_cutoff_soc_entity_id,
-            config_manager.battery_max_charge_power_limit_entity_id,
-            config_manager.battery_max_discharge_power_limit_entity_id,
-            config_manager.battery_kwh_till_full_entity_id,
-            config_manager.battery_max_charge_power_limit_entity_id,
-            config_manager.battery_max_discharge_power_limit_entity_id
-        ]
-
-        missing_entities = []
-        for entity_id in entity_ids:
-            try:
-                self.get_state(entity_id)
-            except Exception as e:
-                missing_entities.append(entity_id)
-        
-        if missing_entities:
-            logger.error(f"The following required entities are missing or unavailable: {', '.join(missing_entities)}. Please check if they exist and are enabled.")
-            exit()
-
-
-
 #ha.check_required_entities()
 #print(ha.get_numeric_state("number.sigen_plant_ess_backup_state_of_charge"))

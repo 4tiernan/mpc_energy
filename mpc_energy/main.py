@@ -62,7 +62,6 @@ def PrintError(e):
     if(not isinstance(e, MPCEnergyError)):
         traceback.print_exc() # Prints the full traceback to the console for unexpected errors
     logger.warning("Trying again after 30 seconds")
-    time.sleep(30)
 
 def FailSafe(e):
     global EC, ha_mqtt
@@ -340,5 +339,6 @@ while True:
     
     except Exception as e:
         FailSafe(e)
+        time.sleep(30)
 
     

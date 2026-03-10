@@ -105,7 +105,7 @@ class MPC:
         
         logger.warning(f"Max Load: {max(self.load_5min)}, min load: {min(self.load_5min)}")
 
-        self.load_5min = [max(load, 0.0) for load in self.load_5min] # Don't allow negative load or solar
+        self.load_5min = [min(max(load, 0.0), self.grid_import_limit)  for load in self.load_5min] # Don't allow negative load or solar or load greater than import limit
         self.solar_5min = [max(solar, 0.0) for solar in self.solar_5min]
 
         

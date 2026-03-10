@@ -290,8 +290,11 @@ class Plant:
                 self.ha.get_state(entity_id)
             except:
                 unavailable_ids.append(f"{entity_id}\n")
-
-        raise Exception(f"The required entities are not enabled or don't exist. Please check they are enabled and spelt correctly: \n {unavailable_ids}")
+        
+        logger.error(f"The required entities are not enabled or don't exist. Please check they are enabled and spelt correctly:")
+        for id in unavailable_ids:
+            logger.error(id)
+        exit()
 
 
     def set_control_limits(self, control_mode, discharge, charge, pv, grid_export, grid_import): # Set the control limits to the desired values

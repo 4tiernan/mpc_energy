@@ -101,7 +101,6 @@ while(started == False):
         )
         
         plant = Plant(ha) 
-        plant.check_for_enabled_entites() # Check to make sure all the required entities are enabled before starting the app to prevent issues later on.
         
         EC = EnergyController(
             ha=ha,

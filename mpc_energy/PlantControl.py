@@ -23,6 +23,8 @@ class Plant:
     def __init__(self, ha):
         self.ha = ha
         self.local_tz = ha.local_tz
+        self.check_for_enabled_entites() # Check to make sure all the required entities are enabled before starting the app to prevent issues later on.
+
         self.control_mode_options = [
             "Standby",
             "Maximum Self Consumption",

@@ -103,7 +103,7 @@ class MPC:
             #self.solar_5min[0] = self.plant.solar_kw #change to 5min avg of these instantaneous values
             #self.load_5min[0] = self.plant.load_power
         
-        if(max(self.load_5min) > self.grid_import_limit or min(self.load_5min)):
+        if(max(self.load_5min) > self.grid_import_limit or min(self.load_5min) < 0):
             logger.warning(f"Some load values fall outside of limits, Max Load: {max(self.load_5min)}, Min Load: {min(self.load_5min)}. Clipping to ensure solver feasability, please report this if it occours frequently.")
 
         self.load_5min = [min(max(load, 0.0), self.grid_import_limit)  for load in self.load_5min] # Don't allow negative load or solar or load greater than import limit

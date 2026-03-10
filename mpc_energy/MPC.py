@@ -103,8 +103,12 @@ class MPC:
             #self.solar_5min[0] = self.plant.solar_kw #change to 5min avg of these instantaneous values
             #self.load_5min[0] = self.plant.load_power
         
+        logger.warning(f"Max Load: {max(self.load_5min)}, min load: {min(self.load_5min)}")
+
         self.load_5min = [max(load, 0.0) for load in self.load_5min] # Don't allow negative load or solar
         self.solar_5min = [max(solar, 0.0) for solar in self.solar_5min]
+
+        
 
         # Amber Forecast (forecast hrs is set in main.py in the get_data call)
         self.demand_tarrif_price = amber_data.demand_tarrif_price

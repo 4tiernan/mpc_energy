@@ -274,9 +274,6 @@ class Plant:
             config_manager.charge_cutoff_soc_entity_id,
             config_manager.battery_max_discharge_power_limit_entity_id,
             config_manager.battery_max_charge_power_limit_entity_id,
-            config_manager.pv_max_power_limit_entity_id,
-            config_manager.import_max_power_limit_entity_id,
-            config_manager.export_max_power_limit_entity_id,
             config_manager.battery_rated_capacity_entity_id,
             config_manager.inverter_max_power_limit_entity_id,
             config_manager.battery_kwh_till_full_entity_id,
@@ -288,6 +285,17 @@ class Plant:
         for entity_id in entity_ids:
             try:
                 self.ha.get_state(entity_id)
+            except:
+                unavailable_ids.append(f"{entity_id}\n")
+
+        numeric_ids = [
+            config_manager.pv_max_power_limit_entity_id,
+            config_manager.import_max_power_limit_entity_id,
+            config_manager.export_max_power_limit_entity_id
+        ]
+        for config_value in numeric_ids:
+            try:
+                config_value_float = float(config_value)
             except:
                 unavailable_ids.append(f"{entity_id}\n")
         

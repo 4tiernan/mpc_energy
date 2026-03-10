@@ -90,7 +90,6 @@ while(started == False):
             base_url=const.HA_API_URL,
             token=const.HA_TOKEN,
         )
-        print("Connected to HA API")
 
         
         amber = AmberAPI(
@@ -102,7 +101,6 @@ while(started == False):
         )
         
         plant = Plant(ha) 
-        print("Plant control setup complete")
         
         EC = EnergyController(
             ha=ha,

@@ -211,6 +211,12 @@ sections:
           - entity: sensor.mpc_energy_manager_device_working_mode
             name:
               type: entity
+          - entity: select.mpc_energy_manager_device_control_mode_override
+            name:
+              type: entity
+          - entity: select.mpc_energy_manager_device_control_mode_override_duration
+            name:
+              type: entity
         title: MPC Control and Monitoring
         grid_options:
           columns: 10

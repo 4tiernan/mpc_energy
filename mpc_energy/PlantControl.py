@@ -263,7 +263,35 @@ class Plant:
                 logger.warning(f"Remote EMS switch is '{self.ha.get_state(config_manager.ha_ems_control_switch_entity_id)['state']}', turning on to allow control.")
                 self.ha.set_switch_state(config_manager.ha_ems_control_switch_entity_id, True)
                 time.sleep(2) # delay to ensure the change has time to become effective
-            
+
+    def check_for_enabled_entites(self): # Checks to make sure all the entities needed for control are available and enabled, if not it raises an error
+        entity_ids = [
+            config_manager.ha_ems_control_switch_entity_id,
+            config_manager.ems_control_mode_entity_id,
+            config_manager.backup_soc_entity_id,
+            config_manager.charge_cutoff_soc_entity_id,
+            config_manager.battery_max_discharge_power_limit_entity_id,
+            config_manager.battery_max_charge_power_limit_entity_id,
+            config_manager.pv_max_power_limit_entity_id,
+            config_manager.import_max_power_limit_entity_id,
+            config_manager.export_max_power_limit_entity_id,
+            config_manager.battery_rated_capacity_entity_id,
+            config_manager.inverter_max_power_limit_entity_id,
+            config_manager.battery_kwh_till_full_entity_id,
+            config_manager.battery_stored_energy_entity_id,
+            config_manager.battery_max_charge_power_limit_entity_id,
+            config_manager.battery_max_discharge_power_limit_entity_id
+        ]
+        unavailable_ids = []
+        for entity_id in entity_ids:
+            try:
+                self.ha.get_state(entity_id)
+            except Exception as e:
+                unavailable_ids.append(f"{entity_id}\n")
+
+        raise Exception(f"The required entities are not enabled or don't exist. Please check they are enabled and spelt correctly: \n {unavailable_ids}")
+
+
     def set_control_limits(self, control_mode, discharge, charge, pv, grid_export, grid_import): # Set the control limits to the desired values
         #if(self.get_plant_mode() != control_mode):
         self.ensure_remote_ems() # Make sure the EMS is able to be controlled

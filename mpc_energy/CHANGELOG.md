@@ -1,8 +1,10 @@
 ## 0.3.0
 * Added manual control option with price change trigger
 * Improved Amber API auth logging
-* Added fallback to safemode when error occours
+* Added fallback to safemode when error occours or Amber price remains estimated for more than 5 minutes
 * Improved missing load data detection and repair
+* Checking required entities before full startup
+
 
 ## 0.2.50
 * Added new sensors for forecast daily profit

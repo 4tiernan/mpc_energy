@@ -77,7 +77,7 @@ class MPC:
         self.update_limits() # Update the limits in case the user has changed any config values that affect the limits since the last update
         
         current_soc = (self.plant.battery_soc / 100)*self.soc_max
-        self.soc_init = min(current_soc, self.soc_max) #constrain the soc to within limits to stop solver from doing weird stuff
+        self.soc_init = min(max(current_soc, self.soc_min), self.soc_max) #constrain the soc to within limits to stop solver from doing weird stuff
 
         # ---------- Historical Data ---------- 
         self.historical_data = self.plant.historical_data(hours=6) # Get the last 6 hours of historical data
@@ -87,6 +87,7 @@ class MPC:
         # Load Forecast
         load_power_states = self.plant.forecast_load_power(forecast_hours_from_now=self.forecast_hrs) # Calculate the average load power
         self.load_5min = [powerstate.avg_state*(1+self.load_inflation_percentage/100.0) for powerstate in load_power_states]
+        
         
         # Solar Forecast
         self.solar_5min = self.plant.forecast_solar_power(forecast_hours_from_now=self.forecast_hrs)
@@ -101,6 +102,9 @@ class MPC:
             # Inject the current instantaneous solar and load values into the sim
             #self.solar_5min[0] = self.plant.solar_kw #change to 5min avg of these instantaneous values
             #self.load_5min[0] = self.plant.load_power
+        
+        self.load_5min = [max(load, 0.0) for load in self.load_5min] # Don't allow negative load or solar
+        self.solar_5min = [max(solar, 0.0) for solar in self.solar_5min]
 
         # Amber Forecast (forecast hrs is set in main.py in the get_data call)
         self.demand_tarrif_price = amber_data.demand_tarrif_price

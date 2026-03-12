@@ -100,6 +100,72 @@ class Plant:
             self.hours_till_full = round(self.kwh_till_full / abs(self.battery_kw), 2)
         elif(self.battery_kw > 0):
             self.hours_till_empty = round(self.kwh_stored_available / abs(self.battery_kw), 2)
+        
+    def system_curtailing(self, derate_allowance_kw=1.0, tolerance_kw=0.1):
+        """
+        Return curtailment status and reason based on active limits.
+
+        Battery SOC >= 97% is treated as a charging constraint because near-full
+        batteries commonly trigger charge tapering/curtailment behaviour.
+        """
+        control_mode = self.get_plant_mode()
+
+        inverter_limit_kw = self.ha.get_numeric_state(config_manager.inverter_max_power_limit_entity_id)
+        charge_limit_kw = self.ha.get_numeric_state(config_manager.battery_charge_limiter_entity_id)
+        pv_limit_kw = self.ha.get_numeric_state(config_manager.pv_limiter_entity_id)
+        export_limit_kw = self.ha.get_numeric_state(config_manager.export_limiter_entity_id)
+
+        charge_disabled_modes = {
+            "Standby",
+            "Command Discharging (PV First)",
+            "Command Discharging (ESS First)",
+        }
+        high_soc_curtailment = self.battery_soc >= 97
+        charging_disabled = control_mode in charge_disabled_modes or high_soc_curtailment
+        effective_charge_limit_kw = 0 if charging_disabled else max(charge_limit_kw, 0)
+
+        ac_sink_limit_kw = max(self.load_power, 0) + max(export_limit_kw, 0)
+        configured_inverter_headroom_kw = min(max(inverter_limit_kw, 0), ac_sink_limit_kw)
+        derated_inverter_headroom_kw = min(max(inverter_limit_kw - derate_allowance_kw, 0), ac_sink_limit_kw)
+
+        configured_ceiling_kw = min(max(pv_limit_kw, 0), configured_inverter_headroom_kw + effective_charge_limit_kw)
+        derated_ceiling_kw = min(max(pv_limit_kw, 0), derated_inverter_headroom_kw + effective_charge_limit_kw)
+
+        curtailing_configured = self.solar_kw >= configured_ceiling_kw - tolerance_kw
+        curtailing_derated = self.solar_kw >= derated_ceiling_kw - tolerance_kw
+        curtailing = curtailing_configured or curtailing_derated
+
+        limiting_components = {
+            "pv_limit": pv_limit_kw,
+            "inverter_limit": configured_inverter_headroom_kw + effective_charge_limit_kw,
+            "derated_inverter_limit": derated_inverter_headroom_kw + effective_charge_limit_kw,
+            "ac_sink_limit": ac_sink_limit_kw + effective_charge_limit_kw,
+        }
+        limiting_reason = min(limiting_components, key=limiting_components.get)
+
+        reason_text_map = {
+            "pv_limit": f"PV limit ({round(pv_limit_kw, 2)} kW)",
+            "inverter_limit": f"Inverter/export/load limit ({round(configured_inverter_headroom_kw + effective_charge_limit_kw, 2)} kW)",
+            "derated_inverter_limit": f"Possible inverter derating limit ({round(derated_inverter_headroom_kw + effective_charge_limit_kw, 2)} kW)",
+            "ac_sink_limit": f"Load + export sink limit ({round(ac_sink_limit_kw + effective_charge_limit_kw, 2)} kW)",
+        }
+
+        reason_parts = [reason_text_map[limiting_reason], f"mode '{control_mode}'"]
+        if control_mode in charge_disabled_modes:
+            reason_parts.append("battery charging disabled by mode")
+        if high_soc_curtailment:
+            reason_parts.append(f"battery SOC high ({round(self.battery_soc, 1)}%)")
+
+        return {
+            "curtailing": curtailing,
+            "reason": ", ".join(reason_parts),
+            "limiting_reason_key": limiting_reason,
+            "configured_ceiling_kw": round(configured_ceiling_kw, 2),
+            "derated_ceiling_kw": round(derated_ceiling_kw, 2),
+            "solar_kw": round(self.solar_kw, 2),
+            "battery_soc": round(self.battery_soc, 2),
+            "control_mode": control_mode,
+        }
     
     def historical_data(self, hours, bin_period=5): # Get the requested hours of historical data for the plant being (SOC, battery power, inverter power, solar power, grid power, load power and prices.) in order oldest to newest
         """

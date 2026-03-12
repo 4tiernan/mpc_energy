@@ -272,6 +272,7 @@ control_mode_override_duration_selector = CreateSelectInput(
 
 def initalise_entities(): # Initalise entities and get them discovered by the ha mqtt service
     automatic_control_switch.set_state(False)
+    energy_controller_selector.set_state("MPC")
     working_mode_sensor.set_state("Self Consumption")
     system_state_sensor.set_state("Self Consumption")
     amber_api_calls_remaining_sensor.set_state(0)

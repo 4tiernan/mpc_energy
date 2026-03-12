@@ -304,6 +304,7 @@ def main_loop_code():
         if(not amber_data.prices_estimated): #If the prices are real
             start_timer()
             run_controller(price_update=True) # Send the price update flag to indicate that new pricing data has been received.
+            slow_sensor_update()
             elapsed_time("Controller Run")
 
             logger.info(f"General: {amber_data.general_price} c/kWh  Feed In: {amber_data.feedIn_price} c/kWh  Max 12hr Feed In: {amber_data.feedIn_max_forecast_price} c/kWh")    
@@ -315,7 +316,9 @@ def main_loop_code():
     
     
     update_sensors(amber_data)
-    
+
+def slow_sensor_update():
+    set_sensor_if_changed(ha_mqtt.curtailment_status_sensor, plant.system_curtailing())
 
 last_loop_timestamp = 0
 last_alive_time_timestamp = 0

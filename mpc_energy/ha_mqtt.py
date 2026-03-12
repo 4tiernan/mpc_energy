@@ -250,6 +250,12 @@ estimated_price_status_sensor = CreateSensor(
     unit_of_measurement=""
 )
 
+curtailment_status_sensor = CreateSensor(
+    name = "Curtailment Status",
+    unique_id="curtailment_status",
+    unit_of_measurement=""
+)
+
 control_mode_override_selector = CreateSelectInput(
     name="Control Mode Override",
     unique_id="control_mode_override",
@@ -296,6 +302,8 @@ def initalise_entities(): # Initalise entities and get them discovered by the ha
     profit_tomorrow_sensor.set_state(0)
     control_mode_override_selector.set_state("Disabled")
     control_mode_override_duration_selector.set_state("15")
+    curtailment_status_sensor.set_state(0)
+
     time.sleep(10)
 
 

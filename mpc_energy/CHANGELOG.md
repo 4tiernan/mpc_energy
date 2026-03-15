@@ -1,3 +1,10 @@
+## 0.4.0
+* Added Solar Curtailment Sensor to show when the system is likely curtailing
+* Added Streamlit Dashboard auto restart on failure
+* Fixed issue where no controller action was taken when controller initalised to MPC after install
+
+
+
 ## 0.3.0
 * Added manual control option with price change trigger
 * Improved Amber API auth logging

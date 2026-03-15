@@ -222,6 +222,10 @@ def update_sensors(amber_data):
     set_sensor_if_changed(ha_mqtt.effective_price_sensor, round(mpc.current_effective_price*100)) 
     set_sensor_if_changed(ha_mqtt.avg_daily_load_sensor, round(plant.avg_daily_load,2))
 
+def slow_sensor_update():
+    set_sensor_if_changed(ha_mqtt.curtailment_status_sensor, plant.system_curtailing())
+
+
 def run_controller(price_update=False):
     global automatic_control, last_control_mode
     # If Auto control has been TURNED on, print a msg and reset flag
@@ -334,9 +338,6 @@ def main_loop_code():
     
     
     update_sensors(amber_data)
-
-def slow_sensor_update():
-    set_sensor_if_changed(ha_mqtt.curtailment_status_sensor, plant.system_curtailing())
 
 last_loop_timestamp = 0
 last_alive_time_timestamp = 0

@@ -57,6 +57,23 @@ if(config_manager.amber_site_id == ""):
 logger.info("------------------------  Starting MPC Energy App  ------------------------")
 started = False
 
+streamlit_proc = None
+
+def start_streamlit_dashboard():
+    return subprocess.Popen([
+        sys.executable,
+        "-m",
+        "streamlit",
+        "run",
+        "webserver.py",
+        "--server.headless=true",
+        "--server.port=8501",
+        "--server.address=0.0.0.0",
+        "--server.enableCORS=false",
+        "--server.enableXsrfProtection=false",
+        "--theme.base=light"
+    ])
+
 def PrintError(e):
     logger.error(f"Exception occoured: {e}")
     if(not isinstance(e, MPCEnergyError)):
@@ -139,6 +156,7 @@ while(started == False):
             "--server.enableXsrfProtection=false",
             "--theme.base=light"
         ])
+        streamlit_proc = start_streamlit_dashboard()
 
 
         #logger.info("Streamlit dashboard started")  
@@ -328,6 +346,11 @@ while True:
         if(time.time() - int(last_alive_time_timestamp) >= 1):
             last_alive_time_timestamp = time.time()
             ha_mqtt.alive_time_sensor.set_state(round(time.time()-app_start_timestamp))
+        
+        if(streamlit_proc and streamlit_proc.poll() is not None):
+            logger.error(f"Streamlit dashboard process stopped with code {streamlit_proc.returncode}. Restarting dashboard process.")
+            streamlit_proc = start_streamlit_dashboard()
+            logger.warning("Streamlit dashboard restarted.")
 
         time.sleep(1) # Sleep a little to reduce CPU usage, we don't need to check the time constantly
         

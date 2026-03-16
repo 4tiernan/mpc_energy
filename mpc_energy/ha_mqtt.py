@@ -256,6 +256,12 @@ curtailment_status_sensor = CreateSensor(
     unit_of_measurement=""
 )
 
+curtailment_reason_sensor = CreateSensor(
+    name = "Curtailment Reason",
+    unique_id="curtailment_reason",
+    unit_of_measurement=""
+)
+
 control_mode_override_selector = CreateSelectInput(
     name="Control Mode Override",
     unique_id="control_mode_override",
@@ -303,6 +309,7 @@ def initalise_entities(): # Initalise entities and get them discovered by the ha
     control_mode_override_selector.set_state("Disabled")
     control_mode_override_duration_selector.set_state("15")
     curtailment_status_sensor.set_state(0)
+    curtailment_reason_sensor.set_state("None")
 
     time.sleep(10)
 

@@ -223,7 +223,11 @@ def update_sensors(amber_data):
     set_sensor_if_changed(ha_mqtt.avg_daily_load_sensor, round(plant.avg_daily_load,2))
 
 def slow_sensor_update():
-    set_sensor_if_changed(ha_mqtt.curtailment_status_sensor, plant.system_curtailing())
+    curtailment_resp = plant.system_curtailing()
+    curtailment_reason = [curtailment_resp.get(k) for k in ('reason','limiting_reason_key','configured_ceiling_kw')]
+    curtailment_reason = f"Reason: {curtailment_reason[0]}, Limiting Key: {curtailment_reason[1]}, Configured Ceiling: {curtailment_reason[2]}"
+    set_sensor_if_changed(ha_mqtt.curtailment_status_sensor, bool(curtailment_resp['curtailing']))
+    set_sensor_if_changed(ha_mqtt.curtailment_reason_sensor, curtailment_reason)
 
 
 def run_controller(price_update=False):

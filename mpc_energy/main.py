@@ -226,7 +226,7 @@ def slow_sensor_update():
     curtailment_resp = plant.system_curtailing()
     curtailment_reason = [curtailment_resp.get(k) for k in ('reason','limiting_reason_key','configured_ceiling_kw')]
     curtailment_reason = f"Reason: {curtailment_reason[0]}, Limiting Key: {curtailment_reason[1]}, Configured Ceiling: {curtailment_reason[2]}"
-    set_sensor_if_changed(ha_mqtt.curtailment_status_sensor, bool(curtailment_resp['curtailing']))
+    set_sensor_if_changed(ha_mqtt.curtailment_status_sensor, int(curtailment_resp['curtailing']))
     set_sensor_if_changed(ha_mqtt.curtailment_reason_sensor, curtailment_reason)
 
 
@@ -354,11 +354,6 @@ while True:
         if(time.time() - int(last_alive_time_timestamp) >= 1):
             last_alive_time_timestamp = time.time()
             ha_mqtt.alive_time_sensor.set_state(round(time.time()-app_start_timestamp))
-        
-        if(streamlit_proc and streamlit_proc.poll() is not None):
-            logger.error(f"Streamlit dashboard process stopped with code {streamlit_proc.returncode}. Restarting dashboard process.")
-            streamlit_proc = start_streamlit_dashboard()
-            logger.warning("Streamlit dashboard restarted.")
 
         time.sleep(1) # Sleep a little to reduce CPU usage, we don't need to check the time constantly
         

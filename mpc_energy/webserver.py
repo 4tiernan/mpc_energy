@@ -15,8 +15,6 @@ st.set_page_config(
     layout="wide"
 )
 
-st_autorefresh(interval=20000, key="mpc_refresh")  # every 5 seconds
-
 
 if "mqtt_queue" not in st.session_state:
     st.session_state.mqtt_queue = queue.Queue()
@@ -49,11 +47,8 @@ while not mqtt_queue.empty():
     st.session_state.mpc_output = mqtt_queue.get()
     st.session_state.data_received = True
 
-if not st.session_state.data_received:
-    st_autorefresh(interval=100, key="mqtt_fast_refresh") # Refresh the page instantly if there is no MQTT data
-
-
-
+refresh_interval_ms = 20000 if st.session_state.data_received else 1000
+st_autorefresh(interval=refresh_interval_ms, key="mpc_refresh")
 
 st.markdown("""
 <style>

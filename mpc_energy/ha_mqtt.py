@@ -259,7 +259,8 @@ curtailment_status_sensor = CreateSensor(
 curtailment_reason_sensor = CreateSensor(
     name = "Curtailment Reason",
     unique_id="curtailment_reason",
-    unit_of_measurement=""
+    unit_of_measurement=None,
+    state_class = None
 )
 
 control_mode_override_selector = CreateSelectInput(

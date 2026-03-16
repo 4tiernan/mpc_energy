@@ -2,6 +2,8 @@
 * Added Solar Curtailment Sensor to show when the system is likely curtailing
 * Added Streamlit Dashboard auto restart on failure
 * Fixed issue where no controller action was taken when controller initalised to MPC after install
+* Changed Amber delayed price Safe Mode trigger from 5 to 10 minutes
+* Increased MPC grid import penalty and decreased EOD charge reward to reduce unnecessary grid charging 
 
 
 

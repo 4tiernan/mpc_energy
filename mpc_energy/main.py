@@ -309,7 +309,7 @@ def main_loop_code():
             partial_update = True # Make the next update a partial one
             logger.info(f"Prices are estimated, running partial update without price update. Will update prices in {seconds_till_next_update} seconds.")
 
-            if(time.time() - last_real_price_timestamp > 300): # If it's been more than 5 minutes since we've received a real price update, trigger safe mode
+            if(time.time() - last_real_price_timestamp > 600): # If it's been more than 10 minutes since we've received a real price update, trigger safe mode
                 logger.warning("Putting system in safe mode due to lack of real price updates.")
                 EC.self_consumption() # Put the system into safe mode
                 

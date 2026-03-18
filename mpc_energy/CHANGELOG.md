@@ -3,6 +3,7 @@
 * Fixed issue where no controller action was taken when controller initalised to MPC after install
 * Changed Amber delayed price Safe Mode trigger from 5 to 10 minutes
 * Increased MPC grid import penalty and decreased EOD charge reward to reduce unnecessary grid charging 
+* Fixed issue where inconsistent Sigenergy load data caused an error
 
 
 

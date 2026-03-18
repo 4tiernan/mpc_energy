@@ -680,6 +680,13 @@ class Plant:
 
         #for interval in avg_day:
         #    print(interval.states)
+
+        def state_for_interval(interval_index, state_index): # Safe state interval retrival
+            if(interval_index < 0 or interval_index >= len(avg_day)):
+                return None
+            if(state_index < 0 or state_index >= len(avg_day[interval_index].states)):
+                return None
+            return avg_day[interval_index].states[state_index]
         
         for index, interval in enumerate(avg_day):
             for state_index, state in enumerate(avg_day[index].states): # Check all days states for that time have data
@@ -688,7 +695,7 @@ class Plant:
                     next_state = None
                     lower_idx = index - 1
                     while(last_state == None and lower_idx > 1): # Find the last two valid states for that day (2 states increases likelyhood they are vaild)
-                        if(avg_day[lower_idx].states[state_index] != None and avg_day[lower_idx-1].states[state_index] != None):
+                        if(state_for_interval(lower_idx, state_index) != None and state_for_interval(lower_idx-1, state_index) != None):
                             lower_idx = lower_idx - 1 # reduce the index to get the 2nd valid state
                             last_state = avg_day[lower_idx].states[state_index]
                         else:
@@ -696,9 +703,9 @@ class Plant:
 
                     upper_idx = index + 1
                     while(next_state == None and upper_idx < len(avg_day)-2): # Find the next valid two states for that day
-                        if(avg_day[upper_idx].states[state_index] != None and avg_day[upper_idx+1].states[state_index] != None):
+                        if(state_for_interval(upper_idx, state_index) != None and state_for_interval(upper_idx+1, state_index) != None):
                             upper_idx = upper_idx + 1
-                            next_state = avg_day[upper_idx].states[state_index]
+                            next_state = state_for_interval(upper_idx, state_index)
                         else:
                             upper_idx = upper_idx + 1
                     
@@ -709,9 +716,9 @@ class Plant:
                             avg_day[i].states[state_index] = last_state + (next_state - last_state) * ((i - lower_idx) / n)
                             #print(last_state + ((next_state - last_state) * (i - lower_idx)) / n)
                     elif(last_state != None):
-                        avg_day[index].states[state_index] = avg_day[index-1].states[state_index] # Use just the last state if the next state isn't available
+                        avg_day[index].states[state_index] = state_for_interval(index-1, state_index) # Use just the last state if the next state isn't available
                     elif(next_state != None):
-                        avg_day[index].states[state_index] = avg_day[index+1].states[state_index] # Use just the next state if the last state isn't available
+                        avg_day[index].states[state_index] = state_for_interval(index+1, state_index) # Use just the next state if the last state isn't available
 
             interval = avg_day[index] # Update the interval var with the latest data after cleaning
         

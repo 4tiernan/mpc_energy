@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 import time
 from mpc_logger import logger
+from exceptions import *
 import config_manager
 
 
@@ -56,8 +57,7 @@ class HomeAssistantAPI:
         def log_status(r):
             status_code = r.status_code
             if(status_code == 401):
-                logger.error("Unauthorized when connecting to HA API. Please check your token and ensure it has the necessary permissions.")
-                exit()
+                raise HAAPIAuthenticationError("Unauthorized when connecting to HA API. Please check your token and ensure it has the necessary permissions.") from None
 
         try:
             if(method =='get'):
@@ -86,19 +86,17 @@ class HomeAssistantAPI:
                         status_code = e.response.status_code
                         response_text = e.response.text
 
-                    logger.error(
+                    raise HAAPIError(
                         f"HA service call '{service_path}' failed for entity '{entity_id}'"
                         f" with status '{status_code}'. Error details: '{str(e)}'"
                         f" Response body: '{response_text}'"
                     )
-                    exit()
                 else:
                     entity_id = entity_id or url.split("/api/states/")[-1]
-                    logger.error(
+                    raise HAAPIError(
                         f"Able to connect to HA API but the entity '{entity_id}' was not found."
                         f" Is it disabled? Error details: '{str(e)}'"
                     )
-                    exit()
             else:
                 while(not self.check_api_running()): # If we can't connect to the HA API, wait and retry until we can. This is to handle the case where the add-on starts before HA is fully up and running.
                     logger.error(f"Unable to connect to HA API, retrying in 30 seconds")
@@ -114,8 +112,7 @@ class HomeAssistantAPI:
     def get_numeric_state(self, entity_id):
         json_resp = self.get_state(entity_id)
         if not json_resp:
-            logger.error(f"No response returned for '{entity_id}'. Please check if the entity_id is correct")
-            exit()
+            raise HAAPIError(f"No response returned for '{entity_id}'. Please check if the entity_id is correct")
         else:
             return float(json_resp["state"])
 

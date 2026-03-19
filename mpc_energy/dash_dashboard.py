@@ -285,11 +285,8 @@ def on_message(client: mqtt.Client, userdata: Any, msg: mqtt.MQTTMessage) -> Non
         return
 
 def on_connect(client: mqtt.Client, userdata: Any, flags: Dict[str, Any], reason_code: Any, properties: Any) -> None:
-    if int(reason_code) == 0:
-        logger.info("Dash MQTT connected; subscribing to home/mpc/output")
-        client.subscribe("home/mpc/output")
-    else:
-        logger.error(f"Dash MQTT connect failed, rc={reason_code}")
+    logger.info(f"Reason Code:{reason_code}")
+    client.subscribe("home/mpc/output")
 
 
 

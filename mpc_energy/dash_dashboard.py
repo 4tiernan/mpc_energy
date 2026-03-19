@@ -280,15 +280,16 @@ def on_message(client: mqtt.Client, userdata: Any, msg: mqtt.MQTTMessage) -> Non
     try:
         payload = json.loads(msg.payload.decode("utf-8"))
         STATE.set_payload(payload)
+        logger.info("GOT MQTT DATA")
     except Exception:
         return
 
-def on_connect(client, userdata, flags, rc):
-    if rc == 0:
-        logger.info("MQTT connected OK")
+def on_connect(client: mqtt.Client, userdata: Any, flags: Dict[str, Any], reason_code: Any, properties: Any) -> None:
+    if int(reason_code) == 0:
+        logger.info("Dash MQTT connected; subscribing to home/mpc/output")
         client.subscribe("home/mpc/output")
     else:
-        logger.error(f"MQTT connect failed, rc={rc}")
+        logger.error(f"Dash MQTT connect failed, rc={reason_code}")
 
 
 

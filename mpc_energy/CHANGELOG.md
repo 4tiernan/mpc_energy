@@ -6,6 +6,7 @@
 * Fixed issue where inconsistent Sigenergy load data caused an error
 * Fixed bad entity data retrival causing system exit
 * Added detection and improved logging if Sigenergy system goes offline
+* Fixed issue casuing Streamlit dashboard to get started twice
 
 ## 0.3.0
 * Added manual control option with price change trigger

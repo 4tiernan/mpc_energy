@@ -281,13 +281,21 @@ def on_message(client: mqtt.Client, userdata: Any, msg: mqtt.MQTTMessage) -> Non
     except Exception:
         return
 
+def on_connect(client, userdata, flags, rc):
+    if rc == 0:
+        print("MQTT connected OK")
+        client.subscribe("home/mpc/output")
+    else:
+        print(f"MQTT connect failed, rc={rc}")
+
+
 
 def start_mqtt_listener() -> mqtt.Client:
     client = mqtt.Client(callback_api_version=mqtt.CallbackAPIVersion.VERSION2)
     client.username_pw_set(config_manager.MQTT_USER, config_manager.MQTT_PASS)
     client.on_message = on_message
+    client.on_connect = on_connect
     client.connect(const.MQTT_HOST, const.MQTT_PORT)
-    client.subscribe("home/mpc/output")
     client.loop_start()
     return client
 

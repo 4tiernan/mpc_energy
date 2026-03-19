@@ -113,8 +113,12 @@ class HomeAssistantAPI:
         json_resp = self.get_state(entity_id)
         if not json_resp:
             raise HAAPIError(f"No response returned for '{entity_id}'. Please check if the entity_id is correct")
-        else:
-            return float(json_resp["state"])
+        
+        state = json_resp.get("state")
+        try:
+            return float(state)
+        except (TypeError, ValueError):
+            raise HAAPIError(f"Unable to convert state '{state}' for entity '{entity_id}' to float.") from None
 
     def call_service(self, domain, service, data):
         url = f"{self.base_url}/api/services/{domain}/{service}"

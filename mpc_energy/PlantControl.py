@@ -9,7 +9,7 @@ from collections import defaultdict
 from typing import Any
 import config_manager
 from mpc_logger import logger
-
+from exceptions import HAAPIError, SigenergyConnectionError
 
 
 @dataclass
@@ -32,7 +32,7 @@ class Plant:
             "Command Charging (Grid First)",
             "Command Discharging (PV First)",
             "Command Discharging (ESS First)"]
-        self.rated_capacity = self.ha.get_numeric_state(config_manager.battery_rated_capacity_entity_id)
+        self.rated_capacity = self.get_sigenergy_numeric_state(config_manager.battery_rated_capacity_entity_id)
         self.max_discharge_power = self.get_config_entry_value(config_manager.battery_max_discharge_power_limit_entity_id)
         self.max_charge_power = self.get_config_entry_value(config_manager.battery_max_charge_power_limit_entity_id)
         self.max_pv_power = self.get_config_entry_value(config_manager.pv_max_power_limit_entity_id)
@@ -50,6 +50,25 @@ class Plant:
         self.base_load_estimate = None
 
         self.update_data()
+
+    def get_sigenergy_state(self, entity_id):
+        state_payload = self.ha.get_state(entity_id)
+        if isinstance(state_payload, dict) and state_payload.get("state") == "unavailable":
+            raise SigenergyConnectionError(
+                f"Sigenergy system is unavailable (entity: '{entity_id}'). "
+                "It is likely offline or has a bad connection."
+            ) from None
+        return state_payload
+
+    def get_sigenergy_numeric_state(self, entity_id):
+        state_payload = self.get_sigenergy_state(entity_id)
+        state = state_payload.get("state") if isinstance(state_payload, dict) else None
+        try:
+            return float(state)
+        except (TypeError, ValueError):
+            raise HAAPIError(
+                f"Unable to convert state '{state}' for entity '{entity_id}' to float."
+            ) from None
         
     def get_config_entry_value(self, entry_id): # Try to get the value from a config entry that is either a string float or an entity id
         try:
@@ -61,35 +80,35 @@ class Plant:
         except (ValueError, TypeError):
             try:
                 # If the config entry id cannot be parsed as a float it should be the entity_id
-                val = self.ha.get_numeric_state(entry_id)
+                val = self.get_sigenergy_numeric_state(entry_id)
                 return val  
             except Exception as e:
                 logger.error(f"Unable to get entity id or float from config entry '{entry_id}'. Please check the entity id or ensure it is a float. Exception: {e}")
 
     def get_plant_mode(self):
-        return self.ha.get_state(config_manager.ems_control_mode_entity_id)["state"]
+        return self.get_sigenergy_state(config_manager.ems_control_mode_entity_id)["state"]
 
     def update_data(self):
-        self.battery_soc = self.ha.get_numeric_state(config_manager.battery_soc_entity_id)
-        self.kwh_backup_buffer = (self.ha.get_numeric_state(config_manager.backup_soc_entity_id)/100.0) * self.rated_capacity
-        self.kwh_stored_energy = self.ha.get_numeric_state(config_manager.battery_stored_energy_entity_id)
+        self.battery_soc = self.get_sigenergy_numeric_state(config_manager.battery_soc_entity_id)
+        self.kwh_backup_buffer = (self.get_sigenergy_numeric_state(config_manager.backup_soc_entity_id)/100.0) * self.rated_capacity
+        self.kwh_stored_energy = self.get_sigenergy_numeric_state(config_manager.battery_stored_energy_entity_id)
         self.kwh_stored_available = self.kwh_stored_energy - self.kwh_backup_buffer
-        self.kwh_charge_unusable = (1-(self.ha.get_numeric_state(config_manager.charge_cutoff_soc_entity_id)/100.0)) * self.rated_capacity # kWh of buffer to 100% IE the charge limit 
-        self.kwh_till_full = self.ha.get_numeric_state(config_manager.battery_kwh_till_full_entity_id) - self.kwh_charge_unusable
-        self.battery_kw = self.ha.get_numeric_state(config_manager.battery_power_entity_id)
+        self.kwh_charge_unusable = (1-(self.get_sigenergy_numeric_state(config_manager.charge_cutoff_soc_entity_id)/100.0)) * self.rated_capacity # kWh of buffer to 100% IE the charge limit 
+        self.kwh_till_full = self.get_sigenergy_numeric_state(config_manager.battery_kwh_till_full_entity_id) - self.kwh_charge_unusable
+        self.battery_kw = self.get_sigenergy_numeric_state(config_manager.battery_power_entity_id)
         if(config_manager.battery_power_sign_convention == "+ Charge, - Discharge"): # If battery power is the wrong way around, flip it
             self.battery_kw = -self.battery_kw
         # Internal battery power convention ^^^^^^^:
         #   +kW = discharging (battery supplying power)
         #   -kW = charging (battery absorbing power)
 
-        self.solar_kw = self.ha.get_numeric_state(config_manager.solar_power_entity_id)
-        self.solar_kwh_today = self.ha.get_numeric_state(config_manager.plant_solar_kwh_today_entity_id)
-        self.solar_kw_remaining_today = self.ha.get_numeric_state(config_manager.solcast_solar_kwh_remaining_today_entity_id)
-        self.solar_daytime = self.ha.get_numeric_state(config_manager.solcast_solar_power_this_hour_entity_id) > self.get_base_load_estimate() # If producing more power than base load consider it during the solar day
-        self.inverter_power = self.ha.get_numeric_state(config_manager.inverter_power_entity_id)
-        self.grid_power = self.ha.get_numeric_state(config_manager.grid_power_entity_id)
-        self.load_power = self.ha.get_numeric_state(config_manager.load_power_entity_id)
+        self.solar_kw = self.get_sigenergy_numeric_state(config_manager.solar_power_entity_id)
+        self.solar_kwh_today = self.get_sigenergy_numeric_state(config_manager.plant_solar_kwh_today_entity_id)
+        self.solar_kw_remaining_today = self.get_sigenergy_numeric_state(config_manager.solcast_solar_kwh_remaining_today_entity_id)
+        self.solar_daytime = self.get_sigenergy_numeric_state(config_manager.solcast_solar_power_this_hour_entity_id) > self.get_base_load_estimate() # If producing more power than base load consider it during the solar day
+        self.inverter_power = self.get_sigenergy_numeric_state(config_manager.inverter_power_entity_id)
+        self.grid_power = self.get_sigenergy_numeric_state(config_manager.grid_power_entity_id)
+        self.load_power = self.get_sigenergy_numeric_state(config_manager.load_power_entity_id)
         self.avg_daily_load = self.get_load_avg(days_ago=self.load_avg_days)[-1].avg_state
 
         self.calculate_today_profit_cost()
@@ -110,10 +129,10 @@ class Plant:
         """
         control_mode = self.get_plant_mode()
 
-        inverter_limit_kw = self.ha.get_numeric_state(config_manager.inverter_max_power_limit_entity_id)
-        charge_limit_kw = self.ha.get_numeric_state(config_manager.battery_charge_limiter_entity_id)
-        pv_limit_kw = self.ha.get_numeric_state(config_manager.pv_limiter_entity_id)
-        export_limit_kw = self.ha.get_numeric_state(config_manager.export_limiter_entity_id)
+        inverter_limit_kw = self.get_sigenergy_numeric_state(config_manager.inverter_max_power_limit_entity_id)
+        charge_limit_kw = self.get_sigenergy_numeric_state(config_manager.battery_charge_limiter_entity_id)
+        pv_limit_kw = self.get_sigenergy_numeric_state(config_manager.pv_limiter_entity_id)
+        export_limit_kw = self.get_sigenergy_numeric_state(config_manager.export_limiter_entity_id)
 
         charge_disabled_modes = {
             "Standby",
@@ -303,11 +322,11 @@ class Plant:
 
     def check_control_limits(self, working_mode, control_mode, discharge, charge, pv, grid_export, grid_import): # Check if control limits match desired values and change them if required. 
         current_control_mode = self.get_plant_mode()
-        curent_discharge_limit = self.ha.get_numeric_state(config_manager.battery_discharge_limiter_entity_id)
-        curent_charge_limit = self.ha.get_numeric_state(config_manager.battery_charge_limiter_entity_id)
-        curent_pv_limit = self.ha.get_numeric_state(config_manager.pv_limiter_entity_id)
-        curent_export_limit = self.ha.get_numeric_state(config_manager.export_limiter_entity_id)
-        curent_import_limit = self.ha.get_numeric_state(config_manager.import_limiter_entity_id)
+        curent_discharge_limit = self.get_sigenergy_numeric_state(config_manager.battery_discharge_limiter_entity_id)
+        curent_charge_limit = self.get_sigenergy_numeric_state(config_manager.battery_charge_limiter_entity_id)
+        curent_pv_limit = self.get_sigenergy_numeric_state(config_manager.pv_limiter_entity_id)
+        curent_export_limit = self.get_sigenergy_numeric_state(config_manager.export_limiter_entity_id)
+        curent_import_limit = self.get_sigenergy_numeric_state(config_manager.import_limiter_entity_id)
 
         a = current_control_mode != control_mode or curent_discharge_limit != discharge or curent_charge_limit != charge
         b = curent_pv_limit != pv or curent_export_limit != grid_export or curent_import_limit != grid_import
@@ -327,8 +346,8 @@ class Plant:
             time.sleep(5) # Allow time for HA to update
     
     def ensure_remote_ems(self): # Ensures the remote EMS switch is on provided the automatic control switch is on
-        if(self.ha.get_state(config_manager.ha_ems_control_switch_entity_id)['state'] != "on"):
-                logger.warning(f"Remote EMS switch is '{self.ha.get_state(config_manager.ha_ems_control_switch_entity_id)['state']}', turning on to allow control.")
+        if(self.get_sigenergy_state(config_manager.ha_ems_control_switch_entity_id)['state'] != "on"):
+                logger.warning(f"Remote EMS switch is '{self.get_sigenergy_state(config_manager.ha_ems_control_switch_entity_id)['state']}', turning on to allow control.")
                 self.ha.set_switch_state(config_manager.ha_ems_control_switch_entity_id, True)
                 time.sleep(2) # delay to ensure the change has time to become effective
 
@@ -350,7 +369,7 @@ class Plant:
         unavailable_ids = []
         for entity_id in entity_ids:
             try:
-                self.ha.get_state(entity_id)
+                self.get_sigenergy_state(entity_id)
             except:
                 unavailable_ids.append(f"{entity_id}\n")
 
@@ -855,8 +874,8 @@ class Plant:
 
         # Solar Forecast
         # Get solar forecast list from HA
-        today = self.ha.get_state(config_manager.solcast_forecast_today_entity_id)["attributes"]["detailedForecast"]
-        tomorrow = self.ha.get_state(config_manager.solcast_forecast_tomorrow_entity_id)["attributes"]["detailedForecast"]
+        today = self.get_sigenergy_state(config_manager.solcast_forecast_today_entity_id)["attributes"]["detailedForecast"]
+        tomorrow = self.get_sigenergy_state(config_manager.solcast_forecast_tomorrow_entity_id)["attributes"]["detailedForecast"]
         forecast = today + tomorrow # Combine
 
         df = pd.DataFrame(forecast) # Convert to DataFrame for easy time handling

@@ -2,6 +2,7 @@ import datetime
 import json
 import threading
 from typing import Any, Dict, List
+import os
 
 import numpy as np
 import paho.mqtt.client as mqtt
@@ -292,7 +293,15 @@ def start_mqtt_listener() -> mqtt.Client:
 
 
 def create_app() -> Dash:
-    app = Dash(__name__)
+    ingress_prefix = os.getenv("INGRESS_ENTRY", "/")
+    if not ingress_prefix.endswith("/"):
+        ingress_prefix = f"{ingress_prefix}/"
+
+    app = Dash(
+        __name__,
+        requests_pathname_prefix=ingress_prefix,
+        routes_pathname_prefix=ingress_prefix,
+    )
     app.layout = html.Div(
         [
             html.H2("🔋 MPC Plan Dashboard (Dash)", style={"marginBottom": "8px"}),

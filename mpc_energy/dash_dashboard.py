@@ -13,6 +13,8 @@ from plotly.subplots import make_subplots
 
 import config_manager
 import const
+from mpc_logger import logger
+
 
 
 CONTROL_MODE_ORDER = [
@@ -283,10 +285,10 @@ def on_message(client: mqtt.Client, userdata: Any, msg: mqtt.MQTTMessage) -> Non
 
 def on_connect(client, userdata, flags, rc):
     if rc == 0:
-        print("MQTT connected OK")
+        logger.info("MQTT connected OK")
         client.subscribe("home/mpc/output")
     else:
-        print(f"MQTT connect failed, rc={rc}")
+        logger.error(f"MQTT connect failed, rc={rc}")
 
 
 
@@ -301,14 +303,15 @@ def start_mqtt_listener() -> mqtt.Client:
 
 
 def create_app() -> Dash:
-    ingress_prefix = os.getenv("INGRESS_ENTRY", "/")
-    if not ingress_prefix.endswith("/"):
-        ingress_prefix = f"{ingress_prefix}/"
+    requests_prefix = os.getenv("INGRESS_ENTRY", "/")
+    if not requests_prefix.endswith("/"):
+        requests_prefix = f"{requests_prefix}/"
 
     app = Dash(
         __name__,
-        requests_pathname_prefix=ingress_prefix,
-        routes_pathname_prefix=ingress_prefix,
+        serve_locally=True,
+        requests_pathname_prefix=requests_prefix,
+        routes_pathname_prefix="/",
     )
     app.layout = html.Div(
         [

@@ -253,7 +253,8 @@ estimated_price_status_sensor = CreateSensor(
 curtailment_status_sensor = CreateSensor(
     name = "Curtailment Status",
     unique_id="curtailment_status",
-    unit_of_measurement=""
+    unit_of_measurement=None,
+    state_class = None
 )
 
 curtailment_reason_sensor = CreateSensor(

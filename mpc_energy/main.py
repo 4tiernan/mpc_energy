@@ -58,6 +58,7 @@ logger.info("------------------------  Starting MPC Energy App  ----------------
 started = False
 
 streamlit_proc = None
+dash_proc = None
 
 def start_streamlit_dashboard():
     return subprocess.Popen([
@@ -72,6 +73,12 @@ def start_streamlit_dashboard():
         "--server.enableCORS=false",
         "--server.enableXsrfProtection=false",
         "--theme.base=light"
+    ])
+
+def start_dash_dashboard():
+    return subprocess.Popen([
+        sys.executable,
+        "dash_dashboard.py",
     ])
 
 def PrintError(e):
@@ -143,6 +150,7 @@ while(started == False):
         ) 
 
         # Start Streamlit dashboard
+        ''''
         streamlit_proc = subprocess.Popen([
             sys.executable,
             "-m",
@@ -156,7 +164,9 @@ while(started == False):
             "--server.enableXsrfProtection=false",
             "--theme.base=light"
         ])
-        streamlit_proc = start_streamlit_dashboard()
+        streamlit_proc = start_streamlit_dashboard()'''
+
+        dash_proc = start_dash_dashboard()
 
 
         #logger.info("Streamlit dashboard started")  

@@ -165,7 +165,7 @@ class Plant:
         reason_text_map = {
             "pv_limit": f"PV limit ({round(pv_limit_kw, 2)} kW)",
             "inverter_limit": f"Inverter/export/load limit ({round(configured_inverter_headroom_kw + effective_charge_limit_kw, 2)} kW)",
-            "derated_inverter_limit": f"Possible inverter derating limit ({round(derated_inverter_headroom_kw + effective_charge_limit_kw, 2)} kW)",
+            "derated_inverter_limit": f"Inverter limit ({round(derated_inverter_headroom_kw + effective_charge_limit_kw, 2)} kW)",
             "ac_sink_limit": f"Load + export sink limit ({round(ac_sink_limit_kw + effective_charge_limit_kw, 2)} kW)",
         }
 

@@ -169,7 +169,7 @@ class Plant:
             "ac_sink_limit": f"Load + export sink limit ({round(ac_sink_limit_kw + effective_charge_limit_kw, 2)} kW)",
         }
 
-        reason_parts = [reason_text_map[limiting_reason], f"mode '{control_mode}'"]
+        reason_parts = reason_text_map[limiting_reason]
         if control_mode in charge_disabled_modes:
             reason_parts.append("battery charging disabled by mode")
         if high_soc_curtailment:
@@ -177,7 +177,7 @@ class Plant:
 
         return {
             "curtailing": curtailing,
-            "reason": ", ".join(reason_parts),
+            "reason": reason_parts,
             "limiting_reason_key": limiting_reason,
             "configured_ceiling_kw": round(configured_ceiling_kw, 2),
             "derated_ceiling_kw": round(derated_ceiling_kw, 2),

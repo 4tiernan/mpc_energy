@@ -1,3 +1,5 @@
+## 0.5.0
+
 ## 0.4.0
 * Added Solar Curtailment Sensor to show when the system is likely curtailing and why
 * Fixed issue where no controller action was taken when controller initalised to MPC after install

@@ -9,3 +9,4 @@ streamlit-autorefresh
 paho-mqtt
 ha-mqtt-discoverable
 colorlog
+dash

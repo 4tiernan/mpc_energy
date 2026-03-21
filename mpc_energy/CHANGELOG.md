@@ -1,3 +1,13 @@
+## 0.4.0
+* Added Solar Curtailment Sensor to show when the system is likely curtailing and why
+* Fixed issue where no controller action was taken when controller initalised to MPC after install
+* Changed Amber delayed price Safe Mode trigger from 5 to 10 minutes
+* Increased MPC grid import penalty and decreased EOD charge reward to reduce unnecessary grid charging 
+* Fixed issue where inconsistent Sigenergy load data caused an error
+* Fixed bad entity data retrival causing system exit
+* Added detection and improved logging if Sigenergy system goes offline
+* Fixed issue casuing Streamlit dashboard to get started twice
+
 ## 0.3.0
 * Added manual control option with price change trigger
 * Improved Amber API auth logging

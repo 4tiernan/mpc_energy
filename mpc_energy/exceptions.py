@@ -1,6 +1,14 @@
 class MPCEnergyError(Exception):
     """Base exception for expected, user-facing MPC Energy failures."""
 
+class SigenergyConnectionError(MPCEnergyError):
+     """Raised when Sigenergy entities are unavailable, indicating the system may be offline."""
+
+class HAAPIError(MPCEnergyError):
+     """HA API Authentication Error"""
+
+class HAAPIAuthenticationError(MPCEnergyError):
+     """HA API Authentication Error"""
 
 class AmberAPIError(MPCEnergyError):
     """Base exception for Amber API failures."""

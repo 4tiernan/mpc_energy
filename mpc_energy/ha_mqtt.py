@@ -250,6 +250,20 @@ estimated_price_status_sensor = CreateSensor(
     unit_of_measurement=""
 )
 
+curtailment_status_sensor = CreateSensor(
+    name = "Curtailment Status",
+    unique_id="curtailment_status",
+    unit_of_measurement=None,
+    state_class = None
+)
+
+curtailment_reason_sensor = CreateSensor(
+    name = "Curtailment Limit",
+    unique_id="curtailment_limit",
+    unit_of_measurement=None,
+    state_class = None
+)
+
 control_mode_override_selector = CreateSelectInput(
     name="Control Mode Override",
     unique_id="control_mode_override",
@@ -272,6 +286,7 @@ control_mode_override_duration_selector = CreateSelectInput(
 
 def initalise_entities(): # Initalise entities and get them discovered by the ha mqtt service
     automatic_control_switch.set_state(False)
+    energy_controller_selector.set_state("MPC")
     working_mode_sensor.set_state("Self Consumption")
     system_state_sensor.set_state("Self Consumption")
     amber_api_calls_remaining_sensor.set_state(0)
@@ -295,6 +310,9 @@ def initalise_entities(): # Initalise entities and get them discovered by the ha
     profit_tomorrow_sensor.set_state(0)
     control_mode_override_selector.set_state("Disabled")
     control_mode_override_duration_selector.set_state("15")
+    curtailment_status_sensor.set_state(0)
+    curtailment_reason_sensor.set_state("None")
+
     time.sleep(10)
 
 

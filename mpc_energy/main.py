@@ -57,6 +57,23 @@ if(config_manager.amber_site_id == ""):
 logger.info("------------------------  Starting MPC Energy App  ------------------------")
 started = False
 
+streamlit_proc = None
+
+def start_streamlit_dashboard():
+    return subprocess.Popen([
+        sys.executable,
+        "-m",
+        "streamlit",
+        "run",
+        "webserver.py",
+        "--server.headless=true",
+        "--server.port=8501",
+        "--server.address=0.0.0.0",
+        "--server.enableCORS=false",
+        "--server.enableXsrfProtection=false",
+        "--theme.base=light"
+    ])
+
 def PrintError(e):
     logger.error(f"Exception occoured: {e}")
     if(not isinstance(e, MPCEnergyError)):
@@ -126,22 +143,8 @@ while(started == False):
         ) 
 
         # Start Streamlit dashboard
-        streamlit_proc = subprocess.Popen([
-            sys.executable,
-            "-m",
-            "streamlit",
-            "run",
-            "webserver.py",
-            "--server.headless=true",
-            "--server.port=8501",
-            "--server.address=0.0.0.0",
-            "--server.enableCORS=false",
-            "--server.enableXsrfProtection=false",
-            "--theme.base=light"
-        ])
-
-
-        #logger.info("Streamlit dashboard started")  
+        streamlit_proc = start_streamlit_dashboard()
+        logger.info("Streamlit dashboard started")  
 
         started = True
     except Exception as e:
@@ -203,6 +206,11 @@ def update_sensors(amber_data):
     set_sensor_if_changed(ha_mqtt.base_load_sensor, round(1000*plant.get_base_load_estimate(),2)) # converted to w from kW
     set_sensor_if_changed(ha_mqtt.effective_price_sensor, round(mpc.current_effective_price*100)) 
     set_sensor_if_changed(ha_mqtt.avg_daily_load_sensor, round(plant.avg_daily_load,2))
+
+    curtailment_resp = plant.system_curtailing()
+    set_sensor_if_changed(ha_mqtt.curtailment_status_sensor, int(curtailment_resp['curtailing']))
+    set_sensor_if_changed(ha_mqtt.curtailment_reason_sensor, curtailment_resp['reason'])
+
 
 def run_controller(price_update=False):
     global automatic_control, last_control_mode
@@ -287,7 +295,7 @@ def main_loop_code():
             partial_update = True # Make the next update a partial one
             logger.info(f"Prices are estimated, running partial update without price update. Will update prices in {seconds_till_next_update} seconds.")
 
-            if(time.time() - last_real_price_timestamp > 300): # If it's been more than 5 minutes since we've received a real price update, trigger safe mode
+            if(time.time() - last_real_price_timestamp > 600): # If it's been more than 10 minutes since we've received a real price update, trigger safe mode
                 logger.warning("Putting system in safe mode due to lack of real price updates.")
                 EC.self_consumption() # Put the system into safe mode
                 
@@ -315,7 +323,6 @@ def main_loop_code():
     
     
     update_sensors(amber_data)
-    
 
 last_loop_timestamp = 0
 last_alive_time_timestamp = 0

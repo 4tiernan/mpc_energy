@@ -168,10 +168,11 @@ class Plant:
         }
 
         reason_parts = reason_text_map[limiting_reason]
+        '''
         if control_mode in charge_disabled_modes:
             reason_parts.append("battery charging disabled by mode")
         if high_soc_curtailment:
-            reason_parts.append(f"battery SOC high ({round(self.battery_soc, 1)}%)")
+            reason_parts.append(f"battery SOC high ({round(self.battery_soc, 1)}%)")'''
 
         return {
             "curtailing": curtailing,

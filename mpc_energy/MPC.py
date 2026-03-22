@@ -56,7 +56,7 @@ class MPC:
 
 
         # User configured values
-        self.battery_min_export_cost = config_manager.battery_discharge_cost  # $/kWh (Export will only occour ABOVE this value)
+        self.battery_min_export_cost = config_manager.battery_discharge_cost/100  # $/kWh (Export will only occour ABOVE this value)
         logger.debug(f"Battery discharge cost set to: {self.battery_min_export_cost} $/kWh")
         if(self.battery_min_export_cost < 0 or self.battery_min_export_cost > 1):
             logger.warning(f"Battery discharge cost of {self.battery_min_export_cost} $/kWh seems very high or low, please ensure this value is correct to avoid unexpected behaviour.")

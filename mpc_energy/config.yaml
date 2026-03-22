@@ -1,6 +1,6 @@
 name: "MPC Energy Dev"
 description: "A profit optimiser for home batteries with wholesale electricity pricing."
-version: "0.4.9"
+version: "0.4.10"
 slug: "mpc_energy"
 url: "https://github.com/4tiernan/mpc_energy"
 init: false
@@ -79,6 +79,8 @@ options:
   export_limiter_entity_id: "number.sigen_plant_grid_export_limitation"
   import_limiter_entity_id: "number.sigen_plant_grid_import_limitation"
 
+  log_level: info
+
 
 schema:
   accepted_risks: bool
@@ -132,6 +134,8 @@ schema:
   pv_limiter_entity_id: str
   export_limiter_entity_id: str
   import_limiter_entity_id: str
+
+  log_level: list(debug|info|warning)
 
 
 

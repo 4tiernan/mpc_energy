@@ -130,3 +130,6 @@ configuration:
 
   import_limiter_entity_id: 
     name: Import Power Limiter (kW, to control system)
+
+  log_level:
+    name: Log Level

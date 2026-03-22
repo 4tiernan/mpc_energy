@@ -770,12 +770,13 @@ class Plant:
         if(forecast_hours_from_now):
             rounded_forecast_time = self.round_minutes(rounded_current_time + datetime.timedelta(hours=forecast_hours_from_now), nearest_minute=5)
         elif(forecast_till_time):
-            rounded_forecast_time = self.round_minutes(forecast_till_time, nearest_minute=5)
+            rounded_forecast_time = datetime.datetime.combine(rounded_current_time.date(), forecast_till_time, tzinfo=self.local_tz)
+            rounded_forecast_time = self.round_minutes(rounded_forecast_time, nearest_minute=5)
+            if(rounded_forecast_time <= rounded_current_time):
+                rounded_forecast_time = rounded_forecast_time + datetime.timedelta(days=1)
         else:
             raise Exception("Must provide forecast hours or time to determine forecast!")
         
-        rounded_current_time = rounded_current_time.time()
-
         return [rounded_current_time, rounded_forecast_time]
     
     def get_load_avg(self, days_ago, hours_update_interval=24): # hours_update_interval: frequency to update the load date

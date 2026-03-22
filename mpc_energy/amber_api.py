@@ -368,8 +368,8 @@ class AmberAPI:
         # Use shifted past data as future 'forecast'. Align the shift to the end
         # of whatever forecast span Amber actually returned (not an assumed 12 h).
         if general_price_forecast_30_min_data and past_general_30_min_data:
-            latest_forecast_end = max(interval.end_time for interval in general_price_forecast_30_min_data)
-            earliest_past_start = min(interval.start_time for interval in past_general_30_min_data)
+            latest_forecast_end = normalise_time(max(interval.end_time for interval in general_price_forecast_30_min_data))
+            earliest_past_start = normalise_time(min(interval.start_time for interval in past_general_30_min_data))
             # Shift so projected past data begins where forecast data ends.
             # Aligning to latest past *end* truncates coverage when a long past
             # window (e.g. 36h) is requested for a longer horizon (e.g. 48h).

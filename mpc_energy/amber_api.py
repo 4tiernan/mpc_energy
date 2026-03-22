@@ -242,69 +242,6 @@ class AmberAPI:
 
         else:
             raise AmberAPIError("Failed to get price forecast data")
-    
-    # Get the 5 min, 30 min and past prices and combine into a 5 minutely 'forecast' that extends past the 12 hr limit
-    def get_extrapolated_forecast_old(self, hours, advanced_forecast = False): 
-        N_30min = int(hours / (30/60)) # Number of 30 min segments requested
-        N_5min = int(hours / (5/60))   # Number of 5 min segments requested
-
-        amber_forecast_30min_intervals = (60//30)*12    # Get the max 12hr forecast
-        amber_past_30min_intervals = max(N_30min - amber_forecast_30min_intervals, 0)  # Fill the rest of the sim with past prices
-    
-        # Get the 5 minutely price forecasts
-        [general_price_forecast_5_min_data, feed_in_price_forecast_5_min_data] = self.get_forecast(next_intervals=60//5, resolution=5, advanced_forecast=advanced_forecast)
-
-        # Get the 30 minutely forecast
-        [general_price_forecast_30_min_data, feed_in_price_forecast_30_min_data] = self.get_forecast(next_intervals=amber_forecast_30min_intervals, resolution=30, advanced_forecast=advanced_forecast)
-
-        # Getz the past prices to form the 2nd half of the 24hr forecast due to the 12hr limit on forecasts
-        [past_general_30_min_data, past_feed_in_30_min_data] = self.get_past_prices(amber_past_30min_intervals, resolution=30)
-
-        # Build a 5-minute forecast keyed by the timestamps returned by Amber.
-        # Start with 30-minute intervals expanded to 5-minute points, then overwrite
-        # those points with the native 5-minute data where available.
-        general_points = {}
-        feed_in_points = {}
-        demand_window_points = {}
-
-        def add_intervals(general_intervals, feed_in_intervals, time_offset=timedelta(0)):
-            for general, feed_in in zip(general_intervals, feed_in_intervals):
-                start_time = normalise_time(general.start_time) + time_offset
-                end_time = normalise_time(general.end_time) + time_offset
-
-                interval_minutes = int((end_time - start_time).total_seconds() // 60)
-                steps = max(interval_minutes // 5, 0)
-
-                for step in range(steps):
-                    t = start_time + timedelta(minutes=step * 5)
-                    general_points[t] = round(general.price)
-                    feed_in_points[t] = round(feed_in.price)
-                    demand_window_points[t] = bool(general.demand_window)
-
-        add_intervals(general_price_forecast_30_min_data, feed_in_price_forecast_30_min_data)
-        # Shift "past" intervals forward by one day so they fill the post-12h horizon.
-        add_intervals(past_general_30_min_data, past_feed_in_30_min_data, time_offset=timedelta(days=1))
-
-        # Overwrite with native 5-minute data where available
-        for general, feed_in in zip(general_price_forecast_5_min_data, feed_in_price_forecast_5_min_data):
-            point_time = normalise_time(general.start_time)
-            general_points[point_time] = round(general.price)
-            feed_in_points[point_time] = round(feed_in.price)
-            demand_window_points[point_time] = bool(general.demand_window)
-
-        ordered_times = sorted(general_points.keys()) # Get the timestamps in order so we can return lists of prices in the correct sequence.
-
-        # Trim to the current time so we don't return extrapolated points that are in the past.
-        current_time = datetime.now(self.local_tz if self.local_tz is not None else timezone.utc)
-        current_5min_slot = current_time.replace(second=0, microsecond=0) - timedelta(minutes=current_time.minute % 5)
-        ordered_times = [t for t in ordered_times if t >= current_5min_slot]
-
-        general_price_extrapolated_forecast = [general_points[t] for t in ordered_times]
-        feed_in_price_extrapolated_forecast = [feed_in_points[t] for t in ordered_times]
-        demand_window_extrapolated_forecast = [demand_window_points[t] for t in ordered_times]
-
-        # Return extended forecast
-        return [general_price_extrapolated_forecast[:N_5min], feed_in_price_extrapolated_forecast[:N_5min], demand_window_extrapolated_forecast[:N_5min], ordered_times[:N_5min]]
 
     def get_forecast_duration_hours(self, forecast_data):
         """Return the forecast span in hours from the first interval start to the last interval end."""
@@ -365,19 +302,18 @@ class AmberAPI:
                     if demand_points is not None and self.demand_tarrif:
                         demand_points[t] = bool(interval.demand_window)
 
-        # Use shifted past data as future 'forecast'. Align the shift to the end
-        # of whatever forecast span Amber actually returned (not an assumed 12 h).
-        if general_price_forecast_30_min_data and past_general_30_min_data:
-            latest_forecast_end = normalise_time(max(interval.end_time for interval in general_price_forecast_30_min_data))
-            earliest_past_start = normalise_time(min(interval.start_time for interval in past_general_30_min_data))
-            # Shift so projected past data begins where forecast data ends.
-            # Aligning to latest past *end* truncates coverage when a long past
-            # window (e.g. 36h) is requested for a longer horizon (e.g. 48h).
-            past_projection_offset = latest_forecast_end - earliest_past_start
-        else:
-            # Fallback to original projection when one side is empty.
-            past_projection_offset = timedelta(days=1)
+        # Use shifted past data as future 'forecast'. 
 
+        # Shift so projected past data begins where forecast data ends.
+        # Aligning to latest past *end* truncates coverage when a long past
+        # window (e.g. 36h) is requested for a longer horizon (e.g. 48h).
+        if(hours > 0 and hours <= 24):
+            past_projection_offset = timedelta(days=1)
+        elif hours > 24 and hours <= 48:
+            past_projection_offset = timedelta(days=2)
+        elif hours > 48 and hours <= 72:
+            past_projection_offset = timedelta(days=3)
+            
         add_intervals(past_general_30_min_data, general_points, time_offset=past_projection_offset, demand_points=demand_window_points)
         add_intervals(past_feed_in_30_min_data, feed_in_points, time_offset=past_projection_offset)
         

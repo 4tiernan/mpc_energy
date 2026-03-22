@@ -388,7 +388,6 @@ class Plant:
                 logger.error(id)
             exit()
 
-
     def set_control_limits(self, control_mode, discharge, charge, pv, grid_export, grid_import): # Set the control limits to the desired values
         #if(self.get_plant_mode() != control_mode):
         self.ensure_remote_ems() # Make sure the EMS is able to be controlled
@@ -857,10 +856,15 @@ class Plant:
 
         # Solar Forecast
         # Get solar forecast list from HA
-        today = self.get_sigenergy_state(config_manager.solcast_forecast_today_entity_id)["attributes"]["detailedForecast"]
-        tomorrow = self.get_sigenergy_state(config_manager.solcast_forecast_tomorrow_entity_id)["attributes"]["detailedForecast"]
+        today = self.ha.get_state(config_manager.solcast_forecast_today_entity_id)["attributes"]["detailedForecast"]
+        tomorrow = self.ha.get_state(config_manager.solcast_forecast_tomorrow_entity_id)["attributes"]["detailedForecast"]
+
         forecast = today + tomorrow # Combine
 
+        if(forecast_hours_from_now > 24):
+            day_3_forecast = self.ha.get_state(config_manager.solcast_forecast_day_3_entity_id)["attributes"]["detailedForecast"]
+            forecast = forecast + day_3_forecast # Add day 3's forecast to the list if requesting more than 24 hrs of forecast
+        
         df = pd.DataFrame(forecast) # Convert to DataFrame for easy time handling
         
         df["period_start"] = pd.to_datetime(df["period_start"]) # Parse timestamps (Solcast provides timezone-aware ISO strings)
@@ -873,22 +877,22 @@ class Plant:
         df_future = (
             df[df["period_start"] >= now]
             .sort_values("period_start")
-            .iloc[:N_5min]
+            .iloc[:N_30min]
         )
 
         # Solar forecast (kW)
         solar_30min = df_future["pv_estimate"].to_numpy()
         solar_30min = solar_30min[:N_30min]
-        solar_5min = np.interp(
-            np.arange(N_5min),
-            np.arange(0, N_5min, interpolation_steps),
-            solar_30min
-        )
-        solar_5min = solar_5min
-        if len(solar_5min) < N_5min:
-            raise RuntimeError(
-                f"Solcast forecast too short: {len(solar_5min)} < {N_5min}"
-            )
+
+        if len(solar_30min) == 0:
+            logger.warning("Solcast returned no future 30 minute forecast intervals. Falling back to zero solar forecast.")
+            return np.zeros(N_5min)
+
+        if len(solar_30min) < N_30min:
+            logger.warning(f"Solcast forecast shorter than requested horizon. Requested 30 min bins={N_30min}, received={len(solar_30min)}. Extending with last known value.")
+
+        solar_30min_x = np.arange(0, len(solar_30min) * interpolation_steps, interpolation_steps)
+        solar_5min = np.interp(np.arange(N_5min), solar_30min_x, solar_30min)
         
         return solar_5min[:N_5min] # return the solar forecast but limit the list length to the requested length
 

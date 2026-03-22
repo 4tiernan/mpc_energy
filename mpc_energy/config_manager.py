@@ -32,6 +32,7 @@ export_max_power_limit_entity_id = get_entity_id("export_max_power_limit_entity_
 
 solcast_forecast_today_entity_id = get_entity_id("solcast_forecast_today_entity_id")
 solcast_forecast_tomorrow_entity_id = get_entity_id("solcast_forecast_tomorrow_entity_id")
+solcast_forecast_day_3_entity_id = get_entity_id("solcast_forecast_day_3_entity_id")
 solcast_solar_kwh_remaining_today_entity_id = get_entity_id("solcast_solar_kwh_remaining_today_entity_id")
 solcast_solar_power_this_hour_entity_id = get_entity_id("solcast_solar_power_this_hour_entity_id")
 

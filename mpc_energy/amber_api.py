@@ -332,9 +332,9 @@ class AmberAPI:
         # Getz the past prices to form the 2nd half of the 24hr forecast due to the 12hr limit on forecasts
         [past_general_30_min_data, past_feed_in_30_min_data] = self.get_past_prices(amber_past_30min_intervals, resolution=30)
 
-        duration_5_min_forecast = self.get_forecast_duration_hours(general_price_forecast_5_min_data)
-        duration_30_min_forecast = self.get_forecast_duration_hours(general_price_forecast_30_min_data)
-        duration_30_min_past_data = self.get_forecast_duration_hours(past_general_30_min_data)
+        duration_5_min_forecast = round(self.get_forecast_duration_hours(general_price_forecast_5_min_data), 2)
+        duration_30_min_forecast = round(self.get_forecast_duration_hours(general_price_forecast_30_min_data), 2)
+        duration_30_min_past_data = round(self.get_forecast_duration_hours(past_general_30_min_data), 2)
 
         logger.debug(f"Amber data duration received: 5 Minute Forecast: {duration_5_min_forecast} hrs, 30 Minute Forecast: {duration_30_min_forecast} hrs, 30 Minute Past Data: {duration_30_min_past_data} hrs")
 
@@ -414,29 +414,21 @@ class AmberAPI:
                         missing_count += 1
 
             return filled, missing_count
-
-        general_price_extrapolated_forecast, general_missing = fill_from_points(general_points, ordered_times, default_value=50)
-        feed_in_price_extrapolated_forecast, feed_missing = fill_from_points(feed_in_points, ordered_times, default_value=-10)
+        
+        default_general_price = 50
+        default_feed_in_price = -10
+        
+        general_price_extrapolated_forecast, general_missing = fill_from_points(general_points, ordered_times, default_value=default_general_price)
+        feed_in_price_extrapolated_forecast, feed_missing = fill_from_points(feed_in_points, ordered_times, default_value=default_feed_in_price)
         demand_window_extrapolated_forecast, demand_missing = fill_from_points(demand_window_points, ordered_times, default_value=True)
 
         if general_missing or feed_missing or (self.demand_tarrif and demand_missing):
             if(self.demand_tarrif):
-                logger.warning(
-                    "Amber extrapolated forecast required gap fill. Missing bin QTYs: (general=%s, feed-in=%s, demand-window=%s).",
-                    N_5min,
-                    general_missing,
-                    feed_missing,
-                    demand_missing,
-                )
-                logger.warning("Missing points were filled with default values (general=50 c/kWh, feed-in=-10 c/kWh, demand-window=True). This will impact MPC performance.")
+                logger.warning(f"Amber extrapolated forecast required gap fill. Requested bins={N_5min}. Missing bin QTYs: (general={general_missing}, feed-in={feed_missing}, demand-window={demand_missing}).")
+                logger.warning(f"Missing points were filled with default values (general={default_general_price} c/kWh, feed-in={default_feed_in_price} c/kWh, demand-window=True). This will impact MPC performance.")
             else:
-                logger.warning(
-                    "Amber extrapolated forecast required gap fill. Missing bin QTYs: (general=%s, feed-in=%s).",
-                    N_5min,
-                    general_missing,
-                    feed_missing,
-                )
-                logger.warning("Missing points were filled with default values (general=50 c/kWh, feed-in=-10 c/kWh). This will impact MPC performance.")
+                logger.warning(f"Amber extrapolated forecast required gap fill. Requested bins={N_5min}. Missing bin QTYs: (general={general_missing}, feed-in={feed_missing}).")
+                logger.warning(f"Missing points were filled with default values (general={default_general_price} c/kWh, feed-in={default_feed_in_price} c/kWh). This will impact MPC performance.")
 
         # Return extended forecast with guaranteed length.
         return [general_price_extrapolated_forecast, feed_in_price_extrapolated_forecast, demand_window_extrapolated_forecast, ordered_times]

@@ -337,7 +337,12 @@ class AmberAPI:
         duration_30_min_past_data = round(self.get_forecast_duration_hours(past_general_30_min_data), 2)
 
         logger.debug(f"Amber data duration received: 5 Minute Forecast: {duration_5_min_forecast} hrs, 30 Minute Forecast: {duration_30_min_forecast} hrs, 30 Minute Past Data: {duration_30_min_past_data} hrs")
-
+        
+        if duration_30_min_forecast < 11.5: # We expect at least 12 hrs of forecast data
+            logger.warning(
+                f"Amber 30-minute forecast appears shorter than expected ({duration_30_min_forecast} hrs). "
+                "Past-price projection will be aligned to the end of the available forecast to avoid gaps."
+            )
         # Build a 5-minute forecast keyed by timestamps, then project onto an explicit
         # fixed-length 5-minute timeline so callers always receive exactly N_5min bins.
         general_points = {}
@@ -364,9 +369,21 @@ class AmberAPI:
                     if demand_points is not None and self.demand_tarrif:
                         demand_points[t] = bool(interval.demand_window)
 
-        # Use shifted past data as future 'forecast'
-        add_intervals(past_general_30_min_data, general_points, time_offset=timedelta(days=1), demand_points=demand_window_points)
-        add_intervals(past_feed_in_30_min_data, feed_in_points, time_offset=timedelta(days=1))
+        # Use shifted past data as future 'forecast'. Align the shift to the end
+        # of whatever forecast span Amber actually returned (not an assumed 12 h).
+        if general_price_forecast_30_min_data and past_general_30_min_data:
+            latest_forecast_end = max(interval.end_time for interval in general_price_forecast_30_min_data)
+            earliest_past_start = min(interval.start_time for interval in past_general_30_min_data)
+            # Shift so projected past data begins where forecast data ends.
+            # Aligning to latest past *end* truncates coverage when a long past
+            # window (e.g. 36h) is requested for a longer horizon (e.g. 48h).
+            past_projection_offset = latest_forecast_end - earliest_past_start
+        else:
+            # Fallback to original projection when one side is empty.
+            past_projection_offset = timedelta(days=1)
+
+        add_intervals(past_general_30_min_data, general_points, time_offset=past_projection_offset, demand_points=demand_window_points)
+        add_intervals(past_feed_in_30_min_data, feed_in_points, time_offset=past_projection_offset)
         
         # Override past data forecast with amber forecast
         add_intervals(general_price_forecast_30_min_data, general_points, demand_points=demand_window_points)

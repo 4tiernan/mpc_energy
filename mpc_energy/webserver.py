@@ -47,7 +47,19 @@ while not mqtt_queue.empty():
     st.session_state.mpc_output = mqtt_queue.get()
     st.session_state.data_received = True
 
-refresh_interval_ms = 20000 if st.session_state.data_received else 1000
+def get_refresh_interval_ms(data_received: bool) -> int:
+    if not data_received:
+        return 1000
+
+    real_price_offset_seconds = 60 # 60 seconds to allow for controller to run and publish new MQTT data
+    now_datetime = datetime.datetime.now()
+    seconds_till_next_update = 300 - ((now_datetime.minute * 60 + now_datetime.second) % 300) + real_price_offset_seconds
+    seconds_till_next_update = max(1, seconds_till_next_update)
+
+    return seconds_till_next_update * 1000
+
+
+refresh_interval_ms = get_refresh_interval_ms(st.session_state.data_received)
 st_autorefresh(interval=refresh_interval_ms, key="mpc_refresh")
 
 st.markdown("""

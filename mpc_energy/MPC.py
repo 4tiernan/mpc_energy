@@ -260,13 +260,15 @@ class MPC:
         # -------------------------------
         # Objective: Minimise cost including battery discharge cost
         # -------------------------------
+
+        self.charge_maintain_reward = 0.05 / (288*40)
         
         objective_list = (
             cp.multiply(grid_import, self.effective_prices_buy) * self.dt_5min
             - cp.multiply(grid_export, self.effective_prices_sell) * self.dt_5min
             + cp.multiply(grid_import, self.grid_import_penalty_cost) * self.dt_5min
             + cp.multiply(self.battery_min_export_cost, p_discharge) * self.dt_5min
-            - cp.multiply(self.maintain_soc_reward, soc[0:-1]) # Small reward for maintaining higher SOC throughout the day
+            - cp.multiply(self.charge_maintain_reward, soc[0:-1]) # Small reward for maintaining higher SOC throughout the day
         )
 
         non_sum_objective_list = 0
@@ -276,9 +278,6 @@ class MPC:
 
         if(self.demand_tarrif):
             non_sum_objective_list = non_sum_objective_list + peak_demand * self.demand_tarrif_price # no dt multiply - it's a peak charge
-
-        self.charge_maintain_reward = 0.05 / (288*40)
-        non_sum_objective_list = non_sum_objective_list - cp.multiply(soc, self.charge_maintain_reward)
 
 
         objective = cp.Minimize(

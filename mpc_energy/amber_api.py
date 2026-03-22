@@ -34,7 +34,13 @@ class amber_data:
     general_extrapolated_forecast: list[float]
     feedIn_extrapolated_forecast: list[float]
     demand_window_extrapolated_forecast: list[bool]  # True for each 5-min interval that falls in a demand window
-    
+
+def normalise_time(ts: datetime):
+    # Amber can return timestamps with small offsets (seconds and
+    # occasionally minute drift). Snap to the 5-minute grid used by MPC
+    # so dictionary keys line up with ordered_times bins.
+    ts = ts.replace(second=0, microsecond=0)
+    return ts - timedelta(minutes=ts.minute % 5)  
 
 class AmberAPI:
     def __init__(self, api_key, site_id, local_tz=None, demand_price="", errors=True):
@@ -261,15 +267,10 @@ class AmberAPI:
         feed_in_points = {}
         demand_window_points = {}
 
-        def normalize_time(ts: datetime):
-            # Amber can return timestamps with a few extra seconds (e.g. xx:30:01).
-            # Normalise to exact minute boundaries so 5-minute keys align correctly.
-            return ts.replace(second=0, microsecond=0)
-
         def add_intervals(general_intervals, feed_in_intervals, time_offset=timedelta(0)):
             for general, feed_in in zip(general_intervals, feed_in_intervals):
-                start_time = normalize_time(general.start_time) + time_offset
-                end_time = normalize_time(general.end_time) + time_offset
+                start_time = normalise_time(general.start_time) + time_offset
+                end_time = normalise_time(general.end_time) + time_offset
 
                 interval_minutes = int((end_time - start_time).total_seconds() // 60)
                 steps = max(interval_minutes // 5, 0)
@@ -286,7 +287,7 @@ class AmberAPI:
 
         # Overwrite with native 5-minute data where available
         for general, feed_in in zip(general_price_forecast_5_min_data, feed_in_price_forecast_5_min_data):
-            point_time = normalize_time(general.start_time)
+            point_time = normalise_time(general.start_time)
             general_points[point_time] = round(general.price)
             feed_in_points[point_time] = round(feed_in.price)
             demand_window_points[point_time] = bool(general.demand_window)
@@ -349,16 +350,11 @@ class AmberAPI:
         feed_in_points = {}
         demand_window_points = {}
 
-        def normalize_time(ts: datetime):
-            # Amber can return timestamps with a few extra seconds (e.g. xx:30:01).
-            # Normalise to exact minute boundaries so 5-minute keys align correctly.
-            return ts.replace(second=0, microsecond=0)
-
         def add_intervals(intervals, points, time_offset=timedelta(0), demand_points=None):
             # Add the intervals to the correct time slot in the points dict.
             for interval in intervals:
-                start_time = normalize_time(interval.start_time) + time_offset
-                end_time = normalize_time(interval.end_time) + time_offset
+                start_time = normalise_time(interval.start_time) + time_offset
+                end_time = normalise_time(interval.end_time) + time_offset
 
                 interval_minutes = int((end_time - start_time).total_seconds() // 60)
                 steps = max(interval_minutes // 5, 0)
@@ -391,12 +387,12 @@ class AmberAPI:
 
         # Overwrite with native 5-minute data where available.
         for interval in general_price_forecast_5_min_data:
-            point_time = normalize_time(interval.start_time)
+            point_time = normalise_time(interval.start_time)
             general_points[point_time] = round(interval.price)
             if(self.demand_tarrif):
                 demand_window_points[point_time] = bool(interval.demand_window)
         for interval in feed_in_price_forecast_5_min_data:
-            point_time = normalize_time(interval.start_time)
+            point_time = normalise_time(interval.start_time)
             feed_in_points[point_time] = round(interval.price)
 
         # Build fixed timeline anchored to the current 5-minute slot.

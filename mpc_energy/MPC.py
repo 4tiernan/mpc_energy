@@ -154,6 +154,8 @@ class MPC:
         self.effective_prices_buy = np.multiply(self.prices_buy, buy_price_uncertainty_factor)
         self.effective_prices_sell = np.multiply(self.prices_sell, sell_price_uncertainty_factor)
 
+        effective_prices_sell = effective_prices_sell - 0.0001 # Decrease prices slightly to discorage selling at a zero price
+
         #self.prices_buy[0:5] = 0.03 #Testing
         #self.prices_sell[0:5] = 0.01
         #self.soc_init = 0.95*self.soc_max
@@ -165,8 +167,6 @@ class MPC:
         minute = (now.minute // 5) * 5
         now = now.replace(minute=minute)
         time_index = [now + timedelta(minutes=5 * i) for i in range(int(self.N_5min))]
-
-        self.prices_sell = self.prices_sell - 0.0001 # Not sure what this is for
 
         #logger.error("Messing with prices!!")
         #self.prices_sell[180:] = 0.02 # Allow testing of various pricings

@@ -244,20 +244,6 @@ class MPC:
                 if self.demand_window_forecast[t] > 0:
                     constraints += [peak_demand >= grid_import[t]]
 
-
-        # Find end of TODAY's solar window (ignore tomorrow's solar)
-        # Solar day = first time solar drops to ~0 after having been >0
-        solar_end_index = None
-
-        today_date = now.date()
-        # Run backwards from the end of the list to find the last index where solar is significent today.
-        for idx in range(int(self.N_5min)-1, -1, -1): 
-            if time_index[idx].date() == today_date:      
-                if(self.solar_5min[idx] > self.load_5min[idx]+ self.power_threshold):
-                    solar_end_index = idx
-                    logger.debug(f"Solar Day ends at index: {solar_end_index}, time: {time_index[solar_end_index]}")
-                    break
-
         # -------------------------------
         # Objective: Minimise cost including battery discharge cost
         # -------------------------------
@@ -272,8 +258,34 @@ class MPC:
 
         non_sum_objective_list = 0
 
-        if solar_end_index is not None and solar_end_index > 0:
-            non_sum_objective_list = non_sum_objective_list - cp.multiply(self.full_battery_reward, soc[solar_end_index]) # Encorage the battery to be full by the end of the solar day
+        # Find end of TODAY's solar window (ignore tomorrow's solar)
+        # Solar day = first time solar drops to ~0 after having been >0
+        today_solar_end_index = None
+        tomorrow_solar_end_index = None
+
+        def SolarEODIndexValid(idx): # Returns true if the solar eod falls between the EOD limits of 2pm - 9pm
+            return datetime.time(14,0) <= time_index[idx] <= time(21,0)
+
+        today_date = now.date()
+        tomorrow_date = (now + timedelta(days=1)).date()
+        # Run backwards from the end of the list to find the last index where solar is significent today.
+        for idx in range(int(self.N_5min)-1, -1, -1): 
+            if self.solar_5min[idx] > self.load_5min[idx]+ self.power_threshold:      
+                if(today_solar_end_index == None and time_index[idx].date() == today_date and SolarEODIndexValid(idx)):
+                    today_solar_end_index = idx
+                    logger.debug(f"Solar Day today ends at index: {today_solar_end_index}, time: {time_index[today_solar_end_index]}")
+
+                elif(tomorrow_solar_end_index == None and time_index[idx].date() == tomorrow_date and SolarEODIndexValid(idx)):
+                    tomorrow_solar_end_index = idx
+                    logger.debug(f"Solar Day tomorrow ends at index: {tomorrow_solar_end_index}, time: {time_index[tomorrow_solar_end_index]}")
+
+                
+        if today_solar_end_index is not None and today_solar_end_index > 0:
+            non_sum_objective_list = non_sum_objective_list - cp.multiply(self.full_battery_reward, soc[today_solar_end_index]) # Encorage the battery to be full by the end of the solar day today
+
+        if tomorrow_solar_end_index is not None and tomorrow_solar_end_index > 0:
+            non_sum_objective_list = non_sum_objective_list - cp.multiply(self.full_battery_reward, soc[tomorrow_solar_end_index]) # Encorage the battery to be full by the end of the solar day tomorrow
+
 
         if(self.demand_tarrif):
             non_sum_objective_list = non_sum_objective_list + peak_demand * self.demand_tarrif_price # no dt multiply - it's a peak charge

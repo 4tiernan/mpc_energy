@@ -1,5 +1,5 @@
 ## 0.5.0
-* Improved solar EOD detection
+* Improved solar EOD detection and vailidation
 * Fixed issue causing battery discharge cost input not adjusting MPC behaviour
 * Added price forecast uncertainty consideration in MPC plan.
 * Added configurable log level

@@ -65,3 +65,5 @@ pv_limiter_entity_id = get_entity_id("pv_limiter_entity_id")
 export_limiter_entity_id = get_entity_id("export_limiter_entity_id")
 import_limiter_entity_id = get_entity_id("import_limiter_entity_id")
 
+log_level = get_entity_id("log_level", default="info")
+

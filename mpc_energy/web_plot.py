@@ -303,14 +303,16 @@ def plot_mpc_results(st, output):
         x=time_index,
         y=[round(v*100,2) for v in output["effective_prices_buy"]],
         name="Effective Buy Price (c/kWh)",
-        line=dict(color="green", shape="hv")
+        line=dict(color="#66bb6a", shape="hv", dash="dash"),  # lighter green + dashed
+        visible="legendonly" # Set to "legendonly" to hide by default
     ), row=1, col=1, secondary_y=True)
 
     fig.add_trace(go.Scatter(
         x=time_index,
         y=[round(v*100,2) for v in output["effective_prices_sell"]],
         name="Effective Sell Price (c/kWh)",
-        line=dict(color="red", shape="hv")
+        line=dict(color="#ef5350", shape="hv", dash="dash"),  # lighter red + dashed
+        visible="legendonly"
     ), row=1, col=1, secondary_y=True)
 
     fig.add_hline(y=0, row=1, col=1, line_color="black", line_width=1)

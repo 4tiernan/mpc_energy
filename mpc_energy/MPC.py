@@ -32,15 +32,12 @@ class MPC:
         self.update_limits()    # Update fixed limits (some are required for config)
 
         # ---------- Config ----------
-        self.forecast_hrs = 24
+        self.forecast_hrs = 48
         self.steps_per_price = 30 // 5  # = 6
         self.steps_per_hr = 60 // 5
 
         self.N_30min = self.forecast_hrs * (60 // 30) # forecast hours, 5-min timesteps
         self.N_5min = self.forecast_hrs * (60 // 5)
-        self.amber_forecast_30min_intervals = (60//30)*12    # Get the max 12hr forecast
-        self.amber_past_30min_intervals = self.N_30min - self.amber_forecast_30min_intervals  # Fill the rest of the sim with past prices
-        self.amber_5min_intervals = (60//5)*12
 
         self.load_inflation_percentage = 10 # Percentage to inflate the load forecast by to ensure we don't run out in the morning.
 

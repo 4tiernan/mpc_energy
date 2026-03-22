@@ -768,9 +768,7 @@ class Plant:
     def round_forecast_times(self, forecast_hours_from_now=None, forecast_till_time=None):
         rounded_current_time = self.round_minutes(datetime.datetime.now(self.local_tz), nearest_minute=5)
         if(forecast_hours_from_now):
-            if(forecast_hours_from_now > 24):
-                raise Exception(f"Unable to provide forecast more than 24hrs in the future. {forecast_hours_from_now} hrs requested")
-            rounded_forecast_time = self.round_minutes(rounded_current_time + datetime.timedelta(hours=forecast_hours_from_now), nearest_minute=5).time()
+            rounded_forecast_time = self.round_minutes(rounded_current_time + datetime.timedelta(hours=forecast_hours_from_now), nearest_minute=5)
         elif(forecast_till_time):
             rounded_forecast_time = self.round_minutes(forecast_till_time, nearest_minute=5)
         else:
@@ -789,43 +787,35 @@ class Plant:
     def forecast_load_power(self, forecast_hours_from_now=None, forecast_till_time=None):
         avg_day = self.get_load_avg(days_ago=self.load_avg_days)
 
+        # Determine the current and the end of the forecast datetimes, both rounded to 5 min
         [rounded_current_time, rounded_forecast_time] = self.round_forecast_times(forecast_hours_from_now, forecast_till_time)
 
-        avg_day_1_kwh = []
-        avg_day_2_kwh = []
-        for bin in avg_day:
-            avg_day_1_kwh.append(BinnedStateClass(avg_state=bin.avg_state, states=[], time=bin.time))
-            avg_day_2_kwh.append(BinnedStateClass(avg_state=bin.avg_state + avg_day[-1].avg_state, states=[], time=bin.time))# Add the last kwh reading to the first to seemlesly transition to day 2
+        # Create a lookup dict for each time bin
+        avg_day_kwh_lookup = {bin.time: bin.avg_state for bin in avg_day}
+        avg_day_total_kwh = avg_day[-1].avg_state
 
-
-        avg_48hr_period_kwh = avg_day_1_kwh + avg_day_2_kwh
-
-        #print(f"Avg1: {[round(a.avg_state) for a in avg_day_1_kwh]}  \n\nAvg2: {[round(a.avg_state) for a in avg_day_2_kwh]}")
-
-        #print(f"Avg48: {[round(a.avg_state,2) for a in avg_48hr_period_kwh[490:510]]}")
-
-        start_idx = None
-        end_idx = None
-        for i in range(len(avg_48hr_period_kwh)):
-            if(start_idx == None and avg_48hr_period_kwh[i].time == rounded_current_time):
-                start_idx = i
-            elif(start_idx != None and end_idx == None and avg_48hr_period_kwh[i].time == rounded_forecast_time):
-                end_idx = i
-                break
-        
-        #print(f"start: {start_idx}  stop: {end_idx}  total:{len(avg_48hr_period_kwh)}")
+        # Get the appropriate kwh for the provided time
+        def cumulative_kwh_for_time(target_time):
+            day_offset = (target_time.date() - rounded_current_time.date()).days
+            return avg_day_kwh_lookup[target_time.time()] + (day_offset * avg_day_total_kwh)
 
         forecast_power = []
-        for i in range(start_idx, end_idx):
-            if(i == 0):
-                power = (avg_48hr_period_kwh[1].avg_state - avg_48hr_period_kwh[0].avg_state) / (5/60)
+        forecast_steps = int((rounded_forecast_time - rounded_current_time).total_seconds() // (5 * 60))
+
+        # Loop through the forecast and fill the forecast array as the kwh between the current and next time divided by the time step
+        for i in range(forecast_steps):
+            point_time = rounded_current_time + datetime.timedelta(minutes=5 * i)
+            if(i == 0 and forecast_steps > 1):
+                next_time = point_time + datetime.timedelta(minutes=5)
+                power = (cumulative_kwh_for_time(next_time) - cumulative_kwh_for_time(point_time)) / (5/60)
             else:
-                power = (avg_48hr_period_kwh[i].avg_state - avg_48hr_period_kwh[i-1].avg_state) / (5/60)
+                prev_time = point_time - datetime.timedelta(minutes=5)
+                power = (cumulative_kwh_for_time(point_time) - cumulative_kwh_for_time(prev_time)) / (5/60)
 
             if(power <= 0):
-                power = (avg_48hr_period_kwh[-1].avg_state - avg_48hr_period_kwh[0].avg_state)/48 #If we get a weird reading, replace it with the average
+                power = avg_day_total_kwh / 24 #If we get a weird reading, replace it with the average
 
-            forecast_power.append(BinnedStateClass(avg_state=power, states=[], time=avg_48hr_period_kwh[i].time))
+            forecast_power.append(BinnedStateClass(avg_state=power, states=[], time=point_time))
         
         return forecast_power
             
@@ -834,21 +824,14 @@ class Plant:
 
         [rounded_current_time, rounded_forecast_time] = self.round_forecast_times(forecast_hours_from_now, forecast_till_time)
     
-        starting_kwh = None
-        ending_kwh = None
-        for bin in avg_day:
-            #print(f"time: {bin.time} state: {bin.avg_state}")
-            if(bin.time == rounded_current_time):
-                starting_kwh = bin.avg_state
-            elif(starting_kwh != None and bin.time == rounded_forecast_time):
-                ending_kwh = bin.avg_state
-        
-        if(ending_kwh == None):
-            for bin in avg_day:
-                if(bin.time == rounded_forecast_time):
-                    ending_kwh = bin.avg_state + avg_day[-1].avg_state # If the number of hours wraps past midnight, add the last avg_state from the previous day to the total kwh
-        
-        return ending_kwh-starting_kwh
+        avg_day_kwh_lookup = {bin.time: bin.avg_state for bin in avg_day}
+        avg_day_total_kwh = avg_day[-1].avg_state
+
+        starting_kwh = avg_day_kwh_lookup[rounded_current_time.time()]
+        day_offset = (rounded_forecast_time.date() - rounded_current_time.date()).days
+        ending_kwh = avg_day_kwh_lookup[rounded_forecast_time.time()] + (day_offset * avg_day_total_kwh)
+
+        return ending_kwh - starting_kwh
     
     def kwh_required_remaining(self, buffer_percentage=20):
         forecast_kwh = self.forecast_consumption_amount(forecast_till_time=datetime.time(6, 0, 0))

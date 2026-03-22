@@ -305,6 +305,16 @@ class AmberAPI:
         # Return extended forecast
         return [general_price_extrapolated_forecast[:N_5min], feed_in_price_extrapolated_forecast[:N_5min], demand_window_extrapolated_forecast[:N_5min], ordered_times[:N_5min]]
 
+    def get_forecast_duration_hours(self, forecast_data):
+        """Return the forecast span in hours from the first interval start to the last interval end."""
+        if not forecast_data:
+            return 0.0
+
+        start_time = forecast_data[0].start_time
+        end_time = forecast_data[-1].end_time
+
+        return (end_time - start_time).total_seconds() / 3600
+    
     # Get the 5 min, 30 min and past prices and combine into a 5 minutely 'forecast' that extends past the 12 hr limit
     def get_extrapolated_forecast(self, hours, advanced_forecast = False): 
         N_30min = int(hours / (30/60)) # Number of 30 min segments requested
@@ -321,6 +331,12 @@ class AmberAPI:
 
         # Getz the past prices to form the 2nd half of the 24hr forecast due to the 12hr limit on forecasts
         [past_general_30_min_data, past_feed_in_30_min_data] = self.get_past_prices(amber_past_30min_intervals, resolution=30)
+
+        duration_5_min_forecast = self.get_forecast_duration_hours(general_price_forecast_5_min_data)
+        duration_30_min_forecast = self.get_forecast_duration_hours(general_price_forecast_30_min_data)
+        duration_30_min_past_data = self.get_forecast_duration_hours(past_general_30_min_data)
+
+        logger.debug(f"Amber data duration received: 5 Minute Forecast: {duration_5_min_forecast} hrs, 30 Minute Forecast: {duration_30_min_forecast} hrs, 30 Minute Past Data: {duration_30_min_past_data} hrs")
 
         # Build a 5-minute forecast keyed by timestamps, then project onto an explicit
         # fixed-length 5-minute timeline so callers always receive exactly N_5min bins.

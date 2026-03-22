@@ -301,14 +301,14 @@ def plot_mpc_results(st, output):
     # Effective Prices (right axis)
     fig.add_trace(go.Scatter(
         x=time_index,
-        y=[round(v*100) for v in output["effective_prices_buy"]],
+        y=[round(v*100,2) for v in output["effective_prices_buy"]],
         name="Effective Buy Price (c/kWh)",
         line=dict(color="green", shape="hv")
     ), row=1, col=1, secondary_y=True)
 
     fig.add_trace(go.Scatter(
         x=time_index,
-        y=[round(v*100) for v in output["effective_prices_sell"]],
+        y=[round(v*100,2) for v in output["effective_prices_sell"]],
         name="Effective Sell Price (c/kWh)",
         line=dict(color="red", shape="hv")
     ), row=1, col=1, secondary_y=True)

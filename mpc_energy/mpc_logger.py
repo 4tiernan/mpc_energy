@@ -25,7 +25,7 @@ logger.setLevel(logging.INFO)
 
 # Configure logging with timestamps without milliseconds
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.debug,
     format="%(asctime)s [%(levelname)s] %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S"  # <- remove milliseconds
 )

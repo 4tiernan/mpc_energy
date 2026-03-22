@@ -217,6 +217,7 @@ class MPC:
 
         today_date = now.date()
         # Run backwards from the end of the list to find the last index where solar is significent today.
+        logger.info(f"len n5: {self.N_5min}, len time index: {len(time_index)}, len solar: {len(self.solar_5min)}, len load: {len(self.load_5min)}")
         for idx in range(int(self.N_5min), 0, -1): 
             if time_index[idx].date() == today_date:      
                 if(self.solar_5min[idx] > self.load_5min[idx]+ self.power_threshold):

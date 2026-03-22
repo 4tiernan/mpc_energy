@@ -310,8 +310,8 @@ class AmberAPI:
         N_30min = int(hours / (30/60)) # Number of 30 min segments requested
         N_5min = int(hours / (5/60))   # Number of 5 min segments requested
 
-        amber_forecast_30min_intervals = (60//30)*12    # Get the max 12hr forecast
-        amber_past_30min_intervals = max(N_30min - amber_forecast_30min_intervals, 0)  # Fill the rest of the sim with past prices
+        amber_forecast_30min_intervals = N_30min    # Get the max 12hr forecast
+        amber_past_30min_intervals = max(N_30min - (60//30)*12, 0)  # Fill the rest of the sim with past prices, we should always receive 12 hrs worth of prices so get enough data to cover that
     
         # Get the 5 minutely price forecasts
         [general_price_forecast_5_min_data, feed_in_price_forecast_5_min_data] = self.get_forecast(next_intervals=60//5, resolution=5, advanced_forecast=advanced_forecast)
@@ -334,6 +334,7 @@ class AmberAPI:
             return ts.replace(second=0, microsecond=0)
 
         def add_intervals(intervals, points, time_offset=timedelta(0), demand_points=None):
+            # Add the intervals to the correct time slot in the points dict.
             for interval in intervals:
                 start_time = normalize_time(interval.start_time) + time_offset
                 end_time = normalize_time(interval.end_time) + time_offset
@@ -347,11 +348,13 @@ class AmberAPI:
                     if demand_points is not None and self.demand_tarrif:
                         demand_points[t] = bool(interval.demand_window)
 
-        # Seed from 30-minute and shifted-past data.
-        add_intervals(general_price_forecast_30_min_data, general_points, demand_points=demand_window_points)
-        add_intervals(feed_in_price_forecast_30_min_data, feed_in_points)
+        # Use shifted past data as future 'forecast'
         add_intervals(past_general_30_min_data, general_points, time_offset=timedelta(days=1), demand_points=demand_window_points)
         add_intervals(past_feed_in_30_min_data, feed_in_points, time_offset=timedelta(days=1))
+        
+        # Override past data forecast with amber forecast
+        add_intervals(general_price_forecast_30_min_data, general_points, demand_points=demand_window_points)
+        add_intervals(feed_in_price_forecast_30_min_data, feed_in_points)
 
         # Overwrite with native 5-minute data where available.
         for interval in general_price_forecast_5_min_data:
@@ -369,6 +372,7 @@ class AmberAPI:
         ordered_times = [current_5min_slot + timedelta(minutes=5 * i) for i in range(N_5min)]
 
         def fill_from_points(points, times, default_value):
+            # Normalise the data to a fixed length, ignoring extra and filling missing data
             if len(points) == 0:
                 return [default_value for _ in times], len(times)
 

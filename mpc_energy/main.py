@@ -163,7 +163,6 @@ partial_update = False #Indicates wheather to do a full amber update or just the
 last_control_mode = ""
         
 sensor_state_cache = {}
-ha_online_last_loop = True
 
 def set_sensor_if_changed(sensor, value):
     cache_key = id(sensor)
@@ -280,7 +279,7 @@ logger.info("Configuration complete. Running")
 
 # Code runs every 10 seconds (to reduce cpu usage)
 def main_loop_code():
-    global automatic_control, next_amber_update_timestamp, partial_update, amber_data, last_control_mode, last_real_price_timestamp, ha_online_last_loop
+    global automatic_control, next_amber_update_timestamp, partial_update, amber_data, last_control_mode, last_real_price_timestamp
     plant.update_data() # Update the plant data once for everything else to use.
 
     if(time.time() >= next_amber_update_timestamp):
@@ -322,12 +321,10 @@ def main_loop_code():
     
     run_controller() # Run the selected controller  
     
-    ha_online = ha.check_api_running()
-    if(ha_online_last_loop == False and ha_online): # If the API just came online, clear the sensor cache to force a publish of all MQTT sensor data
+    if(ha.ha_api_went_down()): # If the API went offline, clear the sensor cache to force a publish of all MQTT sensor data
         logger.warning("Detected Home Assistant API recovery. Clearing MQTT sensor cache to republish states.")
         sensor_state_cache.clear()
         
-    ha_online_last_loop = ha_online
     update_sensors(amber_data)
 
 last_loop_timestamp = 0

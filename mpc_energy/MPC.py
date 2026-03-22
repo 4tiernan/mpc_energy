@@ -61,8 +61,8 @@ class MPC:
 
         # Forecast uncertainty tuning. These intentionally bias decisions toward near-term certainty.
         # Set to 0 to disable.
-        self.buy_price_uncertainty_premium_per_hour = 5      # +%/hr applied to future buy prices
-        self.sell_price_uncertainty_discount_per_hour = 5    # -%/hr applied to future sell prices
+        self.buy_price_uncertainty_premium_per_hour = 1      # +%/hr applied to future buy prices
+        self.sell_price_uncertainty_discount_per_hour = 1    # -%/hr applied to future sell prices
         self.max_price_uncertainty_adjustment = 30           # Cap the absolute buy/sell adjustment (+/-30%)
 
         logger.debug(f"Forecast uncertainty: Buy premium: {self.buy_price_uncertainty_premium_per_hour} %/hr, Sell discount: {self.sell_price_uncertainty_discount_per_hour} %/hr, Max adjustment: {self.max_price_uncertainty_adjustment} %")

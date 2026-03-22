@@ -48,12 +48,33 @@ class MPC:
 
         # Reward and penalty settings
         self.discharge_efficiency = 0.95
-        self.battery_min_export_cost = config_manager.battery_discharge_cost  # $/kWh (Export will only occour ABOVE this value)
         self.grid_import_penalty_cost = 0.03 # $/kWh penalty for using grid power
         self.full_battery_reward = 0.03  # $/kWh — use this value to encourage the battery to be full by the end of the solar day
         self.maintain_soc_reward = 0 #0.0002 # $/kWh / interval reward for maintaining higher SOC throughout the day
         self.demand_tarrif = demand_tarrif # True if the selected site has a demand tarrif applied
         self.current_effective_price = 0 # Set to zero until we run an optimisation and determine the current effective price based on the MPC plan and current conditions
+
+
+        # User configured values
+        self.battery_min_export_cost = config_manager.battery_discharge_cost  # $/kWh (Export will only occour ABOVE this value)
+        logger.debug(f"Battery discharge cost set to: {self.battery_min_export_cost} $/kWh")
+        if(self.battery_min_export_cost < 0 or self.battery_min_export_cost > 1):
+            logger.warning(f"Battery discharge cost of {self.battery_min_export_cost} $/kWh seems very high or low, please ensure this value is correct to avoid unexpected behaviour.")
+
+        # Forecast uncertainty tuning. These intentionally bias decisions toward near-term certainty.
+        # Set to 0 to disable.
+        self.buy_price_uncertainty_premium_per_hour = 5      # +%/hr applied to future buy prices
+        self.sell_price_uncertainty_discount_per_hour = 5    # -%/hr applied to future sell prices
+        self.max_price_uncertainty_adjustment = 30           # Cap the absolute buy/sell adjustment (+/-30%)
+
+        logger.debug(f"Forecast uncertainty: Buy premium: {self.buy_price_uncertainty_premium_per_hour} %/hr, Sell discount: {self.sell_price_uncertainty_discount_per_hour} %/hr, Max adjustment: {self.max_price_uncertainty_adjustment} %")
+        
+        if(self.buy_price_uncertainty_premium_per_hour < 0 or self.buy_price_uncertainty_premium_per_hour > 100):
+            logger.warning(f"Buy price uncertainty premium of {self.buy_price_uncertainty_premium_per_hour} %/hr seems very high or low, please ensure this value is correct to avoid unexpected behaviour.")
+        if(self.sell_price_uncertainty_discount_per_hour < 0 or self.sell_price_uncertainty_discount_per_hour > 100):
+            logger.warning(f"Sell price uncertainty discount of {self.sell_price_uncertainty_discount_per_hour} %/hr seems very high or low, please ensure this value is correct to avoid unexpected behaviour.")
+        if(self.max_price_uncertainty_adjustment < 0 or self.max_price_uncertainty_adjustment > 100):
+            logger.warning(f"Max price uncertainty adjustment of {self.max_price_uncertainty_adjustment} % seems very high or low, please ensure this value is correct to avoid unexpected behaviour.")
 
         # Profit Variables
         self.profit_remaining_today = 0
@@ -120,6 +141,21 @@ class MPC:
         # Convert to $/kWh
         self.prices_buy = np.array(general_price_forecast) / 100      # buy price in $ from cents
         self.prices_sell  = np.array(feed_in_price_forecast) / 100      # sell price in $ from cents
+
+        # Build uncertainty-adjusted prices so near-term intervals are valued more than
+        # far-future forecast intervals (which are less reliable).
+        hours_from_now = np.arange(int(self.N_5min)) * self.dt_5min
+        buy_price_uncertainty_factor = np.minimum(
+            1 + (hours_from_now * (self.buy_price_uncertainty_premium_per_hour/100)),
+            1 + (self.max_price_uncertainty_adjustment/100)
+        )
+        sell_price_uncertainty_factor = np.maximum(
+            1 - (hours_from_now * (self.sell_price_uncertainty_discount_per_hour/100)),
+            1 - (self.max_price_uncertainty_adjustment/100)
+        )
+
+        self.effective_prices_buy = np.multiply(self.prices_buy, buy_price_uncertainty_factor)
+        self.effective_prices_sell = np.multiply(self.prices_sell, sell_price_uncertainty_factor)
 
         #self.prices_buy[0:5] = 0.03 #Testing
         #self.prices_sell[0:5] = 0.01
@@ -231,8 +267,8 @@ class MPC:
         # -------------------------------
         
         objective_list = (
-            cp.multiply(grid_import, self.prices_buy) * self.dt_5min
-            - cp.multiply(grid_export, self.prices_sell) * self.dt_5min
+            cp.multiply(grid_import, self.effective_prices_buy) * self.dt_5min
+            - cp.multiply(grid_export, self.effective_prices_sell) * self.dt_5min
             + cp.multiply(grid_import, self.grid_import_penalty_cost) * self.dt_5min
             + cp.multiply(self.battery_min_export_cost, p_discharge) * self.dt_5min
             - cp.multiply(self.maintain_soc_reward, soc[0:-1]) # Small reward for maintaining higher SOC throughout the day
@@ -310,6 +346,8 @@ class MPC:
                 "demand_tarrif": self.demand_tarrif,
                 "prices_buy": self.prices_buy.tolist(),
                 "prices_sell": self.prices_sell.tolist(),
+                "effective_prices_buy": self.effective_prices_buy.tolist(),
+                "effective_prices_sell": self.effective_prices_sell.tolist(),
                 "profit_already_today": float(self.daily_profit),
                 "profit_remaining_today": self.profit_remaining_today,
                 "profit_tomorrow": self.profit_tomorrow,

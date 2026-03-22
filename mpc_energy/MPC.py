@@ -47,9 +47,10 @@ class MPC:
         self.discharge_efficiency = 0.95
         self.grid_import_penalty_cost = 0.03 # $/kWh penalty for using grid power
         self.full_battery_reward = 0.03  # $/kWh — use this value to encourage the battery to be full by the end of the solar day
-        self.maintain_soc_reward = 0 #0.0002 # $/kWh / interval reward for maintaining higher SOC throughout the day
+        self.charge_maintain_reward = 0.01 / (self.steps_per_hr*self.battery_capacity) # $/kWh / interval reward for maintaining higher SOC throughout the day, currently equates to 1c total over the whole day
         self.demand_tarrif = demand_tarrif # True if the selected site has a demand tarrif applied
         self.current_effective_price = 0 # Set to zero until we run an optimisation and determine the current effective price based on the MPC plan and current conditions
+        
 
 
         # User configured values
@@ -260,8 +261,6 @@ class MPC:
         # -------------------------------
         # Objective: Minimise cost including battery discharge cost
         # -------------------------------
-
-        self.charge_maintain_reward = 0.05 / (288*40)
         
         objective_list = (
             cp.multiply(grid_import, self.effective_prices_buy) * self.dt_5min

@@ -2,6 +2,7 @@
 * Improved solar EOD detection
 * Fixed issue causing battery discharge cost input not adjusting MPC behaviour
 * Added price forecast uncertainty consideration in MPC plan.
+* Added configurable log level
 
 ## 0.4.0
 * Added Solar Curtailment Sensor to show when the system is likely curtailing and why

@@ -1,7 +1,7 @@
 import logging
 import colorlog
 
-from mpc_energy import config_manager
+import config_manager
 
 # Create a color formatter
 formatter = colorlog.ColoredFormatter(

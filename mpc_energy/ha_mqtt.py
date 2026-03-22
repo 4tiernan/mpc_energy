@@ -209,7 +209,7 @@ profit_tomorrow_sensor = CreateSensor(
 
 
 target_discharge_sensor = CreateSensor(
-    name = "Target Discharge Price",
+    name = "RBC Target Discharge Price",
     unique_id="target_discharge_price_python",
     unit_of_measurement="c/kWh"
 )

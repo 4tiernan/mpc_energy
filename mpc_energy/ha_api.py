@@ -27,7 +27,7 @@ class HomeAssistantAPI:
         self.session.headers.update(self.headers)
 
         self.local_tz = self.get_timezone()
-        self.ha_went_down = False
+        self.ha_went_down_flag = False
 
     def get_timezone(self):
         url = f"{self.base_url}/api/config"
@@ -45,8 +45,8 @@ class HomeAssistantAPI:
         return DEFAULT_TZ
     
     def ha_api_went_down(self):
-        if(self.ha_api_went_down):
-            self.ha_api_went_down = False
+        if(self.ha_went_down_flag):
+            self.ha_went_down_flag = False
             return True
         return False
 
@@ -110,7 +110,7 @@ class HomeAssistantAPI:
             else:
                 while(not self.check_api_running()): # If we can't connect to the HA API, wait and retry until we can. This is to handle the case where the add-on starts before HA is fully up and running.
                     logger.error(f"Unable to connect to HA API, retrying in 30 seconds")
-                    self.ha_connection_failure = True
+                    self.ha_went_down_flag = True
                     time.sleep(30)
                     
                 return self.ha_request(url, method, data, params)

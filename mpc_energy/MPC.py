@@ -277,6 +277,9 @@ class MPC:
         if(self.demand_tarrif):
             non_sum_objective_list = non_sum_objective_list + peak_demand * self.demand_tarrif_price # no dt multiply - it's a peak charge
 
+        self.charge_maintain_reward = 0.05 / (288*40)
+        non_sum_objective_list = non_sum_objective_list - cp.multiply(self.charge_maintain_reward, soc)
+
 
         objective = cp.Minimize(
             cp.sum(objective_list)

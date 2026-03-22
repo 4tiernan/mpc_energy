@@ -20,12 +20,12 @@ handler.setFormatter(formatter)
 # Set up the logger
 logger = colorlog.getLogger()
 logger.addHandler(handler)
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.DEBUG)
 
 
 # Configure logging with timestamps without milliseconds
 logging.basicConfig(
-    level=logging.debug,
+    level=logging.DEBUG,
     format="%(asctime)s [%(levelname)s] %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S"  # <- remove milliseconds
 )

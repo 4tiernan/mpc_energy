@@ -263,8 +263,8 @@ class MPC:
         today_solar_end_index = None
         tomorrow_solar_end_index = None
 
-        def SolarEODIndexValid(idx): # Returns true if the solar eod falls between the EOD limits of 2pm - 9pm
-            return datetime.time(14,0) <= time_index[idx] <= time(21,0)
+        def SolarEODIndexValid(idx):  # Returns true if the solar eod falls between 2pm - 9pm
+            return datetime.time(14, 0) <= time_index[idx].time() <= datetime.time(21, 0)
 
         today_date = now.date()
         tomorrow_date = (now + timedelta(days=1)).date()

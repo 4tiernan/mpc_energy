@@ -128,6 +128,11 @@ class MPC:
     def run_optimisation(self, amber_data):
         self.update_values(amber_data)
 
+        now = datetime.now(self.local_tz).replace(second=0, microsecond=0)
+        minute = (now.minute // 5) * 5
+        now = now.replace(minute=minute)
+        time_index = [now + timedelta(minutes=5 * i) for i in range(int(self.N_5min))]
+
         self.prices_sell = self.prices_sell - 0.0001 # Not sure what this is for
 
         #logger.error("Messing with prices!!")
@@ -208,16 +213,16 @@ class MPC:
 
         # Find end of TODAY's solar window (ignore tomorrow's solar)
         # Solar day = first time solar drops to ~0 after having been >0
-        solar_started = False
-        solar_end_index = 0
+        solar_end_index = None
 
-        for t in range(int(self.N_5min)):
-            if self.solar_5min[t] > self.load_5min[t]:
-                solar_started = True
-            elif solar_started and self.solar_5min[t] <= self.load_5min[t]:
-                solar_end_index = t - 1  # last index with meaningful solar
-                break  # stop at first sunset — ignore tomorrow
-
+        today_date = now.date()
+        # Run backwards from the end of the list to find the last index where solar is significent today.
+        for idx in range(int(self.N_5min), 0, -1): 
+            if time_index[idx].date() == today_date:      
+                if(self.solar_5min[idx] > self.load_5min[idx]+ self.power_threshold):
+                    solar_end_index = idx
+                    logger.debug(f"Solar Day ends at index: {solar_end_index}, time: {time_index[solar_end_index]}")
+                    break
 
         # -------------------------------
         # Objective: Minimise cost including battery discharge cost
@@ -233,7 +238,7 @@ class MPC:
 
         non_sum_objective_list = 0
 
-        if solar_started and solar_end_index > 0:
+        if solar_end_index is not None and solar_end_index > 0:
             non_sum_objective_list = non_sum_objective_list - cp.multiply(self.full_battery_reward, soc[solar_end_index]) # Encorage the battery to be full by the end of the solar day
 
         if(self.demand_tarrif):
@@ -259,15 +264,6 @@ class MPC:
             battery_power = (p_discharge.value - p_charge.value).tolist()
             grid_net = (grid_import.value - grid_export.value).tolist()
             #hours = np.arange(int(self.N_5min)) * self.dt_5min
-
-            now = datetime.now(self.local_tz).replace(second=0, microsecond=0)
-            minute = (now.minute // 5) * 5
-            now = now.replace(minute=minute)
-            time_index = [now + timedelta(minutes=5 * i) for i in range(int(self.N_5min))]
-            
-            # if solar_started and solar_end_index > 0:
-            #     logger.info(f"Solar Day ends at index {solar_end_index} time:{time_index[solar_end_index]}")
-
 
             grid_kwh_import_per_interval = grid_import.value / self.steps_per_hr 
             grid_kwh_export_per_interval = grid_export.value / self.steps_per_hr 

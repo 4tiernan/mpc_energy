@@ -1,4 +1,5 @@
 ## 0.5.0
+* Improved solar EOD detection.
 
 ## 0.4.0
 * Added Solar Curtailment Sensor to show when the system is likely curtailing and why

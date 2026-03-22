@@ -388,30 +388,22 @@ class AmberAPI:
         ordered_times = [current_5min_slot + timedelta(minutes=5 * i) for i in range(N_5min)]
 
         def fill_from_points(points, times, default_value):
-            # Normalise the data to a fixed length, ignoring extra and filling missing data
+            # Normalise data to a fixed length and fill any missing slots with a
+            # conservative default value. This ensures we never silently carry
+            # forward stale prices across missing forecast gaps.
+            
             if len(points) == 0:
                 return [default_value for _ in times], len(times)
 
-            known_times = sorted(points.keys())
-            idx = 0
-            last_value = points[known_times[0]]
             missing_count = 0
             filled = []
 
             for t in times:
-                while idx < len(known_times) and known_times[idx] <= t:
-                    last_value = points[known_times[idx]]
-                    idx += 1
-
                 if t in points:
                     filled.append(points[t])
-                elif idx == 0 and t < known_times[0]:
+                else:
                     filled.append(default_value)
                     missing_count += 1
-                else:
-                    filled.append(last_value)
-                    if t not in points:
-                        missing_count += 1
 
             return filled, missing_count
         

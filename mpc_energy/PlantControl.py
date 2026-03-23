@@ -10,6 +10,7 @@ from typing import Any
 import config_manager
 from mpc_logger import logger
 from exceptions import HAAPIError, SigenergyConnectionError
+import traceback
 
 
 @dataclass
@@ -54,6 +55,7 @@ class Plant:
     def get_sigenergy_state(self, entity_id):
         state_payload = self.ha.get_state(entity_id)
         if isinstance(state_payload, dict) and state_payload.get("state") == "unavailable":
+            logger.debug(traceback.format_exc())
             raise SigenergyConnectionError(
                 f"Sigenergy system is unavailable (entity: '{entity_id}'). "
                 "It is likely offline or has a bad connection."

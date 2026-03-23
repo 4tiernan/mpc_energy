@@ -8,6 +8,7 @@
 * Added SolCast day 3 forecast to configuration page (required for 48hr forecast)
 * Improved Streamlit refresh rate to line up with MPC data update rate
 * Fixed issue where prices didn't update after HA restart
+* Fixed issue when MPC started with Remote EMS off the system would fail to start.
 
 ## 0.4.0
 * Added Solar Curtailment Sensor to show when the system is likely curtailing and why

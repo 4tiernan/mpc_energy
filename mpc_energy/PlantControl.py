@@ -353,7 +353,6 @@ class Plant:
     def check_for_enabled_entites(self): # Checks to make sure all the entities needed for control are available and enabled, if not it raises an error
         entity_ids = [
             config_manager.ha_ems_control_switch_entity_id,
-            config_manager.ems_control_mode_entity_id,
             config_manager.backup_soc_entity_id,
             config_manager.charge_cutoff_soc_entity_id,
             config_manager.battery_max_discharge_power_limit_entity_id,
@@ -365,6 +364,11 @@ class Plant:
             config_manager.battery_max_charge_power_limit_entity_id,
             config_manager.battery_max_discharge_power_limit_entity_id
         ]
+
+        # Only check for the EMS control mode if the HA EMS Control switch is on as otherwise the mode controller is disabled.
+        if(self.get_sigenergy_state(config_manager.ha_ems_control_switch_entity_id)['state'] == "on"):
+            entity_ids.append(config_manager.ems_control_mode_entity_id)
+
         unavailable_ids = []
         for entity_id in entity_ids:
             try:

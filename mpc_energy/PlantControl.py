@@ -55,7 +55,6 @@ class Plant:
     def get_sigenergy_state(self, entity_id):
         state_payload = self.ha.get_state(entity_id)
         if isinstance(state_payload, dict) and state_payload.get("state") == "unavailable":
-            logger.debug(traceback.format_exc())
             raise SigenergyConnectionError(
                 f"Sigenergy system is unavailable (entity: '{entity_id}'). "
                 "It is likely offline or has a bad connection."
@@ -129,6 +128,12 @@ class Plant:
         Battery SOC >= 97% is treated as a charging constraint because near-full
         batteries commonly trigger charge tapering/curtailment behaviour.
         """
+        if(self.get_sigenergy_state(config_manager.ha_ems_control_switch_entity_id)['state'] != "on"):
+            return {
+                "curtailing": False,
+                "reason": "Remote EMS Switch Off, unable to determine curtailment status",
+            }
+
         control_mode = self.get_plant_mode()
 
         inverter_limit_kw = self.get_sigenergy_numeric_state(config_manager.inverter_max_power_limit_entity_id)
@@ -169,7 +174,7 @@ class Plant:
             "ac_sink_limit": f"Load + export sink limit ({round(ac_sink_limit_kw + effective_charge_limit_kw, 2)} kW)",
         }
 
-        reason_parts = reason_text_map[limiting_reason]
+        reason = reason_text_map[limiting_reason]
         '''
         if control_mode in charge_disabled_modes:
             reason_parts.append("battery charging disabled by mode")
@@ -178,13 +183,7 @@ class Plant:
 
         return {
             "curtailing": curtailing,
-            "reason": reason_parts,
-            "limiting_reason_key": limiting_reason,
-            "configured_ceiling_kw": round(configured_ceiling_kw, 2),
-            "derated_ceiling_kw": round(derated_ceiling_kw, 2),
-            "solar_kw": round(self.solar_kw, 2),
-            "battery_soc": round(self.battery_soc, 2),
-            "control_mode": control_mode,
+            "reason": reason,
         }
     
     def historical_data(self, hours, bin_period=5): # Get the requested hours of historical data for the plant being (SOC, battery power, inverter power, solar power, grid power, load power and prices.) in order oldest to newest
@@ -322,6 +321,8 @@ class Plant:
             return f"{int(hours)} hours {round((hours%1)*60)} minutes"
 
     def check_control_limits(self, working_mode, control_mode, discharge, charge, pv, grid_export, grid_import): # Check if control limits match desired values and change them if required. 
+        self.ensure_remote_ems() # Make sure the EMS is able to be controlled
+
         current_control_mode = self.get_plant_mode()
         curent_discharge_limit = self.get_sigenergy_numeric_state(config_manager.battery_discharge_limiter_entity_id)
         curent_charge_limit = self.get_sigenergy_numeric_state(config_manager.battery_charge_limiter_entity_id)
@@ -395,9 +396,7 @@ class Plant:
             exit()
 
     def set_control_limits(self, control_mode, discharge, charge, pv, grid_export, grid_import): # Set the control limits to the desired values
-        #if(self.get_plant_mode() != control_mode):
         self.ensure_remote_ems() # Make sure the EMS is able to be controlled
-
 
         self.ha.set_number(config_manager.battery_discharge_limiter_entity_id, discharge)
         self.ha.set_number(config_manager.battery_charge_limiter_entity_id, charge)

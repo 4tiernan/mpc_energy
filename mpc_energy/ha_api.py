@@ -115,7 +115,6 @@ class HomeAssistantAPI:
                     
                 return self.ha_request(url, method, data, params)
 
-    
     def get_state(self, entity_id):
         url = f"{self.base_url}/api/states/{entity_id}"
         return self.ha_request(url=url, method='get')

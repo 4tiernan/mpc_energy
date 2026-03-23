@@ -5,7 +5,6 @@ import cvxpy as cp
 import matplotlib.pyplot as plt
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
-import matplotlib.dates as mdates
 import time
 from energy_controller import ControlMode
 from mpc_logger import logger
@@ -498,55 +497,6 @@ class MPC:
                     return 0
                 
         return general_price_list[0] # Default to current grid price if no significant import or export is occouring
-    
-    def display_results(self, output):
-        logger.info(f"Profit: ${round(output['profit'], 2)}")
-        #print(f"Solar Remaining {np.sum(solar_5min*(5/60))}")
-        logger.info(f"solar used: {round(output['solar_used'][0],2)}  bat: {round(output['battery_power'][0],2)}  load: {round(output['load'][0],2)} grid: {round(output['grid_net'][0],2)}  inverter_power: {round(output['inverter_power'][0], 2)}")
-
-        plt.figure(figsize=(14,8))
-
-        time_index = output["time_index"]
-        # --------- Top plot: battery & net load ----------
-        plt.subplot(2,1,1)
-        plt.plot(time_index, output["battery_power"], label='Battery Power (kW)', color='blue')
-        plt.plot(time_index, output["load"], label='Load', color='orange', alpha=1)
-        plt.plot(time_index, output["solar_forecast"], label='Available Solar', color='limegreen', alpha=1, linestyle='--')
-        plt.plot(time_index, output["solar_used"], label='Solar Used', color='limegreen')
-        plt.plot(time_index, output["inverter_power"], label='Inverter Power (kW)', color='purple')
-        plt.plot(time_index, output["grid_net"], label='Grid Net Import (+ buy, - sell)', color='black', linestyle='--')
-        plt.axhline(0, color='black', linewidth=0.5)
-        plt.ylabel('Power (kW)')
-        plt.title('Battery Schedule & Net Load with 24h Amber Forecast and Discharge Cost')
-        plt.legend()
-        plt.grid(True)
-
-        # Secondary y-axis for prices
-        plt.twinx()
-        plt.plot(time_index, output["prices_buy"], label='Buy Price', color='green')
-        plt.plot(time_index, output["prices_sell"], label='Sell Price', color='red')
-        plt.ylabel('Price ($/kWh)')
-        plt.legend(loc='upper right')
-
-        # --------- Bottom plot: SOC ----------
-        plt.subplot(2,1,2)
-        plt.plot(time_index, output["soc"][0:-1], label='Battery SOC (kWh)', color='purple')
-        plt.axhline(self.soc_min, color='red', linestyle='--', label='SOC Min/Max')
-        plt.axhline(self.soc_max, color='red', linestyle='--')
-
-        plt.xlabel('Hour of Day')
-        plt.ylabel('SOC (kWh)')
-        plt.title('Battery State of Charge')
-        plt.legend()
-        plt.grid(True)
-
-        for ax in plt.gcf().axes:
-            ax.xaxis.set_major_locator(mdates.HourLocator())
-            ax.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
-            ax.tick_params(axis='x', rotation=0)
-
-        plt.tight_layout()
-        plt.show()
 
 def approx_equal(a, b, threshold = 0.2):
     return abs(a-b) < threshold

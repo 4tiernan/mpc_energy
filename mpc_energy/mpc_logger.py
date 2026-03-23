@@ -49,4 +49,3 @@ logger = logging.getLogger(__name__)
 # Silence logger spam
 logging.getLogger("ha_mqtt_discoverable").setLevel(logging.WARNING)
 logging.getLogger("ha_mqtt_discoverable.sensors").setLevel(logging.WARNING)
-logging.getLogger("matplotlib.font_manager").setLevel(logging.WARNING)

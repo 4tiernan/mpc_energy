@@ -78,7 +78,6 @@ def PrintError(e):
     logger.error(f"Exception occoured: {e}")
     if(not isinstance(e, MPCEnergyError)):
         traceback.print_exc() # Prints the full traceback to the console for unexpected errors
-    logger.warning("Trying again after 30 seconds")
 
 def FailSafe(e):
     global EC, ha_mqtt
@@ -88,7 +87,10 @@ def FailSafe(e):
             EC.self_consumption()
             logger.warning("Succsesfully put system into safe mode after detecting an error.")        
     except:
-        logger.error("Failed to put system into safe mode after detecting an error.")       
+        logger.error("Failed to put system into safe mode after detecting an error.")   
+
+    logger.warning("Trying again after 30 seconds")
+    time.sleep(30)    
         
 
 while(started == False):
@@ -349,6 +351,4 @@ while True:
     
     except Exception as e:
         FailSafe(e)
-        time.sleep(30)
-
     

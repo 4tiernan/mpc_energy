@@ -27,6 +27,9 @@ Click the 'Generate a new Token' button, give it a name and take note of the API
 #### Solcast Solar Forecasting (HACS):
 * Follow Instructions Provided [here](https://github.com/BJReplay/ha-solcast-solar?tab=readme-ov-file#solcast-requirements).
 
+### You will need to enable the following entities in the Solcast Integration:
+* Forecast Day 3
+
 #### Home Assistant MQTT Integration and Mosquitto Broker App: <br>
 * Setup the [MQTT](https://www.home-assistant.io/integrations/mqtt) integration and the **required mosquito broker app**. Keep the MQTT login details handy to enter into the app config.
 

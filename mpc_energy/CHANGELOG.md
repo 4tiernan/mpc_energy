@@ -5,7 +5,7 @@
 * Added configurable log level
 * Increased Amber forecast horizon to use as much as the API returns (can vary between 12-48 hours).
 * Increased MPC forecast horizon to 48hrs
-* Added SolCast day 3 forecast to configuration page (required for 48hr forecast)
+* Added SolCast day 3 forecast to configuration page (required for 48hr forecast, please enable this entity in the solcast integration)
 * Improved Streamlit refresh rate to line up with MPC data update rate
 * Fixed issue where prices didn't update after HA restart
 * Fixed issue when MPC started with Remote EMS off the system would fail to start.

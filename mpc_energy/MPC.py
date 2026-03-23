@@ -2,7 +2,6 @@
 #pip install cvxpy numpy pandas
 import numpy as np
 import cvxpy as cp
-import matplotlib.pyplot as plt
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 import time

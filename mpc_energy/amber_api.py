@@ -91,7 +91,6 @@ class AmberAPI:
         except requests.exceptions.ConnectionError:
             raise AmberAPIConnectionError("Amber API connection error") from None
            
-
         except requests.exceptions.RequestException as e:
             raise AmberAPIRequestError(f"Amber API error: {e}") from None
             
@@ -122,6 +121,9 @@ class AmberAPI:
                 logger.error(f"Waiting 10 seconds before retrying")
                 time.sleep(10)
             return self.send_request(url)
+        
+        elif r.status_code == 404:
+            raise AmberAPIError(f"Unable to reach desired API endpoint, please check the Site ID is correct. Target URL: {url}") from None
 
         elif r.status_code == 403:
             logger.error("API key provided for Amber API does not have authorisation to access the Amber API. Please check the key is correct or create a new key.")

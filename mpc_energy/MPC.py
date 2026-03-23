@@ -161,7 +161,11 @@ class MPC:
         #self.soc_init = 0.95*self.soc_max
 
     def run_optimisation(self, amber_data):
+        start = time.time()
+        
         self.update_values(amber_data)
+        logger.info(f"Get Data: {round(start-time.time(), 2)}")
+        start = time.time()
 
         now = datetime.now(self.local_tz).replace(second=0, microsecond=0)
         minute = (now.minute // 5) * 5
@@ -179,7 +183,7 @@ class MPC:
         #self.prices_sell[100:120] = 10 # Allow testing of various pricings
         #self.prices_buy[100:120] = 11
 
-        start = time.time()
+        start_optimisation = time.time()
         # ----------- Variables -----------
         # Battery
         p_charge = cp.Variable(int(self.N_5min), nonneg=True)
@@ -205,6 +209,9 @@ class MPC:
         constraints = []
         constraints += [soc[0] == self.soc_init] # Set the inital soc 
         #constraints += [soc[-1] == min(self.soc_max*0.99, self.soc_init)] # Set the final soc to be close to the starting soc but limit to ensure possibility
+
+        logger.info(f"Build Vars: {round(start-time.time(), 2)}")
+        start = time.time()
 
         for t in range(int(self.N_5min)):
             # SoC dynamics
@@ -235,6 +242,9 @@ class MPC:
             # Inverter AC Limit
             constraints += [inverter_power[t] <= self.inverter_p_max,
                             inverter_power[t] >= -self.inverter_p_max]
+            
+        logger.info(f"Build Constraints: {round(start-time.time(), 2)}")
+        start = time.time()
             
 
         # Constrain peak_demand to be >= grid_import at every demand window interval if demand tarrif is applied
@@ -295,11 +305,17 @@ class MPC:
             cp.sum(objective_list)
             + non_sum_objective_list # Don't sum the one off objectives 
         )
+
+        logger.info(f"Build Objective: {round(start-time.time(), 2)}")
+        start = time.time()
         
         # ---------- Solve ----------
         prob = cp.Problem(objective, constraints)
         prob.solve(solver=cp.ECOS)
-        logger.info(f"Solver took {round(time.time()-start,2)} seconds to solve")
+        logger.info(f"Solver took {round(time.time()-start_optimisation,2)} seconds to solve")
+
+        logger.info(f"Solver: {round(start-time.time(), 2)}")
+        start = time.time()
 
         # Don't continue if the solver failed
         if prob.status not in ("optimal", "optimal_inaccurate"):
@@ -402,6 +418,9 @@ class MPC:
             mqtt_client.publish("home/mpc/output", json.dumps(output), retain=True)
         
             self.current_effective_price = self.determine_current_effective_price(output) # Determine the current effective price of electricity based on the MPC plan and current conditions. 
+
+            logger.info(f"Data Management: {round(start-time.time(), 2)}")
+            start = time.time()
 
             return [output, plotted_output]
         

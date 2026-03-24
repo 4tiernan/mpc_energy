@@ -50,6 +50,8 @@ class Plant:
         self.last_base_load_estimate_timestamp = 0
         self.base_load_estimate = None
 
+        self.history_since_midnight = None
+
         self.update_data()
 
     def get_sigenergy_state(self, entity_id):
@@ -265,14 +267,39 @@ class Plant:
             "grid_export_kwh": [state.avg_state for state in binned_grid_export_kwh_state_history],
         }
         return output
+    
+    def get_profit_history(self): #Get the history required for the profit calcs and use cached data if its not too old to avoid the expensive historical data retrieval and processing if possible.
+        if self.history_since_midnight == None:
+            start = datetime.datetime.now(self.local_tz).replace(hour=0, minute=0, second=0, microsecond=0)
+            end = datetime.datetime.now(self.local_tz)
+            hours_since_midnight = (end - start).total_seconds() / 3600
+            self.history_since_midnight = self.historical_data(hours=hours_since_midnight, bin_period=5)
+            return self.history_since_midnight
+        else:
+            last_history_timestamp = self.history_since_midnight['time_index'][-1]
+            start = datetime.datetime.fromisoformat(last_history_timestamp)
+            end = datetime.datetime.now(self.local_tz)
+            hours_since_last_history = (end - start).total_seconds() / 3600
+            if hours_since_last_history > 1/60: # If the history is more than 1 minute old, get new history
+                latest_history = self.historical_data(hours=hours_since_last_history, bin_period=5)
+
+                last_ts = self.history_since_midnight["time_index"][-1]
+                new_idx = 0
+                while new_idx < len(latest_history["time_index"]) and latest_history["time_index"][new_idx] <= last_ts: # Determine the index of the new history that is newer than the last history timestamp to avoid duplicates when merging the new history with the old history
+                    new_idx += 1
+
+                for k in self.history_since_midnight.keys():
+                    self.history_since_midnight[k].extend(latest_history[k][new_idx:])
+                logger.info(f"Updated profit history with {latest_history['time_index'][new_idx:]} time indexs")
+                logger.info(f"Profit history now has {len(self.history_since_midnight['time_index'])} data points from {self.history_since_midnight['time_index'][0]} to {self.history_since_midnight['time_index'][-1]}.")
+
+            
+        return self.history_since_midnight
 
     def calculate_today_profit_cost(self):
         # Get today's historical data
-        start = datetime.datetime.now(self.local_tz).replace(hour=0, minute=0, second=0, microsecond=0)
-        end = datetime.datetime.now(self.local_tz)
-        hours_since_midnight = (end - start).total_seconds() / 3600
         start = time.time()
-        history = self.historical_data(hours=hours_since_midnight, bin_period=5)
+        history = self.get_profit_history()
         logger.info(f"Data Collection: {round(time.time()-start,2)}")
         start = time.time()
 

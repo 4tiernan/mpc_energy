@@ -204,8 +204,8 @@ class Plant:
         now = datetime.datetime.now(self.local_tz)
         rounded_now = self.round_minutes(time=now, nearest_minute=bin_period)
         start = self.round_minutes(time=rounded_now - datetime.timedelta(hours=hours), nearest_minute=bin_period)
-        end = now
-        data_bin_qty = int((hours * 60) / bin_period) + 1 # +1 to captre the end time otherwise it would only get the 2nd last time
+        end = rounded_now
+        logger.debug(f"Requesting historical data from {start.isoformat()} to {end.isoformat()} ({hours} hours)")
 
         battery_soc_state_history = self.ha.get_history(config_manager.battery_soc_entity_id, start_time=start, end_time=end)
         battery_power_state_history = self.ha.get_history(config_manager.battery_power_entity_id, start_time=start, end_time=end)
@@ -233,24 +233,26 @@ class Plant:
         #requested_data_received = self.validate_returned_data_timedelta(inverter_power_state_history, start, end)
 
 
-        binned_battery_soc_state_history = self.bin_data(battery_soc_state_history, bin_period=bin_period, start_bin_datetime=start, bin_qty=data_bin_qty)
-        binned_battery_power_state_history = self.bin_data(battery_power_state_history, bin_period=bin_period, start_bin_datetime=start, bin_qty=data_bin_qty)
-        binned_inverter_power_state_history = self.bin_data(inverter_power_state_history, bin_period=bin_period, start_bin_datetime=start, bin_qty=data_bin_qty)
-        binned_solar_power_state_history = self.bin_data(solar_power_state_history, bin_period=bin_period, start_bin_datetime=start, bin_qty=data_bin_qty)
-        binned_load_power_state_history = self.bin_data(load_power_state_history, bin_period=bin_period, start_bin_datetime=start, bin_qty=data_bin_qty)
-        binned_grid_power_state_history = self.bin_data(grid_power_state_history, bin_period=bin_period, start_bin_datetime=start, bin_qty=data_bin_qty)
+        binned_battery_soc_state_history = self.bin_data(battery_soc_state_history, bin_period=bin_period, start_bin_datetime=start, end_bin_datetime=end)
+        binned_battery_power_state_history = self.bin_data(battery_power_state_history, bin_period=bin_period, start_bin_datetime=start, end_bin_datetime=end)
+        binned_inverter_power_state_history = self.bin_data(inverter_power_state_history, bin_period=bin_period, start_bin_datetime=start, end_bin_datetime=end)
+        binned_solar_power_state_history = self.bin_data(solar_power_state_history, bin_period=bin_period, start_bin_datetime=start, end_bin_datetime=end)
+        binned_load_power_state_history = self.bin_data(load_power_state_history, bin_period=bin_period, start_bin_datetime=start, end_bin_datetime=end)
+        binned_grid_power_state_history = self.bin_data(grid_power_state_history, bin_period=bin_period, start_bin_datetime=start, end_bin_datetime=end)
 
-        binned_grid_import_kwh_state_history = self.bin_data(grid_import_kwh_state_history, bin_period=bin_period, start_bin_datetime=start, bin_qty=data_bin_qty)
-        binned_grid_export_kwh_state_history = self.bin_data(grid_export_kwh_state_history, bin_period=bin_period, start_bin_datetime=start, bin_qty=data_bin_qty)
+        binned_grid_import_kwh_state_history = self.bin_data(grid_import_kwh_state_history, bin_period=bin_period, start_bin_datetime=start, end_bin_datetime=end)
+        binned_grid_export_kwh_state_history = self.bin_data(grid_export_kwh_state_history, bin_period=bin_period, start_bin_datetime=start, end_bin_datetime=end)
 
         
-        binned_feed_in_state_history = self.bin_data(feed_in_state_history, bin_period=bin_period, start_bin_datetime=start, bin_qty=data_bin_qty, interpolation_method="step")
-        binned_general_price_state_history = self.bin_data(general_price_state_history, bin_period=bin_period, start_bin_datetime=start, bin_qty=data_bin_qty, interpolation_method="step")# Step Interpolation as prices dont gradually change
-        binned_working_mode_state_history = self.bin_data(working_mode_state_history, bin_period=bin_period, start_bin_datetime=start, bin_qty=data_bin_qty, string_state=True)
+        binned_feed_in_state_history = self.bin_data(feed_in_state_history, bin_period=bin_period, start_bin_datetime=start, end_bin_datetime=end, interpolation_method="step")
+        binned_general_price_state_history = self.bin_data(general_price_state_history, bin_period=bin_period, start_bin_datetime=start, end_bin_datetime=end, interpolation_method="step")# Step Interpolation as prices dont gradually change
+        binned_working_mode_state_history = self.bin_data(working_mode_state_history, bin_period=bin_period, start_bin_datetime=start, end_bin_datetime=end, string_state=True)
 
         binned_battery_soc_kwh_history = [(item.avg_state / 100.0) * self.rated_capacity for item in binned_battery_soc_state_history]
         
         history_time_index = [item.time.isoformat() for item in binned_battery_soc_state_history] # Get the time marks from the data
+
+        logger.debug(f"Data bins span from {history_time_index[0]} to {history_time_index[-1]} ({len(history_time_index)} bins)")
 
         output = {
             "time_index": history_time_index,
@@ -498,13 +500,13 @@ class Plant:
         else:
             raise ValueError("method must be 'linear' or 'step'")
 
-    def bin_data(self, history, bin_period, start_bin_datetime, bin_qty, string_state=False, interpolation_method="linear"): 
+    def bin_data(self, history, bin_period, start_bin_datetime, end_bin_datetime, string_state=False, interpolation_method="linear"): 
         """
         history[x].state    -> numeric value (string or float)
         history[x].time     -> datetime object (tz-aware)
         start_bin_datetime  -> datetime object for bin start time
+        end_bin_datetime    -> datetime object for bin end time
         bin_period          -> time period (minutes) to bin data into
-        bin_qty             -> total qty of bins to be outputted
 
         Returns:
             List of BinnedStateClass objs:
@@ -515,6 +517,9 @@ class Plant:
             ]
         """
         bin_delta = datetime.timedelta(minutes=bin_period)
+        if end_bin_datetime < start_bin_datetime:
+            raise ValueError(f"end_bin_datetime: '{end_bin_datetime}' must be greater than or equal to start_bin_datetime: '{start_bin_datetime}'")
+        bin_qty = int(((end_bin_datetime - start_bin_datetime).total_seconds()) // bin_delta.total_seconds()) + 1
 
         # Remove any invalid states from the history list (Unavailable, None, etc)
         clean_history = []

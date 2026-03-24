@@ -51,7 +51,7 @@ def get_refresh_interval_ms(data_received: bool) -> int:
     if not data_received:
         return 1000
 
-    real_price_offset_seconds = 60 # 60 seconds to allow for controller to run and publish new MQTT data
+    real_price_offset_seconds = 30+15 # 15 seconds to allow for controller to run and publish new MQTT data
     now_datetime = datetime.datetime.now()
     seconds_till_next_update = 300 - ((now_datetime.minute * 60 + now_datetime.second) % 300) + real_price_offset_seconds
     seconds_till_next_update = max(1, seconds_till_next_update)

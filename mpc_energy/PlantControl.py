@@ -300,7 +300,7 @@ class Plant:
                 # Append remaining new points
                 for k in self.history_since_midnight.keys():
                     self.history_since_midnight[k].extend(latest_history[k][start_idx:])
-        logger.info(f"Latest history data: {self.history_since_midnight[-10:-1]}")
+        logger.info(f"Latest history data: {self.history_since_midnight[-10:]}")
         return self.history_since_midnight
 
     def calculate_today_profit_cost(self):

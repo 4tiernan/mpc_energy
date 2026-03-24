@@ -271,16 +271,18 @@ class Plant:
         start = datetime.datetime.now(self.local_tz).replace(hour=0, minute=0, second=0, microsecond=0)
         end = datetime.datetime.now(self.local_tz)
         hours_since_midnight = (end - start).total_seconds() / 3600
+        start = time.time()
         history = self.historical_data(hours=hours_since_midnight, bin_period=5)
+        logger.info(f"Data Collection: {round(time.time()-start,2)}")
+        start = time.time()
 
         # Check to see if the requested amount of data was recieved, use the configured default if not
         if(len(history['prices_sell']) < 2):
             logger.error(f"Insufficent data to calulate profit.")
-            return {
-                "total_export_revenue": 0,
-                "total_import_cost": 0,
-                "net_profit": 0
-            }
+            self.daily_export_profit = 0
+            self.daily_import_cost = 0
+            self.daily_net_profit = 0
+            return
 
         # Convert lists to numpy arrays
         export_cumsum = np.array(history["grid_export_kwh"])
@@ -303,6 +305,8 @@ class Plant:
         self.daily_export_profit = np.sum(profit_per_bin)
         self.daily_import_cost = np.sum(cost_per_bin)
         self.daily_net_profit = self.daily_export_profit - self.daily_import_cost
+        logger.info(f"Data Mani: {round(time.time()-start,2)}")
+        start = time.time()
 
     def display_data(self):
         self.update_data()

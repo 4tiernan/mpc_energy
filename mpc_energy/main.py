@@ -341,7 +341,7 @@ while True:
         seconds_till_price_update = next_amber_update_timestamp - time.time()
 
         # Run main code if a price update is due or if its been more than 10s since the last loop (but not close to the price update so we're free to run asap for the price update)
-        if(time.time() >= next_amber_update_timestamp or (regular_loop_update_due and seconds_till_price_update > 10)): 
+        if(time.time() >= next_amber_update_timestamp or (regular_loop_update_due and seconds_till_price_update > 20)): 
             last_loop_timestamp = time.time()
             main_loop_code()
         

@@ -18,6 +18,7 @@ def elapsed_time(code_block_name="Code Block"):
     global start_time
     elapsed = time.time() - start_time
     logger.info(f"{code_block_name} took {round(elapsed, 2)} seconds")
+    start_time = time.time()
     return elapsed
 
 if(not config_manager.accepted_risks):
@@ -282,15 +283,20 @@ logger.info("Configuration complete. Running")
 # Code runs every 10 seconds (to reduce cpu usage)
 def main_loop_code():
     global automatic_control, next_amber_update_timestamp, partial_update, amber_data, last_control_mode, last_real_price_timestamp
+    start_timer()
     plant.update_data() # Update the plant data once for everything else to use.
+    elapsed_time("Update Plant Data")
 
     if(time.time() >= next_amber_update_timestamp):
         if(partial_update):
             amber_data = amber.get_data(partial_update=True, forecast_hrs=mpc.forecast_hrs)
         else:
             amber_data = amber.get_data(forecast_hrs=mpc.forecast_hrs)
+        
+        elapsed_time("Amber Data")
 
         set_sensor_if_changed(ha_mqtt.estimated_price_status_sensor, int(amber_data.prices_estimated))
+        elapsed_time("Estimated Price Sensor")
 
         if(amber_data.prices_estimated): # If prices are estimated, don't use them
             seconds_till_next_update = 5

@@ -79,6 +79,14 @@ def PrintError(e):
     logger.error(f"Exception occoured: {e}")
     if(not isinstance(e, MPCEnergyError)):
         traceback.print_exc() # Prints the full traceback to the console for unexpected errors
+    
+    try:
+        ha.create_persistent_notification(
+            title="MPC Energy Error",
+            msg=f"An error occurred: {e}. Check the MPC Energy Log for details. If this error persists, try restarting the app. If it still persists after that, please report this issue to the developer with the error message and steps to reproduce."
+        )
+    except Exception as notification_error:
+        logger.error(f"Failed to create Home Assistant notification for the error. This likely means that the Home Assistant API is down. Check the API and try again. Error creating notification: {notification_error}")
 
 def FailSafe(e):
     global EC, ha_mqtt

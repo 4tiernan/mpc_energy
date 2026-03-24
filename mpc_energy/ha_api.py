@@ -143,6 +143,17 @@ class HomeAssistantAPI:
                 "message": msg
             }
         )
+
+    def create_persistent_notification(self, title, msg, notification_id="mpc_energy_error"):
+        return self.call_service(
+            "persistent_notification",
+            "create",
+            {
+                "title": title,
+                "message": msg,
+                "notification_id": notification_id
+            }
+        )
     
     def get_history(self, entity_id, start_time=None, end_time=None, type=float):
         """Fetch history for a specific entity.

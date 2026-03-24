@@ -312,9 +312,7 @@ def main_loop_code():
         
 
         if(not amber_data.prices_estimated): #If the prices are real
-            start_timer()
             run_controller(price_update=True) # Send the price update flag to indicate that new pricing data has been received.
-            elapsed_time("Controller Run")
 
             logger.info(f"General: {amber_data.general_price} c/kWh  Feed In: {amber_data.feedIn_price} c/kWh  Max 12hr Feed In: {amber_data.feedIn_max_forecast_price} c/kWh")    
             logger.info(f"Seconds till next update: {round(next_amber_update_timestamp - time.time())}")

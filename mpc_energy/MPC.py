@@ -1,5 +1,3 @@
-#pip install ecos
-#pip install cvxpy numpy pandas
 import numpy as np
 import cvxpy as cp
 from datetime import datetime, timedelta
@@ -325,7 +323,7 @@ class MPC:
         ecos_inaccurate = False
         with warnings.catch_warnings(record=True) as caught_warnings:
             warnings.simplefilter("always", UserWarning)
-            self.prob.solve(solver=cp.ECOS, warm_start=True, verbose=True)
+            self.prob.solve(solver=cp.ECOS, warm_start=True, max_iters=300) # Increased max iters to allow more time for solving
             ecos_inaccurate = any("Solution may be inaccurate" in str(w.message) for w in caught_warnings)
 
         if self.prob.status == "optimal_inaccurate" or ecos_inaccurate:

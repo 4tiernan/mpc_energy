@@ -118,8 +118,8 @@ class AmberAPI:
                 logger.error(r)
                 logger.error(r.headers)
                 logger.error(f"Exceeded AmazonAWS Amber API request rate limit. Note this is an issue with the Amber API not MPC Energy, please ignore.")
-                logger.error(f"Waiting 10 seconds before retrying")
-                time.sleep(10)
+                logger.error(f"Waiting 1 second before retrying")
+                time.sleep(1)
             return self.send_request(url)
         
         elif r.status_code == 404:

@@ -283,9 +283,7 @@ logger.info("Configuration complete. Running")
 # Code runs every 10 seconds (to reduce cpu usage)
 def main_loop_code():
     global automatic_control, next_amber_update_timestamp, partial_update, amber_data, last_control_mode, last_real_price_timestamp
-    start_timer()
     plant.update_data() # Update the plant data once for everything else to use.
-    elapsed_time("Update Plant Data")
 
     if(time.time() >= next_amber_update_timestamp):
         if(partial_update):
@@ -296,7 +294,6 @@ def main_loop_code():
         elapsed_time("Amber Data")
 
         set_sensor_if_changed(ha_mqtt.estimated_price_status_sensor, int(amber_data.prices_estimated))
-        elapsed_time("Estimated Price Sensor")
 
         if(amber_data.prices_estimated): # If prices are estimated, don't use them
             seconds_till_next_update = 5

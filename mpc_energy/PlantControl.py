@@ -305,10 +305,7 @@ class Plant:
 
     def calculate_today_profit_cost(self):
         # Get today's historical data
-        start = time.time()
         history = self.get_profit_history()
-        logger.info(f"Data Collection: {round(time.time()-start,2)}")
-        start = time.time()
 
         # Check to see if the requested amount of data was recieved, use the configured default if not
         if(len(history['prices_sell']) < 2):
@@ -339,8 +336,6 @@ class Plant:
         self.daily_export_profit = np.sum(profit_per_bin)
         self.daily_import_cost = np.sum(cost_per_bin)
         self.daily_net_profit = self.daily_export_profit - self.daily_import_cost
-        logger.info(f"Data Mani: {round(time.time()-start,2)}")
-        start = time.time()
 
     def display_data(self):
         self.update_data()

@@ -201,6 +201,7 @@ class Plant:
                 ...
             ]
         """
+        start = time.time()
         now = datetime.datetime.now(self.local_tz)
         rounded_now = self.round_minutes(time=now, nearest_minute=bin_period)
         start = self.round_minutes(time=rounded_now - datetime.timedelta(hours=hours), nearest_minute=bin_period)
@@ -252,7 +253,7 @@ class Plant:
         
         history_time_index = [item.time.isoformat() for item in binned_battery_soc_state_history] # Get the time marks from the data
 
-        logger.debug(f"Data bins span from {history_time_index[0]} to {history_time_index[-1]} ({len(history_time_index)} bins)")
+        logger.debug(f"Received data bins span from {history_time_index[0]} to {history_time_index[-1]} ({len(history_time_index)} bins), request took {round(time.time()-start,2)} seconds to retrieve and process.")
 
         output = {
             "time_index": history_time_index,

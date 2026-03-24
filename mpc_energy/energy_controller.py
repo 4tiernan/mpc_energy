@@ -19,7 +19,7 @@ class EnergyController():
         self.working_mode = ControlMode.SELF_CONSUMPTION.value
         self.last_working_mode = None
 
-        #Self consume on startup for saftey if auto control on
+        #Self consume on startup for safety if auto control on
         if(ha_mqtt.automatic_control_switch.state == True):
             self.self_consumption()
                 

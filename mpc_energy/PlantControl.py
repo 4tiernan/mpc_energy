@@ -379,7 +379,7 @@ class Plant:
 
         if any_limits_wrong:          
             self.set_control_limits(control_mode, discharge, charge, pv, grid_export, grid_import)
-            logger.info(f"{working_mode} !!!")
+            logger.info(f"Changing control entities for mode: {working_mode}")
             time.sleep(5) # Allow time for HA to update
     
     def ensure_remote_ems(self): # Ensures the remote EMS switch is on provided the automatic control switch is on

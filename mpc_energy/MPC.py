@@ -100,11 +100,9 @@ class MPC:
         self.soc_init = min(max(current_soc, self.soc_min), self.soc_max) #constrain the soc to within limits to stop solver from doing weird stuff
 
         # ---------- Historical Data ---------- 
-        start = time.time()
         #self.historical_data = self.plant.historical_data(hours=6) # Get the last 6 hours of historical data (Primarily used for displaying historical data on plot)
         self.historical_data = self.plant.historical_data(hours=0.25)
         self.daily_profit = self.plant.daily_net_profit
-        logger.info(f"Historical Data: {round(time.time()-start)}")
         
         # ---------- Forecasts ----------
         # Load Forecast
@@ -236,10 +234,8 @@ class MPC:
 
     def run_optimisation(self, amber_data):
         start_optimisation = time.time()
-        start = time.time()
-        
+
         self.update_values(amber_data)
-        logger.info(f"Get Data: {round(time.time()-start, 2)}")
 
         now = datetime.now(self.local_tz).replace(second=0, microsecond=0)
         minute = (now.minute // 5) * 5
@@ -334,9 +330,6 @@ class MPC:
                 f"ECOS returned {self.prob.status} (inaccurate={ecos_inaccurate}); retrying with CLARABEL."
             )
             self.prob.solve(solver=cp.CLARABEL, warm_start=True)
-
-        logger.info(f"Solver took {round(time.time()-start_optimisation,2)} seconds to get data, build and solve")
-
 
         # Don't continue if the solver failed
         if self.prob.status not in ("optimal", "optimal_inaccurate"):
@@ -439,6 +432,8 @@ class MPC:
             mqtt_client.publish("home/mpc/output", json.dumps(output), retain=True)
         
             self.current_effective_price = self.determine_current_effective_price(output) # Determine the current effective price of electricity based on the MPC plan and current conditions. 
+
+            logger.info(f"Solver took {round(time.time()-start_optimisation,2)} seconds to get data, build and solve. The {output['plan_modes'][0]} mode was selected.")
 
             return [output, plotted_output]
         

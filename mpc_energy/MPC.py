@@ -433,7 +433,7 @@ class MPC:
         
             self.current_effective_price = self.determine_current_effective_price(output) # Determine the current effective price of electricity based on the MPC plan and current conditions. 
 
-            logger.info(f"Solver took {round(time.time()-start_optimisation,2)} seconds to get data, build and solve. The {output['plan_modes'][0]} mode was selected.")
+            logger.info(f"Solver took {round(time.time()-start_optimisation,2)} seconds to get data, build and solve. The selected mode is: {output['plan_modes'][0]}")
 
             return [output, plotted_output]
         

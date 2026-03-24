@@ -1,6 +1,6 @@
 ## 0.5.0
-* Implemented warm start for MPC to improve solve time
 * Increased MPC forecast horizon to 48hrs
+* Implemented warm start for MPC to improve solve time (for RPI, solve times went from 25 sec to <5 sec!! with 48hr horizon)
 * Added price forecast uncertainty consideration in MPC plan.
 * Fixed issue causing battery discharge cost input not adjusting MPC behaviour
 * Added SolCast day 3 forecast to configuration page (required for 48hr forecast, please enable this entity in the solcast integration)

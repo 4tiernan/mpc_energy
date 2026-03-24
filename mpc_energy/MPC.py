@@ -178,23 +178,24 @@ class MPC:
         self.inverter_power = cp.Variable(n)
 
         # Parameters (updated every run)
-        self.soc_init_param = cp.Parameter(nonneg=True)
-        self.solar_forecast_param = cp.Parameter(n, nonneg=True)
-        self.load_forecast_param = cp.Parameter(n, nonneg=True)
-        self.price_buy_param = cp.Parameter(n)
-        self.price_sell_param = cp.Parameter(n)
-        self.demand_mask_param = cp.Parameter(n, nonneg=True)
-        self.solar_eod_reward_mask_param = cp.Parameter(n, nonneg=True)
-        self.grid_import_limit_param = cp.Parameter(nonneg=True)
-        self.grid_export_limit_param = cp.Parameter(nonneg=True)
-        self.p_max_charge_param = cp.Parameter(nonneg=True)
-        self.p_max_discharge_param = cp.Parameter(nonneg=True)
-        self.inverter_p_max_param = cp.Parameter(nonneg=True)
-        self.solar_dc_max_param = cp.Parameter(nonneg=True)
-        self.soc_min_param = cp.Parameter(nonneg=True)
-        self.soc_max_param = cp.Parameter(nonneg=True)
-        self.demand_tariff_price_param = cp.Parameter(nonneg=True)
-        self.demand_tariff_enabled_param = cp.Parameter(nonneg=True)
+        self.soc_init_param = cp.Parameter(nonneg=True, name="soc_init")
+        self.solar_forecast_param = cp.Parameter(n, nonneg=True, name="solar_forecast")
+        self.load_forecast_param = cp.Parameter(n, nonneg=True, name="load_forecast")
+        self.price_buy_param = cp.Parameter(n, name="price_buy")
+        self.price_sell_param = cp.Parameter(n, name="price_sell")
+        self.demand_mask_param = cp.Parameter(n, nonneg=True, name="demand_mask")
+        self.solar_eod_reward_mask_param = cp.Parameter(n, nonneg=True, name="solar_eod_reward_mask")
+        
+        self.grid_import_limit_param = cp.Parameter(nonneg=True, name="grid_import_limit")
+        self.grid_export_limit_param = cp.Parameter(nonneg=True, name="grid_export_limit")
+        self.p_max_charge_param = cp.Parameter(nonneg=True, name="p_max_charge")
+        self.p_max_discharge_param = cp.Parameter(nonneg=True, name="p_max_discharge")
+        self.inverter_p_max_param = cp.Parameter(nonneg=True, name="inverter_p_max")
+        self.solar_dc_max_param = cp.Parameter(nonneg=True, name="solar_dc_max")
+        self.soc_min_param = cp.Parameter(nonneg=True, name="soc_min")
+        self.soc_max_param = cp.Parameter(nonneg=True, name="soc_max")
+        self.demand_tariff_price_param = cp.Parameter(nonneg=True, name="demand_tariff_price")
+        self.demand_tariff_enabled_param = cp.Parameter(nonneg=True, name="demand_tariff_enabled")
 
         # Vectorized constraints
         constraints = [
@@ -284,10 +285,21 @@ class MPC:
 
         # Set parameter values for this optimisation run.
         self.soc_init_param.value = float(self.soc_init)
-        self.solar_forecast_param.value = np.array(self.solar_5min, dtype=float)
-        self.load_forecast_param.value = np.array(self.load_5min, dtype=float)
-        self.price_buy_param.value = np.array(self.effective_prices_buy, dtype=float)
-        self.price_sell_param.value = np.array(self.effective_prices_sell, dtype=float)
+        solar_forecast_arr = np.array(self.solar_5min, dtype=float)
+        load_forecast_arr = np.array(self.load_5min, dtype=float)
+        price_buy_arr = np.array(self.effective_prices_buy, dtype=float)
+        price_sell_arr = np.array(self.effective_prices_sell, dtype=float)
+        if not (len(solar_forecast_arr) == len(load_forecast_arr) == len(price_buy_arr) == len(price_sell_arr) == int(self.N_5min)):
+            raise RuntimeError(
+                f"Forecast lengths must all equal N_5min ({int(self.N_5min)}), got "
+                f"solar={len(solar_forecast_arr)}, load={len(load_forecast_arr)}, "
+                f"buy={len(price_buy_arr)}, sell={len(price_sell_arr)}"
+            )
+
+        self.solar_forecast_param.value = solar_forecast_arr
+        self.load_forecast_param.value = load_forecast_arr
+        self.price_buy_param.value = price_buy_arr
+        self.price_sell_param.value = price_sell_arr
         self.grid_import_limit_param.value = float(self.grid_import_limit)
         self.grid_export_limit_param.value = float(self.grid_export_limit)
         self.p_max_charge_param.value = float(self.p_max_charge)
@@ -296,7 +308,10 @@ class MPC:
         self.solar_dc_max_param.value = float(self.solar_dc_max)
         self.soc_min_param.value = float(self.soc_min)
         self.soc_max_param.value = float(self.soc_max)
-        self.demand_mask_param.value = np.array((self.demand_window_forecast > 0).astype(float), dtype=float)
+        demand_mask = np.array((self.demand_window_forecast > 0).astype(float), dtype=float)
+        if len(demand_mask) != int(self.N_5min):
+            raise RuntimeError(f"Demand mask length ({len(demand_mask)}) must equal N_5min ({int(self.N_5min)})")
+        self.demand_mask_param.value = demand_mask
         self.demand_tariff_enabled_param.value = 1.0 if self.demand_tarrif else 0.0
         self.demand_tariff_price_param.value = float(self.demand_tarrif_price)
 

@@ -523,7 +523,10 @@ class MPC:
             if(grid_net > self.power_threshold): # If there is significant grid import, set price to grid import price
                 return general_price_list[i]
             elif(grid_net < -self.power_threshold): # If there is significant grid export, set price to grid export price
-                return feedIn_price_list[i]
+                if(feedIn_price_list[0] > feedIn_price_list[i]): # If the current feed in price is higher than the future feed in price, use the current feed in price as the effective price as if power was lower we would be exporting now.
+                    return feedIn_price_list[0]
+                else:   
+                    return feedIn_price_list[i]
             else: # If there is no significant import or export, set price based on solar conditions
                 if(solar_used_list[i] < solar_forecast_list[i] - self.power_threshold): # If solar is being curtailed, set price to zero as using more power won't cost anything
                     return 0

@@ -346,7 +346,7 @@ while True:
             last_alive_time_timestamp = time.time()
             ha_mqtt.alive_time_sensor.set_state(round(time.time()-app_start_timestamp))
 
-        time.sleep(1) # Sleep a little to reduce CPU usage, we don't need to check the time constantly
+        time.sleep(0.1) # Sleep a little to reduce CPU usage, we don't need to check the time constantly
         
 
     except KeyboardInterrupt:

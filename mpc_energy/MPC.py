@@ -334,7 +334,7 @@ class MPC:
             )
             self.prob.solve(solver=cp.CLARABEL, warm_start=True)
 
-        logger.info(f"Solver took {round(time.time()-start_optimisation,2)} seconds to build and solve")
+        logger.info(f"Solver took {round(time.time()-start_optimisation,2)} seconds to get data, build and solve")
 
 
         # Don't continue if the solver failed

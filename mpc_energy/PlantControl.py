@@ -310,9 +310,12 @@ class Plant:
         # Get today's historical data
         history = self.get_profit_history()
 
+        now = datetime.datetime.now(self.local_tz)
+
         # Check to see if the requested amount of data was recieved, use the configured default if not
         if(len(history['prices_sell']) < 2):
-            logger.error(f"Insufficent data to calulate profit.")
+            if(now.time() > datetime.time(0,30)): # If its early in the day, its likely there just isn't enough history yet, so don't log a warning and set profit to 0
+                logger.error(f"Insufficent data to calulate profit.")
             self.daily_export_profit = 0
             self.daily_import_cost = 0
             self.daily_net_profit = 0

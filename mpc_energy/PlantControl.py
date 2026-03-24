@@ -280,20 +280,27 @@ class Plant:
             start = datetime.datetime.fromisoformat(last_history_timestamp)
             end = datetime.datetime.now(self.local_tz)
             hours_since_last_history = (end - start).total_seconds() / 3600
-            if hours_since_last_history > 1/60: # If the history is more than 1 minute old, get new history
+            if hours_since_last_history > 4/60: # If the history is more than 4 minutes old, get new history
                 latest_history = self.historical_data(hours=hours_since_last_history, bin_period=5)
 
                 last_ts = self.history_since_midnight["time_index"][-1]
-                new_idx = 0
-                while new_idx < len(latest_history["time_index"]) and latest_history["time_index"][new_idx] <= last_ts: # Determine the index of the new history that is newer than the last history timestamp to avoid duplicates when merging the new history with the old history
-                    new_idx += 1
+                new_times = latest_history["time_index"]
 
+                if new_times and new_times[0] == last_ts:
+                    # Override the last cached point with latest recomputed point
+                    for k in self.history_since_midnight.keys():
+                        self.history_since_midnight[k][-1] = latest_history[k][0]
+                    start_idx = 1
+                else:
+                    # No exact overlap found at first point; append from first strictly newer point
+                    start_idx = 0
+                    while start_idx < len(new_times) and new_times[start_idx] <= last_ts:
+                        start_idx += 1
+
+                # Append remaining new points
                 for k in self.history_since_midnight.keys():
-                    self.history_since_midnight[k].extend(latest_history[k][new_idx:])
-                logger.info(f"Updated profit history with {latest_history['time_index'][new_idx:]} time indexs")
-                logger.info(f"Profit history now has {len(self.history_since_midnight['time_index'])} data points from {self.history_since_midnight['time_index'][0]} to {self.history_since_midnight['time_index'][-1]}.")
-
-            
+                    self.history_since_midnight[k].extend(latest_history[k][start_idx:])
+        logger.info(f"Latest history data: {self.history_since_midnight[-10:-1]}")
         return self.history_since_midnight
 
     def calculate_today_profit_cost(self):

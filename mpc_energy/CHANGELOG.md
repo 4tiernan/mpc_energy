@@ -13,7 +13,7 @@
 * Fixed issue when MPC started with Remote EMS off the system would fail to start
 * Reduced delay when retrieving new price
 * Added historical data caching for profit sensor (reduced sensor update time from 11s to <0.1s)
-
+* Added persistent HA notification if error occours
 
 ## 0.4.0
 * Added Solar Curtailment Sensor to show when the system is likely curtailing and why

@@ -286,6 +286,7 @@ def main_loop_code():
     plant.update_data() # Update the plant data once for everything else to use.
 
     if(time.time() >= next_amber_update_timestamp):
+        start_timer()
         if(partial_update):
             amber_data = amber.get_data(partial_update=True, forecast_hrs=mpc.forecast_hrs)
         else:

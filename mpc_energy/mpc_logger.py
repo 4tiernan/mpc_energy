@@ -49,3 +49,6 @@ logger = logging.getLogger(__name__)
 # Silence logger spam
 logging.getLogger("ha_mqtt_discoverable").setLevel(logging.WARNING)
 logging.getLogger("ha_mqtt_discoverable.sensors").setLevel(logging.WARNING)
+logging.getLogger("urllib3").setLevel(logging.WARNING)
+logging.getLogger("urllib3.connectionpool").setLevel(logging.WARNING)
+logging.getLogger("requests").setLevel(logging.WARNING)

@@ -333,7 +333,11 @@ last_loop_timestamp = 0
 last_alive_time_timestamp = 0
 while True:
     try:
-        if(time.time() - last_loop_timestamp >= 10 or time.time() >= next_amber_update_timestamp): # Run the loop every 10 seconds to reduce CPU usage or if its time for a price update
+        regular_loop_update_due = time.time() - last_loop_timestamp >= 10
+        seconds_till_price_update = next_amber_update_timestamp - time.time()
+
+        # Run main code if a price update is due or if its been more than 10s since the last loop (but not close to the price update so we're free to run asap for the price update)
+        if(time.time() >= next_amber_update_timestamp or (regular_loop_update_due and seconds_till_price_update > 10)): 
             last_loop_timestamp = time.time()
             main_loop_code()
         

@@ -185,7 +185,7 @@ class MPC:
         self.price_sell_param = cp.Parameter(n, name="price_sell")
         self.demand_mask_param = cp.Parameter(n, nonneg=True, name="demand_mask")
         self.solar_eod_reward_mask_param = cp.Parameter(n, nonneg=True, name="solar_eod_reward_mask")
-        
+
         self.grid_import_limit_param = cp.Parameter(nonneg=True, name="grid_import_limit")
         self.grid_export_limit_param = cp.Parameter(nonneg=True, name="grid_export_limit")
         self.p_max_charge_param = cp.Parameter(nonneg=True, name="p_max_charge")
@@ -323,6 +323,7 @@ class MPC:
         if tomorrow_solar_end_index is not None and tomorrow_solar_end_index > 0:
             solar_eod_reward_mask[tomorrow_solar_end_index] = 1.0 # Encorage the battery to be full by the end of the solar day tomorrow
 
+        self.solar_eod_reward_mask_param.value = solar_eod_reward_mask # Put the mask into the assigned parameter
 
         logger.info(f"Build Objective: {round(time.time()-start, 2)}")
         start = time.time()

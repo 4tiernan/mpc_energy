@@ -75,6 +75,10 @@ class MPC:
         # Profit Variables
         self.profit_remaining_today = 0
         self.profit_tomorrow = 0
+
+        # Build the CVXPY optimisation template once and reuse it on each run.
+        # This avoids repeated canonicalization overhead at every control interval.
+        self.build_optimisation_template()
         
     def update_limits(self):
         # Battery Settings
@@ -159,11 +163,80 @@ class MPC:
         #self.prices_sell[0:5] = 0.01
         #self.soc_init = 0.95*self.soc_max
 
+    def build_optimisation_template(self):
+        n = int(self.N_5min)
+
+        # Variables
+        self.p_charge = cp.Variable(n, nonneg=True)
+        self.p_discharge = cp.Variable(n, nonneg=True)
+        self.soc = cp.Variable(n + 1)
+        self.solar_used = cp.Variable(n, nonneg=True)
+        self.solar_curtail = cp.Variable(n, nonneg=True)
+        self.grid_import = cp.Variable(n, nonneg=True)
+        self.grid_export = cp.Variable(n, nonneg=True)
+        self.peak_demand = cp.Variable(nonneg=True)
+        self.inverter_power = cp.Variable(n)
+
+        # Parameters (updated every run)
+        self.soc_init_param = cp.Parameter(nonneg=True)
+        self.solar_forecast_param = cp.Parameter(n, nonneg=True)
+        self.load_forecast_param = cp.Parameter(n, nonneg=True)
+        self.price_buy_param = cp.Parameter(n)
+        self.price_sell_param = cp.Parameter(n)
+        self.demand_mask_param = cp.Parameter(n, nonneg=True)
+        self.solar_eod_reward_mask_param = cp.Parameter(n, nonneg=True)
+        self.grid_import_limit_param = cp.Parameter(nonneg=True)
+        self.grid_export_limit_param = cp.Parameter(nonneg=True)
+        self.p_max_charge_param = cp.Parameter(nonneg=True)
+        self.p_max_discharge_param = cp.Parameter(nonneg=True)
+        self.inverter_p_max_param = cp.Parameter(nonneg=True)
+        self.solar_dc_max_param = cp.Parameter(nonneg=True)
+        self.soc_min_param = cp.Parameter(nonneg=True)
+        self.soc_max_param = cp.Parameter(nonneg=True)
+        self.demand_tariff_price_param = cp.Parameter(nonneg=True)
+        self.demand_tariff_enabled_param = cp.Parameter(nonneg=True)
+
+        # Vectorized constraints
+        constraints = [
+            self.soc[0] == self.soc_init_param,
+            self.soc[1:] == self.soc[:-1] + self.dt_5min * self.discharge_efficiency * self.p_charge - self.dt_5min / self.discharge_efficiency * self.p_discharge,
+            self.soc[1:] >= self.soc_min_param,
+            self.soc[1:] <= self.soc_max_param,
+            self.p_charge <= self.p_max_charge_param,
+            self.p_discharge <= self.p_max_discharge_param,
+            self.solar_used <= self.solar_forecast_param,
+            self.solar_used <= self.solar_dc_max_param,
+            self.solar_used + self.solar_curtail == self.solar_forecast_param,
+            self.solar_used + self.p_discharge == self.p_charge + self.inverter_power,
+            self.grid_import + self.inverter_power == self.load_forecast_param + self.grid_export,
+            self.grid_import <= self.grid_import_limit_param,
+            self.grid_export <= self.grid_export_limit_param,
+            self.inverter_power <= self.inverter_p_max_param,
+            self.inverter_power >= -self.inverter_p_max_param,
+            self.peak_demand >= cp.multiply(self.demand_mask_param, self.grid_import),
+        ]
+
+        objective_list = (
+            cp.multiply(self.grid_import, self.price_buy_param) * self.dt_5min
+            - cp.multiply(self.grid_export, self.price_sell_param) * self.dt_5min
+            + cp.multiply(self.grid_import, self.grid_import_penalty_cost) * self.dt_5min
+            + cp.multiply(self.battery_min_export_cost, self.p_discharge) * self.dt_5min
+            - cp.multiply(self.charge_maintain_reward, self.soc[0:-1])
+            - cp.multiply(self.full_battery_reward, cp.multiply(self.solar_eod_reward_mask_param, self.soc[0:-1]))
+        )
+
+        self.objective_expression = (
+            cp.sum(objective_list)
+            + self.demand_tariff_enabled_param * self.peak_demand * self.demand_tariff_price_param # not summed as it's a single peak charge
+        )
+
+        self.prob = cp.Problem(cp.Minimize(self.objective_expression), constraints)
+
     def run_optimisation(self, amber_data):
         start = time.time()
         
         self.update_values(amber_data)
-        logger.info(f"Get Data: {round(start-time.time(), 2)}")
+        logger.info(f"Get Data: {round(time.time()-start, 2)}")
         start = time.time()
 
         now = datetime.now(self.local_tz).replace(second=0, microsecond=0)
@@ -183,88 +256,9 @@ class MPC:
         #self.prices_buy[100:120] = 11
 
         start_optimisation = time.time()
-        # ----------- Variables -----------
-        # Battery
-        p_charge = cp.Variable(int(self.N_5min), nonneg=True)
-        p_discharge = cp.Variable(int(self.N_5min), nonneg=True)
-        soc = cp.Variable(int(self.N_5min)+1)
 
-        # Solar
-        solar_used = cp.Variable(int(self.N_5min), nonneg=True) # Solar used out of the forecast value (allows for curtailment)
-        solar_curtail = cp.Variable(int(self.N_5min), nonneg=True) # Approximate amount of curtailment occouring
-
-
-        # Grid import/export
-        grid_import = cp.Variable(int(self.N_5min), nonneg=True)
-        grid_export = cp.Variable(int(self.N_5min), nonneg=True)
-
-        # Peak Demand Charge (if demand tarrif is applied)
-        peak_demand = cp.Variable(nonneg=True) # Variable to represent the peak demand in the demand window, used for demand tarrif calculation.
-
-        # Inverter
-        inverter_power = cp.Variable(int(self.N_5min), nonneg=False) # Discharge to grid is positive
-
-        # ----------- Constraints -----------
-        constraints = []
-        constraints += [soc[0] == self.soc_init] # Set the inital soc 
-        #constraints += [soc[-1] == min(self.soc_max*0.99, self.soc_init)] # Set the final soc to be close to the starting soc but limit to ensure possibility
-
-        logger.info(f"Build Vars: {round(start-time.time(), 2)}")
+        logger.info(f"Build Vars: {round(time.time()-start, 2)}")
         start = time.time()
-
-        for t in range(int(self.N_5min)):
-            # SoC dynamics
-            constraints += [soc[t+1] == soc[t] + self.dt_5min * self.discharge_efficiency * p_charge[t] 
-                            - self.dt_5min / self.discharge_efficiency * p_discharge[t]]
-            # SoC limits
-            constraints += [soc[t+1] >= self.soc_min, soc[t+1] <= self.soc_max]
-
-            # Battery Power limits
-            constraints += [p_charge[t] <= self.p_max_charge]
-            constraints += [p_discharge[t] <= self.p_max_discharge]
-
-            # DC Solar Limits
-            constraints += [solar_used[t] <= self.solar_5min[t],    # Solar cannot exceed forecast
-                            solar_used[t] <= self.solar_dc_max,     # DC MPPT Limit
-                            solar_used[t] + solar_curtail[t] == self.solar_5min[t] # Solar Curtailment
-                            ]     
-            
-            # DC Balance, Sum Inputs == Sum Outputs to DC bus
-            constraints += [solar_used[t] + p_discharge[t] == p_charge[t] + inverter_power[t]]
-
-            # AC Power Balance, Sum AC Sources == Sum AC Sinks
-            constraints += [grid_import[t] + inverter_power[t] == self.load_5min[t] + grid_export[t]]
-
-            constraints += [grid_import[t] <= self.grid_import_limit,
-                            grid_export[t] <= self.grid_export_limit]
-
-            # Inverter AC Limit
-            constraints += [inverter_power[t] <= self.inverter_p_max,
-                            inverter_power[t] >= -self.inverter_p_max]
-            
-        logger.info(f"Build Constraints: {round(start-time.time(), 2)}")
-        start = time.time()
-            
-
-        # Constrain peak_demand to be >= grid_import at every demand window interval if demand tarrif is applied
-        if self.demand_tarrif:
-            for t in range(int(self.N_5min)):
-                if self.demand_window_forecast[t] > 0:
-                    constraints += [peak_demand >= grid_import[t]]
-
-        # -------------------------------
-        # Objective: Minimise cost including battery discharge cost
-        # -------------------------------
-        
-        objective_list = (
-            cp.multiply(grid_import, self.effective_prices_buy) * self.dt_5min
-            - cp.multiply(grid_export, self.effective_prices_sell) * self.dt_5min
-            + cp.multiply(grid_import, self.grid_import_penalty_cost) * self.dt_5min
-            + cp.multiply(self.battery_min_export_cost, p_discharge) * self.dt_5min
-            - cp.multiply(self.charge_maintain_reward, soc[0:-1]) # Small reward for maintaining higher SOC throughout the day
-        )
-
-        non_sum_objective_list = 0
 
         # Find end of TODAY's solar window (ignore tomorrow's solar)
         # Solar day = first time solar drops to ~0 after having been >0
@@ -288,46 +282,55 @@ class MPC:
                     tomorrow_solar_end_index = idx
                     logger.debug(f"Solar Day tomorrow ends at index: {tomorrow_solar_end_index}, time: {time_index[tomorrow_solar_end_index]}")
 
-                
+        # Set parameter values for this optimisation run.
+        self.soc_init_param.value = float(self.soc_init)
+        self.solar_forecast_param.value = np.array(self.solar_5min, dtype=float)
+        self.load_forecast_param.value = np.array(self.load_5min, dtype=float)
+        self.price_buy_param.value = np.array(self.effective_prices_buy, dtype=float)
+        self.price_sell_param.value = np.array(self.effective_prices_sell, dtype=float)
+        self.grid_import_limit_param.value = float(self.grid_import_limit)
+        self.grid_export_limit_param.value = float(self.grid_export_limit)
+        self.p_max_charge_param.value = float(self.p_max_charge)
+        self.p_max_discharge_param.value = float(self.p_max_discharge)
+        self.inverter_p_max_param.value = float(self.inverter_p_max)
+        self.solar_dc_max_param.value = float(self.solar_dc_max)
+        self.soc_min_param.value = float(self.soc_min)
+        self.soc_max_param.value = float(self.soc_max)
+        self.demand_mask_param.value = np.array((self.demand_window_forecast > 0).astype(float), dtype=float)
+        self.demand_tariff_enabled_param.value = 1.0 if self.demand_tarrif else 0.0
+        self.demand_tariff_price_param.value = float(self.demand_tarrif_price)
+
+        solar_eod_reward_mask = np.zeros(int(self.N_5min), dtype=float)
+
         if today_solar_end_index is not None and today_solar_end_index > 0:
-            non_sum_objective_list = non_sum_objective_list - cp.multiply(self.full_battery_reward, soc[today_solar_end_index]) # Encorage the battery to be full by the end of the solar day today
+            solar_eod_reward_mask[today_solar_end_index] = 1.0 # Encorage the battery to be full by the end of the solar day today
 
         if tomorrow_solar_end_index is not None and tomorrow_solar_end_index > 0:
-            non_sum_objective_list = non_sum_objective_list - cp.multiply(self.full_battery_reward, soc[tomorrow_solar_end_index]) # Encorage the battery to be full by the end of the solar day tomorrow
+            solar_eod_reward_mask[tomorrow_solar_end_index] = 1.0 # Encorage the battery to be full by the end of the solar day tomorrow
 
 
-        if(self.demand_tarrif):
-            non_sum_objective_list = non_sum_objective_list + peak_demand * self.demand_tarrif_price # no dt multiply - it's a peak charge
-
-
-        objective = cp.Minimize(
-            cp.sum(objective_list)
-            + non_sum_objective_list # Don't sum the one off objectives 
-        )
-
-        logger.info(f"Build Objective: {round(start-time.time(), 2)}")
+        logger.info(f"Build Objective: {round(time.time()-start, 2)}")
         start = time.time()
         
         # ---------- Solve ----------
-        prob = cp.Problem(objective, constraints)
-        prob.solve(solver=cp.ECOS)
-        logger.info(f"Solver took {round(time.time()-start_optimisation,2)} seconds to solve")
+        self.prob.solve(solver=cp.ECOS, warm_start=True)
+        logger.info(f"Solver took {round(time.time()-start_optimisation,2)} seconds to build and solve")
 
-        logger.info(f"Solver: {round(start-time.time(), 2)}")
+        logger.info(f"Solver: {round(time.time()-start, 2)}")
         start = time.time()
 
         # Don't continue if the solver failed
-        if prob.status not in ("optimal", "optimal_inaccurate"):
-            raise RuntimeError(f"MPC solve failed: {prob.status}")
+        if self.prob.status not in ("optimal", "optimal_inaccurate"):
+            raise RuntimeError(f"MPC solve failed: {self.prob.status}")
         
         else: # Sim successfull 
             # ---------- Results ----------
-            battery_power = (p_discharge.value - p_charge.value).tolist()
-            grid_net = (grid_import.value - grid_export.value).tolist()
+            battery_power = (self.p_discharge.value - self.p_charge.value).tolist()
+            grid_net = (self.grid_import.value - self.grid_export.value).tolist()
             #hours = np.arange(int(self.N_5min)) * self.dt_5min
 
-            grid_kwh_import_per_interval = grid_import.value / self.steps_per_hr 
-            grid_kwh_export_per_interval = grid_export.value / self.steps_per_hr 
+            grid_kwh_import_per_interval = self.grid_import.value / self.steps_per_hr 
+            grid_kwh_export_per_interval = self.grid_export.value / self.steps_per_hr 
 
             # Per-interval profit ($)
             interval_profit = (
@@ -349,11 +352,11 @@ class MPC:
 
             # Round all the mpc data to 2 dp
             battery_power = [round(x, 2) for x in battery_power]
-            battery_soc = [round(x, 2) for x in soc.value.tolist()]
+            battery_soc = [round(x, 2) for x in self.soc.value.tolist()]
             grid_net = [round(x, 2) for x in grid_net]
-            inverter_power = [round(x, 2) for x in inverter_power.value.tolist()]
+            inverter_power = [round(x, 2) for x in self.inverter_power.value.tolist()]
             solar_forecast_power = [round(x, 2) for x in self.solar_5min]
-            solar_used_power = [round(x, 2) for x in solar_used.value.tolist()]
+            solar_used_power = [round(x, 2) for x in self.solar_used.value.tolist()]
             load_power = [round(x, 2) for x in self.load_5min]
 
             self.profit_remaining_today = round(float(forecast_profit_today), 2)
@@ -388,7 +391,7 @@ class MPC:
             if(self.demand_tarrif):
                 output.update({
                     "demand_window_forecast": self.demand_window_forecast.tolist(),
-                    "peak_demand": float(peak_demand.value),
+                    "peak_demand": float(self.peak_demand.value),
                 })
 
             # Add the historical data to the mpc plan

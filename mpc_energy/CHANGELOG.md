@@ -1,15 +1,17 @@
 ## 0.5.0
-* Improved solar EOD detection and vailidation
-* Fixed issue causing battery discharge cost input not adjusting MPC behaviour
-* Added price forecast uncertainty consideration in MPC plan.
-* Added configurable log level
-* Increased Amber forecast horizon to use as much as the API returns (can vary between 12-48 hours).
+* Implemented warm start for MPC to improve solve time
 * Increased MPC forecast horizon to 48hrs
+* Added price forecast uncertainty consideration in MPC plan.
+* Fixed issue causing battery discharge cost input not adjusting MPC behaviour
 * Added SolCast day 3 forecast to configuration page (required for 48hr forecast, please enable this entity in the solcast integration)
+* Improved solar EOD detection and vailidation
 * Improved Streamlit refresh rate to line up with MPC data update rate
-* Fixed issue where prices didn't update after HA restart
-* Fixed issue when MPC started with Remote EMS off the system would fail to start
+* Increased Amber forecast horizon to use as much as the API returns (can vary between 12-48 hours).
 * Added Amber API Site ID check
+* Fixed issue where prices didn't update after HA restart
+* Added configurable log level
+* Fixed issue when MPC started with Remote EMS off the system would fail to start
+
 
 
 ## 0.4.0

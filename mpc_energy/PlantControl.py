@@ -282,7 +282,7 @@ class Plant:
             start = datetime.datetime.fromisoformat(last_history_timestamp)
             end = datetime.datetime.now(self.local_tz)
             hours_since_last_history = (end - start).total_seconds() / 3600
-            if hours_since_last_history > 4/60: # If the history is more than 4 minutes old, get new history
+            if hours_since_last_history > 5/60: # If the history is more than 4 minutes old, get new history
                 latest_history = self.historical_data(hours=hours_since_last_history, bin_period=5)
 
                 last_ts = self.history_since_midnight["time_index"][-1]
@@ -302,7 +302,7 @@ class Plant:
                 # Append remaining new points
                 for k in self.history_since_midnight.keys():
                     self.history_since_midnight[k].extend(latest_history[k][start_idx:])
-        logger.info(f"Latest history data: {self.history_since_midnight['time_index'][-10:]}")
+
         return self.history_since_midnight
 
     def calculate_today_profit_cost(self):

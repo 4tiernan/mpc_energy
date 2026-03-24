@@ -11,6 +11,7 @@
 * Fixed issue where prices didn't update after HA restart
 * Added configurable log level
 * Fixed issue when MPC started with Remote EMS off the system would fail to start
+* Reduced delay when retrieving new price
 
 
 

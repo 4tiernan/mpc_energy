@@ -7,6 +7,7 @@ from zoneinfo import ZoneInfo
 import time
 from energy_controller import ControlMode
 from mpc_logger import logger
+import warnings
 
 import json
 import paho.mqtt.client as mqtt
@@ -233,11 +234,11 @@ class MPC:
         self.prob = cp.Problem(cp.Minimize(self.objective_expression), constraints)
 
     def run_optimisation(self, amber_data):
+        start_optimisation = time.time()
         start = time.time()
         
         self.update_values(amber_data)
         logger.info(f"Get Data: {round(time.time()-start, 2)}")
-        start = time.time()
 
         now = datetime.now(self.local_tz).replace(second=0, microsecond=0)
         minute = (now.minute // 5) * 5
@@ -254,11 +255,6 @@ class MPC:
         #self.soc_init = self.soc_min
         #self.prices_sell[100:120] = 10 # Allow testing of various pricings
         #self.prices_buy[100:120] = 11
-
-        start_optimisation = time.time()
-
-        logger.info(f"Build Vars: {round(time.time()-start, 2)}")
-        start = time.time()
 
         # Find end of TODAY's solar window (ignore tomorrow's solar)
         # Solar day = first time solar drops to ~0 after having been >0
@@ -323,15 +319,23 @@ class MPC:
 
         self.solar_eod_reward_mask_param.value = solar_eod_reward_mask # Put the mask into the assigned parameter
 
-        logger.info(f"Build Objective: {round(time.time()-start, 2)}")
-        start = time.time()
-        
         # ---------- Solve ----------
-        self.prob.solve(solver=cp.ECOS, warm_start=True)
+        # Prefer ECOS for speed, but fall back to CLARABEL when ECOS reports an
+        # inaccurate solution to avoid propagating unstable plans.
+        ecos_inaccurate = False
+        with warnings.catch_warnings(record=True) as caught_warnings:
+            warnings.simplefilter("always", UserWarning)
+            self.prob.solve(solver=cp.ECOS, warm_start=True, verbose=True)
+            ecos_inaccurate = any("Solution may be inaccurate" in str(w.message) for w in caught_warnings)
+
+        if self.prob.status == "optimal_inaccurate" or ecos_inaccurate:
+            logger.warning(
+                f"ECOS returned {self.prob.status} (inaccurate={ecos_inaccurate}); retrying with CLARABEL."
+            )
+            self.prob.solve(solver=cp.CLARABEL, warm_start=True)
+
         logger.info(f"Solver took {round(time.time()-start_optimisation,2)} seconds to build and solve")
 
-        logger.info(f"Solver: {round(time.time()-start, 2)}")
-        start = time.time()
 
         # Don't continue if the solver failed
         if self.prob.status not in ("optimal", "optimal_inaccurate"):
@@ -434,9 +438,6 @@ class MPC:
             mqtt_client.publish("home/mpc/output", json.dumps(output), retain=True)
         
             self.current_effective_price = self.determine_current_effective_price(output) # Determine the current effective price of electricity based on the MPC plan and current conditions. 
-
-            logger.info(f"Data Management: {round(start-time.time(), 2)}")
-            start = time.time()
 
             return [output, plotted_output]
         

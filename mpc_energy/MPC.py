@@ -94,7 +94,10 @@ class MPC:
 
     # Update any values or forecasts required to run the sim
     def update_values(self, amber_data, inject_real_values = True):   
+        start = time.time()
         self.update_limits() # Update the limits in case the user has changed any config values that affect the limits since the last update
+        logger.info(f"Update Limits: {time.time()-start}")
+        start = time.time()
         
         current_soc = (self.plant.battery_soc / 100)*self.soc_max
         self.soc_init = min(max(current_soc, self.soc_min), self.soc_max) #constrain the soc to within limits to stop solver from doing weird stuff
@@ -102,15 +105,21 @@ class MPC:
         # ---------- Historical Data ---------- 
         self.historical_data = self.plant.historical_data(hours=6) # Get the last 6 hours of historical data
         self.daily_profit = self.plant.daily_net_profit
+        logger.info(f"Historical Data: {time.time()-start}")
+        start = time.time()
         
         # ---------- Forecasts ----------
         # Load Forecast
         load_power_states = self.plant.forecast_load_power(forecast_hours_from_now=self.forecast_hrs) # Calculate the average load power
         self.load_5min = [powerstate.avg_state*(1+self.load_inflation_percentage/100.0) for powerstate in load_power_states]
+        logger.info(f"Load Forecast: {time.time()-start}")
+        start = time.time()
         
         
         # Solar Forecast
         self.solar_5min = self.plant.forecast_solar_power(forecast_hours_from_now=self.forecast_hrs)
+        logger.info(f"Solar Forecast: {time.time()-start}")
+        start = time.time()
 
         # Inject the current real load and solar values into the sim
         if(inject_real_values):
@@ -128,6 +137,8 @@ class MPC:
 
         self.load_5min = [min(max(load, 0.0), self.grid_import_limit)  for load in self.load_5min] # Don't allow negative load or solar or load greater than import limit
         self.solar_5min = [max(solar, 0.0) for solar in self.solar_5min]
+        logger.info(f"Data Manipulation: {time.time()-start}")
+        start = time.time()
 
         
 
@@ -136,6 +147,8 @@ class MPC:
         general_price_forecast = amber_data.general_extrapolated_forecast
         feed_in_price_forecast = amber_data.feedIn_extrapolated_forecast
         self.demand_window_forecast = np.array(amber_data.demand_window_extrapolated_forecast, dtype=float)
+        logger.info(f"Amber: {time.time()-start}")
+        start = time.time()
 
         # Convert to $/kWh
         self.prices_buy = np.array(general_price_forecast) / 100      # buy price in $ from cents
@@ -157,6 +170,8 @@ class MPC:
         self.effective_prices_sell = np.multiply(self.prices_sell, sell_price_uncertainty_factor)
 
         self.effective_prices_sell = self.effective_prices_sell - 0.0001 # Decrease prices slightly to discorage selling at a zero price
+        logger.info(f"Amber Manipulation: {time.time()-start}")
+        start = time.time()
 
         #self.prices_buy[0:5] = 0.03 #Testing
         #self.prices_sell[0:5] = 0.01

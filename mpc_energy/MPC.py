@@ -194,8 +194,7 @@ class MPC:
         self.solar_dc_max_param = cp.Parameter(nonneg=True, name="solar_dc_max")
         self.soc_min_param = cp.Parameter(nonneg=True, name="soc_min")
         self.soc_max_param = cp.Parameter(nonneg=True, name="soc_max")
-        self.demand_tariff_price_param = cp.Parameter(nonneg=True, name="demand_tariff_price")
-        self.demand_tariff_enabled_param = cp.Parameter(nonneg=True, name="demand_tariff_enabled")
+        self.demand_peak_price_param = cp.Parameter(nonneg=True, name="demand_peak_price")
 
         # Vectorized constraints
         constraints = [
@@ -228,7 +227,7 @@ class MPC:
 
         self.objective_expression = (
             cp.sum(objective_list)
-            + self.demand_tariff_enabled_param * self.peak_demand * self.demand_tariff_price_param # not summed as it's a single peak charge
+            + self.peak_demand * self.demand_peak_price_param # not summed as it's a single peak charge
         )
 
         self.prob = cp.Problem(cp.Minimize(self.objective_expression), constraints)
@@ -312,8 +311,7 @@ class MPC:
         if len(demand_mask) != int(self.N_5min):
             raise RuntimeError(f"Demand mask length ({len(demand_mask)}) must equal N_5min ({int(self.N_5min)})")
         self.demand_mask_param.value = demand_mask
-        self.demand_tariff_enabled_param.value = 1.0 if self.demand_tarrif else 0.0
-        self.demand_tariff_price_param.value = float(self.demand_tarrif_price)
+        self.demand_peak_price_param.value = float(self.demand_tarrif_price) if self.demand_tarrif else 0.0
 
         solar_eod_reward_mask = np.zeros(int(self.N_5min), dtype=float)
 

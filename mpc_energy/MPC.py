@@ -37,7 +37,6 @@ class MPC:
 
         #self.N_30min = self.forecast_hrs * (60 // 30) # forecast hours, 5-min timesteps
         #self.N_5min = self.forecast_hrs * (60 // 5)
-        self.update_forecast_horizon()
 
         self.load_inflation_percentage = 10 # Percentage to inflate the load forecast by to ensure we don't run out in the morning.
 
@@ -78,6 +77,8 @@ class MPC:
         self.profit_remaining_today = 0
         self.profit_tomorrow = 0
 
+        self.update_forecast_horizon()
+        
         # Build the CVXPY optimisation template once and reuse it on each run.
         # This avoids repeated canonicalization overhead at every control interval.
         self.build_optimisation_template()

@@ -918,8 +918,9 @@ class Plant:
     
     # returns the forecast solar power for the requested time period in 5 minute increments
     def forecast_solar_power(self, forecast_hours_from_now):
-        N_30min = forecast_hours_from_now * (60//30)
-        N_5min = forecast_hours_from_now * (60//5)
+        forecast_hours = float(forecast_hours_from_now)
+        N_30min = max(0, int(np.ceil(forecast_hours * (60 / 30))))
+        N_5min = max(0, int(np.ceil(forecast_hours * (60 / 5))))
         interpolation_steps = 30//5
 
         # Solar Forecast

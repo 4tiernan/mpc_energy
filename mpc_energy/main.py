@@ -177,11 +177,10 @@ sensor_state_cache = {}
 
 def set_sensor_if_changed(sensor, value):
     cache_key = id(sensor)
-    logger.debug(f"Current Sensor Cache: {sensor_state_cache}")
     if sensor_state_cache.get(cache_key) != value:
         sensor.set_state(value)
         sensor_state_cache[cache_key] = value   
-    logger.debug(f"Updated Sensor Cache: {sensor_state_cache}")
+
 # Update HA MQTT sensors
 def update_sensors(amber_data):
     rbc.update_values(amber_data=amber_data)
@@ -189,7 +188,6 @@ def update_sensors(amber_data):
     override_status = control_mode_override_manager.state['active']
     override_mode = control_mode_override_manager.state['mode']
     opperating_mode = override_mode if override_status else EC.working_mode
-
     set_sensor_if_changed(ha_mqtt.max_feedIn_sensor, round(amber_data.feedIn_max_forecast_price))
     set_sensor_if_changed(ha_mqtt.current_feedIn_sensor, round(amber_data.feedIn_price))
     set_sensor_if_changed(ha_mqtt.current_general_price_sensor, round(amber_data.general_price))

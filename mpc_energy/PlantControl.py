@@ -933,6 +933,10 @@ class Plant:
             day_3_forecast = self.ha.get_state(config_manager.solcast_forecast_day_3_entity_id)["attributes"]["detailedForecast"]
             forecast = forecast + day_3_forecast # Add day 3's forecast to the list if requesting more than 24 hrs of forecast
         
+        if(forecast_hours_from_now > 48):
+            day_4_forecast = self.ha.get_state(config_manager.solcast_forecast_day_4_entity_id)["attributes"]["detailedForecast"]
+            forecast = forecast + day_4_forecast # Add day 4's forecast to the list if requesting more than 48 hrs of forecast
+        
         df = pd.DataFrame(forecast) # Convert to DataFrame for easy time handling
         
         df["period_start"] = pd.to_datetime(df["period_start"]) # Parse timestamps (Solcast provides timezone-aware ISO strings)

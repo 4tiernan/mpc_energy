@@ -78,25 +78,20 @@ class MPC:
         self.profit_tomorrow = 0
 
         self.update_forecast_horizon()
-        
+
         # Build the CVXPY optimisation template once and reuse it on each run.
         # This avoids repeated canonicalization overhead at every control interval.
         self.build_optimisation_template()
 
     def update_forecast_horizon(self):
         """
-        Set the MPC horizon to finish at 06:00 on the next-next morning
-        in local time (i.e., the second upcoming 06:00 boundary).
+        Set the MPC horizon to finish at 06:00 on the next-next-next morning
+        in local time (i.e., the third upcoming 06:00 boundary).
         """
         now = datetime.now(self.local_tz).replace(second=0, microsecond=0)
         morning_cutoff = now.replace(hour=6, minute=0)
-
-        if now < morning_cutoff:
-            next_morning = morning_cutoff
-        else:
-            next_morning = morning_cutoff + timedelta(days=1)
-
-        horizon_end = next_morning + timedelta(days=1)
+        horizon_end = morning_cutoff + timedelta(days=3)  # 3 mornings from now
+        
         horizon_seconds = max((horizon_end - now).total_seconds(), 300)
         self.N_5min = max(1, math.ceil(horizon_seconds / (5 * 60)))
         self.N_30min = max(1, math.ceil(self.N_5min / self.steps_per_price))

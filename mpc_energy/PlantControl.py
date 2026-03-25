@@ -188,7 +188,7 @@ class Plant:
             "reason": reason,
         }
     
-    def historical_data(self, hours, bin_period=5): # Get the requested hours of historical data for the plant being (SOC, battery power, inverter power, solar power, grid power, load power and prices.) in order oldest to newest
+    def historical_data(self, start_datetime=None, end_datetime=None, hours=None, bin_period=5): # Get the requested hours of historical data for the plant being (SOC, battery power, inverter power, solar power, grid power, load power and prices.) in order oldest to newest
         """
         hours  -> hours of historical data to retreive
         bin_period -> bin size in minutes to average data across
@@ -201,11 +201,21 @@ class Plant:
                 ...
             ]
         """
-        start_timestamp = time.time()
-        now = datetime.datetime.now(self.local_tz)
-        rounded_now = self.round_minutes(time=now, nearest_minute=bin_period)
-        start_datetime = self.round_minutes(time=rounded_now - datetime.timedelta(hours=hours), nearest_minute=bin_period)
-        end_datetime = rounded_now
+        if(hours == None and (start_datetime == None or end_datetime == None)):
+            logger.error("Error: Must provide either hours or start and end datetimes for historical data retrieval.")
+            raise ValueError(f"Must provide either hours or start and end datetimes for historical data retrieval. Received hours: {hours}, start_datetime: {start_datetime}, end_datetime: {end_datetime}")
+
+        if(hours != None and (start_datetime != None or end_datetime != None)):
+            logger.error("Error: Must provide either hours or start and end datetimes for historical data retrieval, not both.")
+            raise ValueError(f"Must provide either hours or start and end datetimes for historical data retrieval, not both. Received hours: {hours}, start_datetime: {start_datetime}, end_datetime: {end_datetime}")
+        
+        if(hours != None):
+            start_timestamp = time.time()
+            now = datetime.datetime.now(self.local_tz)
+            rounded_now = self.round_minutes(time=now, nearest_minute=bin_period)
+            start_datetime = self.round_minutes(time=rounded_now - datetime.timedelta(hours=hours), nearest_minute=bin_period)
+            end_datetime = rounded_now
+
         logger.debug(f"Requesting historical data from {start_datetime.isoformat()} to {end_datetime.isoformat()} ({hours} hours)")
 
         battery_soc_state_history = self.ha.get_history(config_manager.battery_soc_entity_id, start_time=start_datetime, end_time=end_datetime)
@@ -283,16 +293,15 @@ class Plant:
                 self.history_since_midnight = None
 
         if self.history_since_midnight == None:
-            hours_since_midnight = (now - today_start).total_seconds() / 3600
-            self.history_since_midnight = self.historical_data(hours=hours_since_midnight, bin_period=5)
+            self.history_since_midnight = self.historical_data(start_datetime=today_start, end_datetime=now, bin_period=5)
             return self.history_since_midnight
         else:
             last_history_timestamp = self.history_since_midnight['time_index'][-1]
             start = datetime.datetime.fromisoformat(last_history_timestamp)
             end = now
             hours_since_last_history = (end - start).total_seconds() / 3600
-            if hours_since_last_history > 5/60: # If the history is more than 4 minutes old, get new history
-                latest_history = self.historical_data(hours=hours_since_last_history, bin_period=5)
+            if hours_since_last_history > 5/60: # If the history is more than 5 minutes old, get new history
+                latest_history = self.historical_data(start_datetime=start, end_datetime=end, bin_period=5)
 
                 last_ts = self.history_since_midnight["time_index"][-1]
                 new_times = latest_history["time_index"]

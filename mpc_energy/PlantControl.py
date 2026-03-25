@@ -301,9 +301,11 @@ class Plant:
             last_history_timestamp = self.history_since_midnight['time_index'][-1]
             start = datetime.datetime.fromisoformat(last_history_timestamp)
             end = rounded_now
-            hours_since_last_history = (end - start).total_seconds() / 3600
-            if hours_since_last_history > 5/60: # If the history is more than 5 minutes old, get new history
+            minutes_since_last_history = (end - start).total_seconds() / 60
+            logger.debug(f"Last profit history data point was from {start.isoformat()} ({round(minutes_since_last_history, 2)} minutes ago).")
+            if minutes_since_last_history > 5: # If the history is more than 5 minutes old, get new history
                 latest_history = self.historical_data(start_datetime=start, end_datetime=rounded_now, bin_period=5)
+                logger.debug(f"Updating profit history cache with {len(latest_history['time_index'])} new data points spanning from {latest_history['time_index'][0]} to {latest_history['time_index'][-1]}.")
 
                 last_ts = self.history_since_midnight["time_index"][-1]
                 new_times = latest_history["time_index"]

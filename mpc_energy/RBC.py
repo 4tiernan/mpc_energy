@@ -45,6 +45,7 @@ class RBC():
         self.target_dispatch_price = amber_data.feedIn_12hr_forecast_sorted[max(round(self.hrs_of_discharge_available*2),0)].price # get the number of 30 minute periods that the battery is allowed to discharge to
         self.target_dispatch_price = ((100-self.target_price_reduction_percentage)/100.0) * self.target_dispatch_price # Slightly reduce the target dispatch price to capture more events that are still valuable given forecast uncertanty 
         self.target_dispatch_price = round(max(self.target_dispatch_price, self.MINIMUM_BATTERY_DISPATCH_PRICE)) 
+        logger.debug(f"RBC Values - Feed in price: {self.feedIn_price}, Target dispatch price: {self.target_dispatch_price}, kWh energy available: {self.kwh_energy_available}, kWh required remaining: {self.kwh_required_remaining}, Solar kWh forecast remaining: {self.solar_kwh_forecast_remaining}, kWh required till sundown: {self.kwh_required_till_sundown}, Battery discharge cost: {self.MINIMUM_BATTERY_DISPATCH_PRICE}")
         #print(f"Discharge 30 minute windows: {self.hrs_of_discharge_available*2}")     
 
     def can_enter_mode(self, mode):

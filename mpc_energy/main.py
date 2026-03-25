@@ -290,6 +290,7 @@ logger.info("Configuration complete. Running")
 # Code runs every 10 seconds (to reduce cpu usage)
 def main_loop_code():
     global automatic_control, next_amber_update_timestamp, partial_update, amber_data, last_control_mode, last_real_price_timestamp
+    mpc.update_forecast_horizon() # Update forecast horizon to ensure it ends at 6am the next next day, (we need the updated forecast horizon before getting the amber data to ensure we get the correct amount of forecast data based on the current time of day)
     plant.update_data() # Update the plant data once for everything else to use.
 
     if(time.time() >= next_amber_update_timestamp):

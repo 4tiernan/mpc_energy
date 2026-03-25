@@ -1,3 +1,5 @@
+import math
+
 import numpy as np
 import cvxpy as cp
 from datetime import datetime, timedelta
@@ -29,12 +31,13 @@ class MPC:
         self.update_limits()    # Update fixed limits (some are required for config)
 
         # ---------- Config ----------
-        self.forecast_hrs = 48
+        #self.forecast_hrs = 48
         self.steps_per_price = 30 // 5  # = 6
         self.steps_per_hr = 60 // 5
 
-        self.N_30min = self.forecast_hrs * (60 // 30) # forecast hours, 5-min timesteps
-        self.N_5min = self.forecast_hrs * (60 // 5)
+        #self.N_30min = self.forecast_hrs * (60 // 30) # forecast hours, 5-min timesteps
+        #self.N_5min = self.forecast_hrs * (60 // 5)
+        self.update_forecast_horizon()
 
         self.load_inflation_percentage = 10 # Percentage to inflate the load forecast by to ensure we don't run out in the morning.
 
@@ -78,7 +81,31 @@ class MPC:
         # Build the CVXPY optimisation template once and reuse it on each run.
         # This avoids repeated canonicalization overhead at every control interval.
         self.build_optimisation_template()
-        
+
+    def update_forecast_horizon(self):
+        """
+        Set the MPC horizon to finish at 06:00 on the next-next morning
+        in local time (i.e., the second upcoming 06:00 boundary).
+        """
+        now = datetime.now(self.local_tz).replace(second=0, microsecond=0)
+        morning_cutoff = now.replace(hour=6, minute=0)
+
+        if now < morning_cutoff:
+            next_morning = morning_cutoff
+        else:
+            next_morning = morning_cutoff + timedelta(days=1)
+
+        horizon_end = next_morning + timedelta(days=1)
+        horizon_seconds = max((horizon_end - now).total_seconds(), 300)
+        self.N_5min = max(1, math.ceil(horizon_seconds / (5 * 60)))
+        self.N_30min = max(1, math.ceil(self.N_5min / self.steps_per_price))
+        self.forecast_hrs = round(self.N_5min * self.dt_5min, 2)
+
+        logger.debug(
+            f"MPC forecast horizon set dynamically: {self.forecast_hrs} hrs "
+            f"({self.N_5min}x5min) ending at {horizon_end.strftime('%Y-%m-%d %H:%M %Z')}"
+        )
+             
     def update_limits(self):
         # Battery Settings
         self.battery_capacity = self.plant.rated_capacity  # kWh
@@ -93,7 +120,7 @@ class MPC:
         self.grid_export_limit = self.plant.max_export_power    # kW (Grid export limit)      
 
     # Update any values or forecasts required to run the sim
-    def update_values(self, amber_data, inject_real_values = True):   
+    def update_values(self, amber_data, inject_real_values = True):
         self.update_limits() # Update the limits in case the user has changed any config values that affect the limits since the last update
         
         current_soc = (self.plant.battery_soc / 100)*self.soc_max
@@ -133,10 +160,10 @@ class MPC:
         
 
         # Amber Forecast (forecast hrs is set in main.py in the get_data call)
-        self.demand_tarrif_price = amber_data.demand_tarrif_price
-        general_price_forecast = amber_data.general_extrapolated_forecast
-        feed_in_price_forecast = amber_data.feedIn_extrapolated_forecast
-        self.demand_window_forecast = np.array(amber_data.demand_window_extrapolated_forecast, dtype=float)
+        self.demand_tarrif_price = amber_data.demand_tarrif_price[:int(self.N_5min)]
+        general_price_forecast = amber_data.general_extrapolated_forecast[:int(self.N_5min)]
+        feed_in_price_forecast = amber_data.feedIn_extrapolated_forecast[:int(self.N_5min)]
+        self.demand_window_forecast = np.array(amber_data.demand_window_extrapolated_forecast[:int(self.N_5min)], dtype=float)
 
         # Convert to $/kWh
         self.prices_buy = np.array(general_price_forecast) / 100      # buy price in $ from cents

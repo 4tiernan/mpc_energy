@@ -201,15 +201,15 @@ class Plant:
                 ...
             ]
         """
-        start = time.time()
+        start_timestamp = time.time()
         now = datetime.datetime.now(self.local_tz)
         rounded_now = self.round_minutes(time=now, nearest_minute=bin_period)
-        start = self.round_minutes(time=rounded_now - datetime.timedelta(hours=hours), nearest_minute=bin_period)
-        end = rounded_now
-        logger.debug(f"Requesting historical data from {start.isoformat()} to {end.isoformat()} ({hours} hours)")
+        start_datetime = self.round_minutes(time=rounded_now - datetime.timedelta(hours=hours), nearest_minute=bin_period)
+        end_datetime = rounded_now
+        logger.debug(f"Requesting historical data from {start_datetime.isoformat()} to {end_datetime.isoformat()} ({hours} hours)")
 
-        battery_soc_state_history = self.ha.get_history(config_manager.battery_soc_entity_id, start_time=start, end_time=end)
-        battery_power_state_history = self.ha.get_history(config_manager.battery_power_entity_id, start_time=start, end_time=end)
+        battery_soc_state_history = self.ha.get_history(config_manager.battery_soc_entity_id, start_time=start_datetime, end_time=end_datetime)
+        battery_power_state_history = self.ha.get_history(config_manager.battery_power_entity_id, start_time=start_datetime, end_time=end_datetime)
         if(config_manager.battery_power_sign_convention == "+ Charge, - Discharge"):
             for state in battery_power_state_history:
                 try:
@@ -220,40 +220,40 @@ class Plant:
         #   +kW = discharging (battery supplying power)
         #   -kW = charging (battery absorbing power)
 
-        inverter_power_state_history = self.ha.get_history(config_manager.inverter_power_entity_id, start_time=start, end_time=end)
-        solar_power_state_history = self.ha.get_history(config_manager.solar_power_entity_id, start_time=start, end_time=end)
-        load_power_state_history = self.ha.get_history(config_manager.load_power_entity_id, start_time=start, end_time=end)
-        grid_power_state_history = self.ha.get_history(config_manager.grid_power_entity_id, start_time=start, end_time=end)
-        grid_import_kwh_state_history = self.ha.get_history(config_manager.plant_daily_import_kwh_entity_id, start_time=start, end_time=end)
-        grid_export_kwh_state_history = self.ha.get_history(config_manager.plant_daily_export_kwh_entity_id, start_time=start, end_time=end)
+        inverter_power_state_history = self.ha.get_history(config_manager.inverter_power_entity_id, start_time=start_datetime, end_time=end_datetime)
+        solar_power_state_history = self.ha.get_history(config_manager.solar_power_entity_id, start_time=start_datetime, end_time=end_datetime)
+        load_power_state_history = self.ha.get_history(config_manager.load_power_entity_id, start_time=start_datetime, end_time=end_datetime)
+        grid_power_state_history = self.ha.get_history(config_manager.grid_power_entity_id, start_time=start_datetime, end_time=end_datetime)
+        grid_import_kwh_state_history = self.ha.get_history(config_manager.plant_daily_import_kwh_entity_id, start_time=start_datetime, end_time=end_datetime)
+        grid_export_kwh_state_history = self.ha.get_history(config_manager.plant_daily_export_kwh_entity_id, start_time=start_datetime, end_time=end_datetime)
 
-        feed_in_state_history = self.ha.get_history("sensor.mpc_energy_manager_device_feed_in_price", start_time=start, end_time=end) 
-        general_price_state_history = self.ha.get_history("sensor.mpc_energy_manager_device_general_price", start_time=start, end_time=end)
-        working_mode_state_history = self.ha.get_history("sensor.mpc_energy_manager_device_working_mode", start_time=start, end_time=end, type=str)
+        feed_in_state_history = self.ha.get_history("sensor.mpc_energy_manager_device_feed_in_price", start_time=start_datetime, end_time=end_datetime) 
+        general_price_state_history = self.ha.get_history("sensor.mpc_energy_manager_device_general_price", start_time=start_datetime, end_time=end_datetime)
+        working_mode_state_history = self.ha.get_history("sensor.mpc_energy_manager_device_working_mode", start_time=start_datetime, end_time=end_datetime, type=str)
 
-        #requested_data_received = self.validate_returned_data_timedelta(inverter_power_state_history, start, end)
+        #requested_data_received = self.validate_returned_data_timedelta(inverter_power_state_history, start_datetime, end_datetime)
 
 
-        binned_battery_soc_state_history = self.bin_data(battery_soc_state_history, bin_period=bin_period, start_bin_datetime=start, end_bin_datetime=end)
-        binned_battery_power_state_history = self.bin_data(battery_power_state_history, bin_period=bin_period, start_bin_datetime=start, end_bin_datetime=end)
-        binned_inverter_power_state_history = self.bin_data(inverter_power_state_history, bin_period=bin_period, start_bin_datetime=start, end_bin_datetime=end)
-        binned_solar_power_state_history = self.bin_data(solar_power_state_history, bin_period=bin_period, start_bin_datetime=start, end_bin_datetime=end)
-        binned_load_power_state_history = self.bin_data(load_power_state_history, bin_period=bin_period, start_bin_datetime=start, end_bin_datetime=end)
-        binned_grid_power_state_history = self.bin_data(grid_power_state_history, bin_period=bin_period, start_bin_datetime=start, end_bin_datetime=end)
+        binned_battery_soc_state_history = self.bin_data(battery_soc_state_history, bin_period=bin_period, start_bin_datetime=start_datetime, end_bin_datetime=end_datetime)
+        binned_battery_power_state_history = self.bin_data(battery_power_state_history, bin_period=bin_period, start_bin_datetime=start_datetime, end_bin_datetime=end_datetime)
+        binned_inverter_power_state_history = self.bin_data(inverter_power_state_history, bin_period=bin_period, start_bin_datetime=start_datetime, end_bin_datetime=end_datetime)
+        binned_solar_power_state_history = self.bin_data(solar_power_state_history, bin_period=bin_period, start_bin_datetime=start_datetime, end_bin_datetime=end_datetime)
+        binned_load_power_state_history = self.bin_data(load_power_state_history, bin_period=bin_period, start_bin_datetime=start_datetime, end_bin_datetime=end_datetime)
+        binned_grid_power_state_history = self.bin_data(grid_power_state_history, bin_period=bin_period, start_bin_datetime=start_datetime, end_bin_datetime=end_datetime)
 
-        binned_grid_import_kwh_state_history = self.bin_data(grid_import_kwh_state_history, bin_period=bin_period, start_bin_datetime=start, end_bin_datetime=end)
-        binned_grid_export_kwh_state_history = self.bin_data(grid_export_kwh_state_history, bin_period=bin_period, start_bin_datetime=start, end_bin_datetime=end)
+        binned_grid_import_kwh_state_history = self.bin_data(grid_import_kwh_state_history, bin_period=bin_period, start_bin_datetime=start_datetime, end_bin_datetime=end_datetime)
+        binned_grid_export_kwh_state_history = self.bin_data(grid_export_kwh_state_history, bin_period=bin_period, start_bin_datetime=start_datetime, end_bin_datetime=end_datetime)
 
         
-        binned_feed_in_state_history = self.bin_data(feed_in_state_history, bin_period=bin_period, start_bin_datetime=start, end_bin_datetime=end, interpolation_method="step")
-        binned_general_price_state_history = self.bin_data(general_price_state_history, bin_period=bin_period, start_bin_datetime=start, end_bin_datetime=end, interpolation_method="step")# Step Interpolation as prices dont gradually change
-        binned_working_mode_state_history = self.bin_data(working_mode_state_history, bin_period=bin_period, start_bin_datetime=start, end_bin_datetime=end, string_state=True)
+        binned_feed_in_state_history = self.bin_data(feed_in_state_history, bin_period=bin_period, start_bin_datetime=start_datetime, end_bin_datetime=end_datetime, interpolation_method="step")
+        binned_general_price_state_history = self.bin_data(general_price_state_history, bin_period=bin_period, start_bin_datetime=start_datetime, end_bin_datetime=end_datetime, interpolation_method="step")# Step Interpolation as prices dont gradually change
+        binned_working_mode_state_history = self.bin_data(working_mode_state_history, bin_period=bin_period, start_bin_datetime=start_datetime, end_bin_datetime=end_datetime, string_state=True)
 
         binned_battery_soc_kwh_history = [(item.avg_state / 100.0) * self.rated_capacity for item in binned_battery_soc_state_history]
         
         history_time_index = [item.time.isoformat() for item in binned_battery_soc_state_history] # Get the time marks from the data
 
-        logger.debug(f"Received data bins span from {history_time_index[0]} to {history_time_index[-1]} ({len(history_time_index)} bins), request took {round(time.time()-start,2)} seconds to retrieve and process.")
+        logger.debug(f"Received data bins span from {history_time_index[0]} to {history_time_index[-1]} ({len(history_time_index)} bins), request took {round(time.time()-start_timestamp,2)} seconds to retrieve and process.")
 
         output = {
             "time_index": history_time_index,

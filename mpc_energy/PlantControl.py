@@ -411,7 +411,7 @@ class Plant:
         if(self.get_sigenergy_state(config_manager.ha_ems_control_switch_entity_id)['state'] != "on"):
                 logger.warning(f"Remote EMS switch is '{self.get_sigenergy_state(config_manager.ha_ems_control_switch_entity_id)['state']}', turning on to allow control.")
                 self.ha.set_switch_state(config_manager.ha_ems_control_switch_entity_id, True)
-                time.sleep(2) # delay to ensure the change has time to become effective
+                time.sleep(10) # delay to ensure the change has time to become effective
 
     def check_for_enabled_entites(self): # Checks to make sure all the entities needed for control are available and enabled, if not it raises an error
         entity_ids = [

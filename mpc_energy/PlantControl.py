@@ -300,7 +300,7 @@ class Plant:
         else:
             last_history_timestamp = self.history_since_midnight['time_index'][-1]
             start = datetime.datetime.fromisoformat(last_history_timestamp)
-            end = rounded_now
+            end = now
             minutes_since_last_history = (end - start).total_seconds() / 60
             logger.debug(f"Last profit history data point was from {start.isoformat()} ({round(minutes_since_last_history, 2)} minutes ago).")
             if minutes_since_last_history > 5: # If the history is more than 5 minutes old, get new history

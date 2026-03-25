@@ -1,9 +1,9 @@
 ## 0.5.0
-* Increased MPC forecast horizon to 48hrs
+* Increased MPC forecast horizon to 48hrs and added dynamic extension up to 72hrs to ensure overnight load is considered
 * Implemented warm start for MPC to improve solve time (for RPI, solve times went from 25 sec to <1 sec!! with 48hr horizon)
 * Added price forecast uncertainty consideration in MPC plan.
 * Fixed issue causing battery discharge cost input not adjusting MPC behaviour
-* Added SolCast day 3 and 4 forecast to configuration page (required for 48hr forecast, please enable these entities in the solcast integration)
+* Added SolCast day 3 and 4 forecast to configuration page (required for 72hr forecast, please enable these entities in the solcast integration)
 * Improved solar EOD detection and vailidation
 * Improved Streamlit refresh rate to line up with MPC data update rate
 * Increased Amber forecast horizon to use as much as the API returns (can vary between 12-48 hours).

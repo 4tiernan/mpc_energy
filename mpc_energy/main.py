@@ -177,10 +177,11 @@ sensor_state_cache = {}
 
 def set_sensor_if_changed(sensor, value):
     cache_key = id(sensor)
+    logger.debug(f"Current Sensor Cache: {sensor_state_cache}")
     if sensor_state_cache.get(cache_key) != value:
         sensor.set_state(value)
         sensor_state_cache[cache_key] = value   
-    
+    logger.debug(f"Updated Sensor Cache: {sensor_state_cache}")
 # Update HA MQTT sensors
 def update_sensors(amber_data):
     rbc.update_values(amber_data=amber_data)

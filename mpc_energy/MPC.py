@@ -91,7 +91,7 @@ class MPC:
         now = datetime.now(self.local_tz).replace(second=0, microsecond=0)
         morning_cutoff = now.replace(hour=6, minute=0)
         horizon_end = morning_cutoff + timedelta(days=3)  # 3 mornings from now
-        
+
         horizon_seconds = max((horizon_end - now).total_seconds(), 300)
         self.N_5min = max(1, math.ceil(horizon_seconds / (5 * 60)))
         self.N_30min = max(1, math.ceil(self.N_5min / self.steps_per_price))
@@ -156,7 +156,7 @@ class MPC:
         
 
         # Amber Forecast (forecast hrs is set in main.py in the get_data call)
-        self.demand_tarrif_price = amber_data.demand_tarrif_price[:int(self.N_5min)]
+        self.demand_tarrif_price = amber_data.demand_tarrif_price if amber_data.demand_tarrif_price is not None else 0.0
         general_price_forecast = amber_data.general_extrapolated_forecast[:int(self.N_5min)]
         feed_in_price_forecast = amber_data.feedIn_extrapolated_forecast[:int(self.N_5min)]
         self.demand_window_forecast = np.array(amber_data.demand_window_extrapolated_forecast[:int(self.N_5min)], dtype=float)

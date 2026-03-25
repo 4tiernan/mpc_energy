@@ -283,6 +283,7 @@ class Plant:
     
     def get_profit_history(self): #Get the history required for the profit calcs and use cached data if its not too old to avoid the expensive historical data retrieval and processing if possible.
         now = datetime.datetime.now(self.local_tz)
+        rounded_now = self.round_minutes(time=now, nearest_minute=5)
         today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
 
         if self.history_since_midnight is not None and self.history_since_midnight.get("time_index"):
@@ -293,15 +294,15 @@ class Plant:
                 self.history_since_midnight = None
 
         if self.history_since_midnight == None:
-            self.history_since_midnight = self.historical_data(start_datetime=today_start, end_datetime=now, bin_period=5)
+            self.history_since_midnight = self.historical_data(start_datetime=today_start, end_datetime=rounded_now, bin_period=5)
             return self.history_since_midnight
         else:
             last_history_timestamp = self.history_since_midnight['time_index'][-1]
             start = datetime.datetime.fromisoformat(last_history_timestamp)
-            end = now
+            end = rounded_now
             hours_since_last_history = (end - start).total_seconds() / 3600
             if hours_since_last_history > 5/60: # If the history is more than 5 minutes old, get new history
-                latest_history = self.historical_data(start_datetime=start, end_datetime=end, bin_period=5)
+                latest_history = self.historical_data(start_datetime=start, end_datetime=rounded_now, bin_period=5)
 
                 last_ts = self.history_since_midnight["time_index"][-1]
                 new_times = latest_history["time_index"]

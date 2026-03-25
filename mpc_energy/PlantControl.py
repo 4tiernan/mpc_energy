@@ -272,16 +272,24 @@ class Plant:
         return output
     
     def get_profit_history(self): #Get the history required for the profit calcs and use cached data if its not too old to avoid the expensive historical data retrieval and processing if possible.
+        now = datetime.datetime.now(self.local_tz)
+        today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+
+        if self.history_since_midnight is not None and self.history_since_midnight.get("time_index"):
+            first_cached_timestamp = self.history_since_midnight["time_index"][0]
+            first_cached_dt = datetime.datetime.fromisoformat(first_cached_timestamp)
+            # Reset the cache at local midnight so "today" calculations do not include yesterday's bins.
+            if first_cached_dt.date() != now.date():
+                self.history_since_midnight = None
+
         if self.history_since_midnight == None:
-            start = datetime.datetime.now(self.local_tz).replace(hour=0, minute=0, second=0, microsecond=0)
-            end = datetime.datetime.now(self.local_tz)
-            hours_since_midnight = (end - start).total_seconds() / 3600
+            hours_since_midnight = (now - today_start).total_seconds() / 3600
             self.history_since_midnight = self.historical_data(hours=hours_since_midnight, bin_period=5)
             return self.history_since_midnight
         else:
             last_history_timestamp = self.history_since_midnight['time_index'][-1]
             start = datetime.datetime.fromisoformat(last_history_timestamp)
-            end = datetime.datetime.now(self.local_tz)
+            end = now
             hours_since_last_history = (end - start).total_seconds() / 3600
             if hours_since_last_history > 5/60: # If the history is more than 4 minutes old, get new history
                 latest_history = self.historical_data(hours=hours_since_last_history, bin_period=5)

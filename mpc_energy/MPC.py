@@ -95,10 +95,10 @@ class MPC:
         horizon_seconds = max((horizon_end - now).total_seconds(), 300)
         self.N_5min = max(1, math.ceil(horizon_seconds / (5 * 60)))
         self.N_30min = max(1, math.ceil(self.N_5min / self.steps_per_price))
-        self.forecast_hrs = round(self.N_5min * self.dt_5min, 2)
+        self.forecast_hrs = self.N_5min * self.dt_5min
 
         logger.debug(
-            f"MPC forecast horizon set dynamically: {self.forecast_hrs} hrs "
+            f"MPC forecast horizon set dynamically: {round(self.forecast_hrs, 2)} hrs "
             f"({self.N_5min}x5min) ending at {horizon_end.strftime('%Y-%m-%d %H:%M %Z')}"
         )
              

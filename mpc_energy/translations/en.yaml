@@ -60,6 +60,9 @@ configuration:
   
   solcast_forecast_day_3_entity_id: 
     name: Solcast Forecast Day 3 Entity (kWh with attributes for whole day)
+  
+  solcast_forecast_day_4_entity_id:
+    name: Solcast Forecast Day 4 Entity (kWh with attributes for whole day)
 
   solcast_solar_kwh_remaining_today_entity_id:
     name: Solcast Solar kWh Forecast Remaining Today (kWh)

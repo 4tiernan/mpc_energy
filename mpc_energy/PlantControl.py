@@ -201,6 +201,7 @@ class Plant:
                 ...
             ]
         """
+        start_timestamp = time.time()
         if(hours == None and (start_datetime == None or end_datetime == None)):
             logger.error("Error: Must provide either hours or start and end datetimes for historical data retrieval.")
             raise ValueError(f"Must provide either hours or start and end datetimes for historical data retrieval. Received hours: {hours}, start_datetime: {start_datetime}, end_datetime: {end_datetime}")
@@ -210,7 +211,6 @@ class Plant:
             raise ValueError(f"Must provide either hours or start and end datetimes for historical data retrieval, not both. Received hours: {hours}, start_datetime: {start_datetime}, end_datetime: {end_datetime}")
         
         if(hours != None):
-            start_timestamp = time.time()
             now = datetime.datetime.now(self.local_tz)
             rounded_now = self.round_minutes(time=now, nearest_minute=bin_period)
             start_datetime = self.round_minutes(time=rounded_now - datetime.timedelta(hours=hours), nearest_minute=bin_period)

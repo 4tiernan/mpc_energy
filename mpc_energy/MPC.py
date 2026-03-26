@@ -13,6 +13,7 @@ import json
 import paho.mqtt.client as mqtt
 import const
 import config_manager
+from helper_functions import round_minutes
 
 mqtt_client = mqtt.Client()
 mqtt_client.username_pw_set(config_manager.MQTT_USER, config_manager.MQTT_PASS) 
@@ -35,7 +36,6 @@ class MPC:
         self.steps_per_price = 30 // 5  # = 6
         self.steps_per_hr = 60 // 5
 
-        #self.N_30min = self.forecast_hrs * (60 // 30) # forecast hours, 5-min timesteps
         #self.N_5min = self.forecast_hrs * (60 // 5)
 
         self.load_inflation_percentage = 10 # Percentage to inflate the load forecast by to ensure we don't run out in the morning.
@@ -89,17 +89,22 @@ class MPC:
         in local time (i.e., the third upcoming 06:00 boundary).
         """
         now = datetime.now(self.local_tz).replace(second=0, microsecond=0)
-        morning_cutoff = now.replace(hour=6, minute=0)
+
+        sim_start = round_minutes(time=now, nearest_minute=5) # Round the sim start time to the nearest 5 minutes to ensure the time steps align with the forecast data
+        morning_cutoff = sim_start.replace(hour=6, minute=0)
         horizon_end = morning_cutoff + timedelta(days=3)  # 3 mornings from now
 
-        horizon_seconds = max((horizon_end - now).total_seconds(), 300)
-        self.N_5min = max(1, math.ceil(horizon_seconds / (5 * 60)))
-        self.N_30min = max(1, math.ceil(self.N_5min / self.steps_per_price))
+        horizon_seconds = max((horizon_end - sim_start).total_seconds(), 300)
+        self.sim_start = sim_start
+        self.sim_end = horizon_end
+        self.N_5min = max(1, int(horizon_seconds // (5 * 60)))
         self.forecast_hrs = self.N_5min * self.dt_5min
 
         logger.debug(
             f"MPC forecast horizon set dynamically: {round(self.forecast_hrs, 2)} hrs "
             f"({self.N_5min}x5min) ending at {horizon_end.strftime('%Y-%m-%d %H:%M %Z')}"
+            f"({self.N_5min}x5min) from {self.sim_start.strftime('%Y-%m-%d %H:%M %Z')} "
+            f"to {self.sim_end.strftime('%Y-%m-%d %H:%M %Z')}"
         )
              
     def update_limits(self):
@@ -129,12 +134,21 @@ class MPC:
         
         # ---------- Forecasts ----------
         # Load Forecast
-        load_power_states = self.plant.forecast_load_power(forecast_hours_from_now=self.forecast_hrs) # Calculate the average load power
+        load_power_states = self.plant.forecast_load_power(
+            forecast_hours_from_now=self.forecast_hrs,
+            forecast_start_time=self.sim_start,
+            forecast_end_time=self.sim_end,
+        )
+
         self.load_5min = [powerstate.avg_state*(1+self.load_inflation_percentage/100.0) for powerstate in load_power_states]
         
         
         # Solar Forecast
-        self.solar_5min = self.plant.forecast_solar_power(forecast_hours_from_now=self.forecast_hrs)
+        self.solar_5min = self.plant.forecast_solar_power(
+            forecast_hours_from_now=self.forecast_hrs,
+            forecast_start_time=self.sim_start,
+            forecast_end_time=self.sim_end,
+        )
 
         # Inject the current real load and solar values into the sim
         if(inject_real_values):

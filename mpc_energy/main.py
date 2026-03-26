@@ -295,9 +295,18 @@ def main_loop_code():
         start_timer()
         mpc.update_forecast_horizon() # Update forecast horizon to ensure it ends at 6am the next next day, (we need the updated forecast horizon before getting the amber data to ensure we get the correct amount of forecast data based on the current time of day)
         if(partial_update):
-            amber_data = amber.get_data(partial_update=True, forecast_hrs=mpc.forecast_hrs)
+            amber_data = amber.get_data(
+                partial_update=True,
+                forecast_hrs=mpc.forecast_hrs,
+                sim_start=mpc.sim_start,
+                sim_end=mpc.sim_end,
+            )
         else:
-            amber_data = amber.get_data(forecast_hrs=mpc.forecast_hrs)
+            amber_data = amber.get_data(
+                forecast_hrs=mpc.forecast_hrs,
+                sim_start=mpc.sim_start,
+                sim_end=mpc.sim_end,
+            )
         
         elapsed_time("Amber Data")
 

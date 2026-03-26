@@ -11,6 +11,7 @@ import config_manager
 from mpc_logger import logger
 from exceptions import HAAPIError, SigenergyConnectionError
 import traceback
+from helper_functions import round_minutes
 
 
 @dataclass
@@ -212,8 +213,8 @@ class Plant:
         
         if(hours != None):
             now = datetime.datetime.now(self.local_tz)
-            rounded_now = self.round_minutes(time=now, nearest_minute=bin_period)
-            start_datetime = self.round_minutes(time=rounded_now - datetime.timedelta(hours=hours), nearest_minute=bin_period)
+            rounded_now = round_minutes(time=now, nearest_minute=bin_period)
+            start_datetime = round_minutes(time=rounded_now - datetime.timedelta(hours=hours), nearest_minute=bin_period)
             end_datetime = rounded_now
 
         requested_hours = (end_datetime - start_datetime).total_seconds() / 3600
@@ -284,7 +285,7 @@ class Plant:
     
     def get_profit_history(self): #Get the history required for the profit calcs and use cached data if its not too old to avoid the expensive historical data retrieval and processing if possible.
         now = datetime.datetime.now(self.local_tz)
-        rounded_now = self.round_minutes(time=now, nearest_minute=5)
+        rounded_now = round_minutes(time=now, nearest_minute=5)
         today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
 
         if self.history_since_midnight is not None and self.history_since_midnight.get("time_index"):
@@ -832,13 +833,18 @@ class Plant:
 
         return avg_day
 
-    def round_forecast_times(self, forecast_hours_from_now=None, forecast_till_time=None):
-        rounded_current_time = self.round_minutes(datetime.datetime.now(self.local_tz), nearest_minute=5)
+    def round_forecast_times(self, forecast_hours_from_now=None, forecast_till_time=None, forecast_start_time=None, forecast_end_time=None):
+        if forecast_start_time is not None and forecast_end_time is not None:
+            rounded_current_time = self.round_minutes(forecast_start_time, nearest_minute=5)
+            rounded_forecast_time = self.round_minutes(forecast_end_time, nearest_minute=5)
+            return [rounded_current_time, rounded_forecast_time]
+        
+        rounded_current_time = round_minutes(datetime.datetime.now(self.local_tz), nearest_minute=5)
         if(forecast_hours_from_now):
-            rounded_forecast_time = self.round_minutes(rounded_current_time + datetime.timedelta(hours=forecast_hours_from_now), nearest_minute=5)
+            rounded_forecast_time = round_minutes(rounded_current_time + datetime.timedelta(hours=forecast_hours_from_now), nearest_minute=5)
         elif(forecast_till_time):
             rounded_forecast_time = datetime.datetime.combine(rounded_current_time.date(), forecast_till_time, tzinfo=self.local_tz)
-            rounded_forecast_time = self.round_minutes(rounded_forecast_time, nearest_minute=5)
+            rounded_forecast_time = round_minutes(rounded_forecast_time, nearest_minute=5)
             if(rounded_forecast_time <= rounded_current_time):
                 rounded_forecast_time = rounded_forecast_time + datetime.timedelta(days=1)
         else:
@@ -852,11 +858,16 @@ class Plant:
             self.last_load_data_retrival_timestamp = time.time()
         return self.avg_load_day
     
-    def forecast_load_power(self, forecast_hours_from_now=None, forecast_till_time=None):
+    def forecast_load_power(self, forecast_hours_from_now=None, forecast_till_time=None, forecast_start_time=None, forecast_end_time=None):
         avg_day = self.get_load_avg(days_ago=self.load_avg_days)
 
         # Determine the current and the end of the forecast datetimes, both rounded to 5 min
-        [rounded_current_time, rounded_forecast_time] = self.round_forecast_times(forecast_hours_from_now, forecast_till_time)
+        [rounded_current_time, rounded_forecast_time] = self.round_forecast_times(
+            forecast_hours_from_now,
+            forecast_till_time,
+            forecast_start_time=forecast_start_time,
+            forecast_end_time=forecast_end_time,
+        )
 
         # Create a lookup dict for each time bin
         avg_day_kwh_lookup = {bin.time: bin.avg_state for bin in avg_day}
@@ -908,19 +919,20 @@ class Plant:
     def kwh_required_till_sundown(self, buffer_percentage=20):
         forecast_kwh = self.forecast_consumption_amount(forecast_till_time=datetime.time(18, 0, 0))
         return max(forecast_kwh, 0) * (1 + (buffer_percentage/100)) + 2
-        
-    def round_minutes(self, time, nearest_minute):
-        return time.replace(
-            minute=(time.minute // nearest_minute) * nearest_minute,
-            second=0,
-            microsecond=0
-            )  
-    
+            
     # returns the forecast solar power for the requested time period in 5 minute increments
-    def forecast_solar_power(self, forecast_hours_from_now):
-        forecast_hours = float(forecast_hours_from_now)
-        N_30min = max(0, int(np.ceil(forecast_hours * (60 / 30))))
-        N_5min = max(0, int(np.ceil(forecast_hours * (60 / 5))))
+    def forecast_solar_power(self, forecast_hours_from_now, forecast_start_time=None, forecast_end_time=None):
+        if forecast_start_time is not None and forecast_end_time is not None:
+            rounded_start_time = self.round_minutes(forecast_start_time, nearest_minute=5)
+            rounded_end_time = self.round_minutes(forecast_end_time, nearest_minute=5)
+            forecast_seconds = max((rounded_end_time - rounded_start_time).total_seconds(), 0)
+            forecast_hours = forecast_seconds / 3600
+            N_5min = max(0, int(forecast_seconds // (5 * 60)))
+        else:
+            forecast_hours = float(forecast_hours_from_now)
+            N_5min = max(0, int(np.ceil(forecast_hours * (60 / 5))))
+
+        N_30min = max(0, int(np.ceil(N_5min / (30 // 5))))
         interpolation_steps = 30//5
 
         # Solar Forecast
@@ -930,11 +942,11 @@ class Plant:
 
         forecast = today + tomorrow # Combine
 
-        if(forecast_hours_from_now > 24):
+        if(forecast_hours > 24):
             day_3_forecast = self.ha.get_state(config_manager.solcast_forecast_day_3_entity_id)["attributes"]["detailedForecast"]
             forecast = forecast + day_3_forecast # Add day 3's forecast to the list if requesting more than 24 hrs of forecast
         
-        if(forecast_hours_from_now > 48):
+        if(forecast_hours > 48):
             day_4_forecast = self.ha.get_state(config_manager.solcast_forecast_day_4_entity_id)["attributes"]["detailedForecast"]
             forecast = forecast + day_4_forecast # Add day 4's forecast to the list if requesting more than 48 hrs of forecast
         
@@ -943,8 +955,15 @@ class Plant:
         df["period_start"] = pd.to_datetime(df["period_start"]) # Parse timestamps (Solcast provides timezone-aware ISO strings)
 
         # Current time in same timezone
-        now = pd.Timestamp.now(tz=df["period_start"].dt.tz)
-        now = now.ceil("5min") #round to nearest 5 min
+        if forecast_start_time is not None:
+            now = pd.Timestamp(self.round_minutes(forecast_start_time, nearest_minute=5))
+            if df["period_start"].dt.tz is not None and now.tzinfo is None:
+                now = now.tz_localize(df["period_start"].dt.tz)
+            elif df["period_start"].dt.tz is not None and now.tzinfo is not None:
+                now = now.tz_convert(df["period_start"].dt.tz)
+        else:
+            now = pd.Timestamp.now(tz=df["period_start"].dt.tz)
+            now = now.ceil("5min") #round to nearest 5 min
 
         # Keep only future (or current) periods
         df_future = (

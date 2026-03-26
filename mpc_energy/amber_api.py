@@ -1,6 +1,7 @@
 import requests
 import time
 import numpy as np
+import math
 from datetime import datetime, timezone, timedelta
 from dataclasses import dataclass
 from mpc_logger import logger
@@ -256,9 +257,18 @@ class AmberAPI:
         return (end_time - start_time).total_seconds() / 3600
     
     # Get the 5 min, 30 min and past prices and combine into a 5 minutely 'forecast' that extends past the 12 hr limit
-    def get_extrapolated_forecast(self, hours, advanced_forecast = False): 
-        N_30min = int(hours / (30/60)) # Number of 30 min segments requested
-        N_5min = int(hours / (5/60))   # Number of 5 min segments requested
+    def get_extrapolated_forecast(self, hours, advanced_forecast = False, sim_start=None, sim_end=None): 
+        if sim_start is not None and sim_end is not None:
+            timeline_seconds = max((sim_end - sim_start).total_seconds(), 300)
+            N_5min = max(1, int(timeline_seconds // (5 * 60)))
+            N_30min = max(1, math.ceil(N_5min / (30 // 5)))
+            current_5min_slot = sim_start.replace(second=0, microsecond=0)
+        else:
+            # Fallback for legacy callers that only provide a duration.
+            N_30min = max(1, math.ceil(hours / (30/60))) # Number of 30 min segments requested
+            N_5min = max(1, math.ceil(hours / (5/60)))   # Number of 5 min segments requested
+            current_time = datetime.now(self.local_tz if self.local_tz is not None else timezone.utc)
+            current_5min_slot = current_time.replace(second=0, microsecond=0) - timedelta(minutes=current_time.minute % 5)
 
         amber_forecast_30min_intervals = N_30min    # Get the max 12hr forecast
         amber_past_30min_intervals = max(N_30min - (60//30)*12, 0)  # Fill the rest of the sim with past prices, we should always receive 12 hrs worth of prices so get enough data to cover that
@@ -333,9 +343,7 @@ class AmberAPI:
             point_time = normalise_time(interval.start_time)
             feed_in_points[point_time] = round(interval.price)
 
-        # Build fixed timeline anchored to the current 5-minute slot.
-        current_time = datetime.now(self.local_tz if self.local_tz is not None else timezone.utc)
-        current_5min_slot = current_time.replace(second=0, microsecond=0) - timedelta(minutes=current_time.minute % 5)
+        # Build fixed timeline anchored to the simulation start slot.
         ordered_times = [current_5min_slot + timedelta(minutes=5 * i) for i in range(N_5min)]
 
         def fill_from_points(points, times, default_value):
@@ -395,7 +403,7 @@ class AmberAPI:
         else:
             raise AmberAPIError("Failed to get current price data from Amber API")
         
-    def get_data(self, partial_update=False, forecast_hrs=None):
+    def get_data(self, partial_update=False, forecast_hrs=None, sim_start=None, sim_end=None):
         [general_price, feed_in_price, estimate] = self.get_current_prices()
         
         if(self.data == None or partial_update == False):
@@ -417,7 +425,11 @@ class AmberAPI:
             feed_in_price = self.data.feedIn_price
 
         if((not estimate and forecast_hrs != None) or self.data == None):
-            [general_extrapolated_forecast, feedIn_extrapolated_forecast, demand_window_extrapolated_forecast, extrapolated_timestamps] = self.get_extrapolated_forecast(hours=forecast_hrs)
+            [general_extrapolated_forecast, feedIn_extrapolated_forecast, demand_window_extrapolated_forecast, extrapolated_timestamps] = self.get_extrapolated_forecast(
+                hours=forecast_hrs,
+                sim_start=sim_start,
+                sim_end=sim_end,
+            )
         else:
             general_extrapolated_forecast = self.data.general_extrapolated_forecast
             feedIn_extrapolated_forecast = self.data.feedIn_extrapolated_forecast

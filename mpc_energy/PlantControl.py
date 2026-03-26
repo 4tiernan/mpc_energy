@@ -834,8 +834,8 @@ class Plant:
 
     def round_forecast_times(self, forecast_hours_from_now=None, forecast_till_time=None, forecast_start_time=None, forecast_end_time=None):
         if forecast_start_time is not None and forecast_end_time is not None:
-            rounded_current_time = self.round_minutes(forecast_start_time, nearest_minute=5)
-            rounded_forecast_time = self.round_minutes(forecast_end_time, nearest_minute=5)
+            rounded_current_time = round_minutes(forecast_start_time, nearest_minute=5)
+            rounded_forecast_time = round_minutes(forecast_end_time, nearest_minute=5)
             return [rounded_current_time, rounded_forecast_time]
         
         rounded_current_time = round_minutes(datetime.datetime.now(self.local_tz), nearest_minute=5)
@@ -922,8 +922,8 @@ class Plant:
     # returns the forecast solar power for the requested time period in 5 minute increments
     def forecast_solar_power(self, forecast_hours_from_now, forecast_start_time=None, forecast_end_time=None):
         if forecast_start_time is not None and forecast_end_time is not None:
-            rounded_start_time = self.round_minutes(forecast_start_time, nearest_minute=5)
-            rounded_end_time = self.round_minutes(forecast_end_time, nearest_minute=5)
+            rounded_start_time = round_minutes(forecast_start_time, nearest_minute=5)
+            rounded_end_time = round_minutes(forecast_end_time, nearest_minute=5)
             forecast_seconds = max((rounded_end_time - rounded_start_time).total_seconds(), 0)
             forecast_hours = forecast_seconds / 3600
             N_5min = max(0, int(forecast_seconds // (5 * 60)))
@@ -955,7 +955,7 @@ class Plant:
 
         # Current time in same timezone
         if forecast_start_time is not None:
-            now = pd.Timestamp(self.round_minutes(forecast_start_time, nearest_minute=5))
+            now = pd.Timestamp(round_minutes(forecast_start_time, nearest_minute=5))
             if df["period_start"].dt.tz is not None and now.tzinfo is None:
                 now = now.tz_localize(df["period_start"].dt.tz)
             elif df["period_start"].dt.tz is not None and now.tzinfo is not None:

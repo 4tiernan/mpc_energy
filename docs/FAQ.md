@@ -14,7 +14,6 @@
 
 Note: If your site is on a demand tarrif, provided you have entered the demand tarrif price ($ / kW peak, not $ / kWh) in the appropriate config entry, the controller will take this into account if it plans on buying power overnight. In order for the controller to plan on buying power during the demand window the sell price must be greater than the expected demand window charge, otherwise it will likely leave just enough energy in the battery to supply the load during the demand window then use from the grid overnight. 
 
-
 #### 5. The controller forecasts a large profit for the day but it doesn't eventuate. 
 The controller uses the Amber price forecasts to estimate profit remaing today and tomorrow. Unfortunately these forecasts are not very accurate, especially when forecasting more than an hour or so into the future. Thus, unfortunately there is not much we can do to improve this.
 
@@ -24,5 +23,10 @@ This error is caused by an update that occoured in the Sigenergy Integration tha
 #### 7. [WARNING] Amber extrapolated forecast required gap fill.
 This warning means we failed to get all the required data for the MPC plan and we are using default values to stitch the plan together. The default values heavily discorage the MPC from interacting with the grid during these times as we don't know what the prices are. 
 
+#### 8. [ERROR] Exceeded AmazonAWS Amber API request rate limit.
+This error occours when too many devices call the Amber API simultaineously. Since version 5, MPC now calls the Amber API much closer to the predicted price ready time meaning it calls the API at the same time everyone else does. Amber host their API through Amazon's AWS service which explains this error. Luckily there is no rate limiting throttle from this and MPC simply waits 1 second and retry's, it repeats this till a price is returned. 
+
+#### 9. Why does the system update the prices 30 seconds after the price period starts?
+Amber don't set the wholesale prices, the Australian Energy Market Opperator (AEMO) does. As a result, when the time changes from say 11:24:59 to 11:25:00 (HH:MM:SS) the price for the old period is invaild and Amber needs to get a new price from AEMO to pass on to customers. This takes almost exactly 30 seconds, I don't know why its takes them that long, either way we're stuck waiting till 30s after the period starts hence the code only begins to try 30s after the start of the period.
 
 ##### Please feel free to pop an issue in with the documentation label if you have issues with something and we can try to improve the docs to help others out who come accross the same issue. 

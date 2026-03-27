@@ -38,7 +38,7 @@ class MPC:
 
         #self.N_5min = self.forecast_hrs * (60 // 5)
 
-        self.load_inflation_percentage = 10 # Percentage to inflate the load forecast by to ensure we don't run out in the morning.
+        self.load_inflation_percentage = 20 # Percentage to inflate the load forecast by to ensure we don't run out in the morning.
 
         self.dt_5min = 5/60      # 5 minutes in hours
 

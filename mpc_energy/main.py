@@ -251,7 +251,8 @@ def check_for_spike(amber_data):
                 logger.warning(spike_message)
                 ha.create_persistent_notification(
                     title="MPC Forecast Feed In Price Spike",
-                    message=spike_message
+                    message=spike_message,
+                    notification_id="mpc_energy_price_spike_warning"
                 )
                 if(config_manager.notification_target_option in ["price_spike_warning", "both"] and config_manager.notification_target != ""):
                     send_mobile_notification(title="MPC Forecast Feed In Price Spike", message=spike_message)

@@ -75,6 +75,7 @@ def start_streamlit_dashboard():
         "--theme.base=light"
     ])
 
+
 def PrintError(e):
     logger.error(f"Exception occoured: {e}")
     if(not isinstance(e, MPCEnergyError)):
@@ -83,8 +84,14 @@ def PrintError(e):
     try:
         ha.create_persistent_notification(
             title="MPC Energy Error",
-            msg=f"An error occurred: {e}. Check the MPC Energy Log for details. If this error persists, try restarting the app. If it still persists after that, please report this issue to the developer with the error message and steps to reproduce."
+            message=f"An error occurred: {e}. Check the MPC Energy Log for details."
         )
+        if(config_manager.notification_target_option in ["error_warning", "both"] and config_manager.notification_target != ""):
+            ha.send_notification(
+                title="MPC Energy Error",
+                message=f"An error occurred: {e}. Check the MPC Energy Log for details.",
+                target=config_manager.notification_target
+            )
     except Exception as notification_error:
         logger.error(f"Failed to create Home Assistant notification for the error. This likely means that the Home Assistant API is down. Check the API and try again. Error creating notification: {notification_error}")
 
@@ -220,6 +227,27 @@ def update_sensors(amber_data):
     set_sensor_if_changed(ha_mqtt.curtailment_status_sensor, int(curtailment_resp['curtailing']))
     set_sensor_if_changed(ha_mqtt.curtailment_reason_sensor, curtailment_resp['reason'])
 
+last_spike_warning_timestamp = 0
+def check_for_spike(amber_data):
+    global last_spike_warning_timestamp
+    if(time.time() - last_spike_warning_timestamp > 60*60): # If it's been more than 60 minutes since the last spike warning, check for new ones
+        for i, feedIn in enumerate(amber_data.feedIn_price_forecast):
+            if(feedIn >= config_manager.spike_price_warning_level): # If the feed in price forecast contains a price above the spike warning level and it's been more than 60 minutes since the last warning, send a new warning
+                last_spike_warning_timestamp = time.time()
+                datetime_of_spike = datetime.datetime.now() + datetime.timedelta(minutes=i*5)
+                spike_time_24h = datetime_of_spike.strftime("%H:%M")
+                logger.warning(f"Feed in price spike forecasted! Upcoming feed in price is {feedIn} c/kWh and will occour at {spike_time_24h}. Check the MPC Energy Log for details.")
+                ha.create_persistent_notification(
+                    title="MPC Forecast Feed In Price Spike",
+                    message=f"A feed in price spike is forecasted! Upcoming feed in price is {feedIn} c/kWh at {spike_time_24h}. Check the MPC Energy Log for details."
+                )
+                if(config_manager.notification_target_option in ["price_spike_warning", "both"] and config_manager.notification_target != ""):
+                    ha.send_notification(
+                        title="MPC Forecast Feed In Price Spike",
+                        message=f"A feed in price spike is forecasted! Upcoming feed in price is {feedIn} c/kWh at {spike_time_24h}. Check the MPC Energy Log for details.",
+                        target=config_manager.notification_target
+                    )
+                break # Only need to send one warning for the entire forecast, so break after the first one is found
 
 def run_controller(price_update=False):
     global automatic_control, last_control_mode
@@ -333,6 +361,7 @@ def main_loop_code():
 
         if(not amber_data.prices_estimated): #If the prices are real
             run_controller(price_update=True) # Send the price update flag to indicate that new pricing data has been received.
+            check_for_spike(amber_data) # Check for any spikes in the feed in price forecast and send warnings if any are found
 
             logger.info(f"General: {amber_data.general_price} c/kWh  Feed In: {amber_data.feedIn_price} c/kWh  Max 12hr Feed In: {amber_data.feedIn_max_forecast_price} c/kWh, {round(next_amber_update_timestamp - time.time())} seconds till next update.")    
             logger.info("....")

@@ -15,6 +15,7 @@
 * Stopped profit sensor calculations from throwing error at midnight
 * Added historical data caching for profit sensor (reduced sensor update time from 11s to <0.1s)
 * Added persistent HA notification if error occours
+* Added mobile notifications for error and spike as well as a HA persistent notification for spikes
 
 ## 0.4.0
 * Added Solar Curtailment Sensor to show when the system is likely curtailing and why

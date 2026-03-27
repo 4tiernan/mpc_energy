@@ -134,23 +134,23 @@ class HomeAssistantAPI:
         url = f"{self.base_url}/api/services/{domain}/{service}"
         return self.ha_request(url=url, data=data, method='post')
 
-    def send_notification(self, title, msg, target):
+    def send_notification(self, title, message, target):
         self.call_service(
             "notify",
             target,
             {
                 "title": title,
-                "message": msg
+                "message": message
             }
         )
 
-    def create_persistent_notification(self, title, msg, notification_id="mpc_energy_error"):
+    def create_persistent_notification(self, title, message, notification_id="mpc_energy_error"):
         return self.call_service(
             "persistent_notification",
             "create",
             {
                 "title": title,
-                "message": msg,
+                "message": message,
                 "notification_id": notification_id
             }
         )

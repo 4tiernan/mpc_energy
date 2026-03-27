@@ -36,6 +36,10 @@ options:
 
   battery_discharge_cost: 7
 
+  spike_price_warning_level: 25
+  notification_target: ""
+  notification_target_option: both
+
   estimated_daily_load_energy_consumption: 24
 
   battery_max_discharge_power_limit_entity_id: "sensor.sigen_plant_ess_rated_discharging_power"
@@ -93,6 +97,10 @@ schema:
   amber_site_id: str?
   amber_demand_price: str?
   battery_discharge_cost: int?
+
+  spike_price_warning_level: int  
+  notification_target: str?
+  notification_target_option: list(price_spike_warning, error_warning, both)
 
   estimated_daily_load_energy_consumption: int
 

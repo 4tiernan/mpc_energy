@@ -23,6 +23,18 @@ configuration:
     name: Battery Discharge Cost (c/kWh)
     description: Effective cost of discharging the battery (Leave at default if unsure).
 
+  spike_price_warning_level:
+    name: Spike Price Warning Level (c/kWh)
+    description: Set a price level at which you want to receive warnings about potential spikes in the feed in price. (Set to 999 to turn off warnings, default is 25c/kWh)
+
+  notification_target:
+    name: Notification Target
+    description: Set this to the HA entity ID of a device you want to receive notifications on for spikes in feed in price, e.g. a mobile phone (notify.mobile_app_pixel_10_pro). (Leave blank to not receive notifications)
+
+  notification_target_option:
+    name: Notification Target Option
+    description: Use this to specify what notifications you would like to receive on the notification target.
+
   estimated_daily_load_energy_consumption:
     name: Estimated Daily Load Energy Consumption (kWh)
     description: Enter your approximate daily energy consumption. (This is used until the system has enough historical data to build a model of your usage which takes 3 days)

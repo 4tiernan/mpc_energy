@@ -293,6 +293,7 @@ def main_loop_code():
 
     if(time.time() >= next_amber_update_timestamp):
         start_timer()
+        mpc.update_forecast_horizon() # Update forecast horizon to ensure it ends at 6am the next next day, (we need the updated forecast horizon before getting the amber data to ensure we get the correct amount of forecast data based on the current time of day)
         if(partial_update):
             amber_data = amber.get_data(
                 partial_update=True,

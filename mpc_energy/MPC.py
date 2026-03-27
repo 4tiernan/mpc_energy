@@ -77,9 +77,36 @@ class MPC:
         self.profit_remaining_today = 0
         self.profit_tomorrow = 0
 
+        self.update_forecast_horizon()
+
         # Build the CVXPY optimisation template once and reuse it on each run.
         # This avoids repeated canonicalization overhead at every control interval.
         self.build_optimisation_template()
+
+    def update_forecast_horizon(self):
+        """
+        Set the MPC horizon to finish at 06:00 on the next-next-next morning
+        in local time (i.e., the third upcoming 06:00 boundary).
+        """
+        
+        now = datetime.now(self.local_tz).replace(second=0, microsecond=0)
+
+        sim_start = round_minutes(time=now, nearest_minute=5) # Round the sim start time to the nearest 5 minutes to ensure the time steps align with the forecast data
+        morning_cutoff = sim_start.replace(hour=6, minute=0)
+        #horizon_end = morning_cutoff + timedelta(days=3)  # 3 mornings from now
+        horizon_end = sim_start + timedelta(hours=72) # Default to 72 hours from now
+
+        horizon_seconds = max((horizon_end - sim_start).total_seconds(), 300)
+        self.sim_start = sim_start
+        self.sim_end = horizon_end
+        self.N_5min = max(1, int(horizon_seconds // (5 * 60)))
+        self.forecast_hrs = self.N_5min * self.dt_5min
+
+        logger.debug(
+            f"MPC forecast horizon set dynamically: {round(self.forecast_hrs, 2)} hrs "
+            f"({self.N_5min}x5min) segments from {self.sim_start.strftime('%Y-%m-%d %H:%M %Z')} "
+            f"to {self.sim_end.strftime('%Y-%m-%d %H:%M %Z')}"
+        )
              
     def update_limits(self):
         # Battery Settings

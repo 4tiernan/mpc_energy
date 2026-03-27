@@ -85,6 +85,7 @@ def send_mobile_notification(title, message):
     except Exception as notification_error:
         logger.error(f"Failed to send mobile notification. This likely means that the notification target is incorrect. Check the notification target and try again. Error sending notification: {notification_error}")
 
+last_error_mobile_notification_timestamp = 0
 def PrintError(e):
     logger.error(f"Exception occoured: {e}")
     if(not isinstance(e, MPCEnergyError)):
@@ -95,9 +96,11 @@ def PrintError(e):
             title="MPC Energy Error",
             message=f"An error occurred: {e}. Check the MPC Energy Log for details."
         )
-        if(config_manager.notification_target_option in ["error_warning", "both"] and config_manager.notification_target != ""):
+        if(config_manager.notification_target_option in ["error_warning", "both"] and config_manager.notification_target != "" and time.time() - last_error_mobile_notification_timestamp > 60*60): # If the user has selected to receive error warnings and it's been more than 60 minutes since the last error notification, send a new one
+            last_error_mobile_notification_timestamp = time.time()
             send_mobile_notification(title="MPC Energy Error", message=f"An error occurred: {e}. Check the MPC Energy Log for details.")
             
+
     except Exception as notification_error:
         logger.error(f"Failed to create Home Assistant notification for the error. This likely means that the Home Assistant API is down. Check the API and try again. Error creating notification: {notification_error}")
 

@@ -239,7 +239,7 @@ def plot_mpc_results(st, output):
         x0 = time_index[start_idx]
         x1 = get_segment_end_time(time_index, end_idx_exclusive)
         segment_x.append(get_segment_midpoint(x0, x1))
-        segment_width.append(x1 - x0)
+        segment_width.append(get_segment_width(x0, x1))
         segment_energy_kwh.append(np.round(grid_energy_kwh[start_idx:end_idx_exclusive].sum(), 2))
 
     fig.add_trace(

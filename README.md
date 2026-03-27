@@ -53,3 +53,9 @@ Do not rely on this app as your sole safety mechanism.
 The software is provided as-is, without warranty of any kind.
 
 [![Open your Home Assistant instance and show the add app repository dialog with a specific repository URL pre-filled.](https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg)](https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2F4tiernan%2Fmpc_energy)
+
+## 🤝 Contributing
+Contributions are welcome! Whether you're fixing bugs, improving the optimisation logic, or enhancing documentation, please feel free to open a Pull Request. For major changes, please open an issue first to discuss what you would like to change.
+
+## 📄 License
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.

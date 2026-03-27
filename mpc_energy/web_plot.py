@@ -57,6 +57,15 @@ def get_segment_midpoint(start_x, end_x):
         return start_x + (end_x - start_x) / 2
     return (start_x + end_x) / 2
 
+def get_segment_width(start_x, end_x):
+    """
+    Plotly Bar.width must be numeric.
+    For datetime x-axes, width is in milliseconds.
+    """
+    if isinstance(start_x, datetime.datetime) and isinstance(end_x, datetime.datetime):
+        return (end_x - start_x).total_seconds() * 1000
+    return end_x - start_x
+
 
 
 def round_to_nearest_5min(dt: datetime) -> datetime:

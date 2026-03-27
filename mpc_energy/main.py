@@ -330,7 +330,7 @@ def main_loop_code():
     plant.update_data() # Update the plant data once for everything else to use.
 
     if(time.time() >= next_amber_update_timestamp):
-        start_timer()
+        #start_timer()
         mpc.update_forecast_horizon() # Update forecast horizon to ensure it ends at 6am the next next day, (we need the updated forecast horizon before getting the amber data to ensure we get the correct amount of forecast data based on the current time of day)
         if(partial_update):
             amber_data = amber.get_data(
@@ -346,7 +346,7 @@ def main_loop_code():
                 sim_end=mpc.sim_end,
             )
         
-        elapsed_time("Amber Data")
+        #elapsed_time("Amber Data")
 
         set_sensor_if_changed(ha_mqtt.estimated_price_status_sensor, int(amber_data.prices_estimated))
 

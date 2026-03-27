@@ -75,6 +75,15 @@ def start_streamlit_dashboard():
         "--theme.base=light"
     ])
 
+def send_mobile_notification(title, message):
+    try:
+        ha.send_notification(
+            title=title,
+            message=message,
+            target=config_manager.notification_target
+        )
+    except Exception as notification_error:
+        logger.error(f"Failed to send mobile notification. This likely means that the notification target is incorrect. Check the notification target and try again. Error sending notification: {notification_error}")
 
 def PrintError(e):
     logger.error(f"Exception occoured: {e}")
@@ -87,11 +96,8 @@ def PrintError(e):
             message=f"An error occurred: {e}. Check the MPC Energy Log for details."
         )
         if(config_manager.notification_target_option in ["error_warning", "both"] and config_manager.notification_target != ""):
-            ha.send_notification(
-                title="MPC Energy Error",
-                message=f"An error occurred: {e}. Check the MPC Energy Log for details.",
-                target=config_manager.notification_target
-            )
+            send_mobile_notification(title="MPC Energy Error", message=f"An error occurred: {e}. Check the MPC Energy Log for details.")
+            
     except Exception as notification_error:
         logger.error(f"Failed to create Home Assistant notification for the error. This likely means that the Home Assistant API is down. Check the API and try again. Error creating notification: {notification_error}")
 
@@ -101,7 +107,7 @@ def FailSafe(e):
     try:
         if(ha_mqtt.automatic_control_switch.state == True):
             EC.self_consumption()
-            logger.warning("Succsesfully put system into safe mode after detecting an error.")        
+            logger.warning("Succsessfully put system into safe mode after detecting an error.")        
     except:
         logger.error("Failed to put system into safe mode after detecting an error.")   
 
@@ -232,21 +238,19 @@ def check_for_spike(amber_data):
     global last_spike_warning_timestamp
     if(time.time() - last_spike_warning_timestamp > 60*60): # If it's been more than 60 minutes since the last spike warning, check for new ones
         for i, feedIn in enumerate(amber_data.feedIn_12hr_forecast):
-            if(feedIn.price >= config_manager.spike_price_warning_level): # If the feed in price forecast contains a price above the spike warning level and it's been more than 60 minutes since the last warning, send a new warning
+            rounded_price = round(feedIn.price)
+            if(rounded_price >= config_manager.spike_price_warning_level): # If the feed in price forecast contains a price above the spike warning level and it's been more than 60 minutes since the last warning, send a new warning
                 last_spike_warning_timestamp = time.time()
                 datetime_of_spike = datetime.datetime.now() + datetime.timedelta(minutes=i*5)
                 spike_time_24h = datetime_of_spike.strftime("%H:%M")
-                logger.warning(f"Feed in price spike forecasted! Upcoming feed in price is {feedIn.price} c/kWh and will occour at {spike_time_24h}. Check the MPC Energy Log for details.")
+                logger.warning(f"Feed in price spike forecasted! Upcoming feed in price is {rounded_price} c/kWh and will occur at {spike_time_24h}. Check the MPC Energy Log for details.")
                 ha.create_persistent_notification(
                     title="MPC Forecast Feed In Price Spike",
-                    message=f"A feed in price spike is forecasted! Upcoming feed in price is {feedIn.price} c/kWh at {spike_time_24h}. Check the MPC Energy Log for details."
+                    message=f"A feed in price spike is forecasted! Upcoming feed in price is {rounded_price} c/kWh at {spike_time_24h}. Check the MPC Energy Log for details."
                 )
                 if(config_manager.notification_target_option in ["price_spike_warning", "both"] and config_manager.notification_target != ""):
-                    ha.send_notification(
-                        title="MPC Forecast Feed In Price Spike",
-                        message=f"A feed in price spike is forecasted! Upcoming feed in price is {feedIn.price} c/kWh at {spike_time_24h}. Check the MPC Energy Log for details.",
-                        target=config_manager.notification_target
-                    )
+                    send_mobile_notification(title="MPC Forecast Feed In Price Spike", message=f"A feed in price spike is forecasted! Upcoming feed in price is {rounded_price} c/kWh at {spike_time_24h}. Check the MPC Energy Log for details.")
+                    
                 break # Only need to send one warning for the entire forecast, so break after the first one is found
 
 def run_controller(price_update=False):

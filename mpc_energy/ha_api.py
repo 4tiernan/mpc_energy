@@ -135,9 +135,25 @@ class HomeAssistantAPI:
         return self.ha_request(url=url, data=data, method='post')
 
     def send_notification(self, title, message, target):
+        if not target:
+            raise HAAPIError("Notification target is empty. Please set a valid Home Assistant notify service.")
+
+        # Supports both "mobile_app_phone_name" and "notify.mobile_app_phone_name".
+        target = str(target).strip()
+        if target.startswith("notify."):
+            service = target.split(".", 1)[1]
+        else:
+            service = target
+
+        if not service:
+            raise HAAPIError(
+                f"Invalid notification target '{target}'. Expected format like "
+                "'mobile_app_pixel_10_pro' or 'notify.mobile_app_pixel_10_pro'."
+            )
+        
         self.call_service(
             "notify",
-            target,
+            service,
             {
                 "title": title,
                 "message": message

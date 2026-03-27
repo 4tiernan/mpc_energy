@@ -17,7 +17,7 @@ def start_timer():
 def elapsed_time(code_block_name="Code Block"):
     global start_time
     elapsed = time.time() - start_time
-    logger.info(f"{code_block_name} took {round(elapsed, 2)} seconds")
+    logger.debug(f"{code_block_name} took {round(elapsed, 2)} seconds")
     start_time = time.time()
     return elapsed
 
@@ -330,7 +330,7 @@ def main_loop_code():
     plant.update_data() # Update the plant data once for everything else to use.
 
     if(time.time() >= next_amber_update_timestamp):
-        #start_timer()
+        start_timer()
         mpc.update_forecast_horizon() # Update forecast horizon to get the start and end times of the plan (to feed into the amber API call)
         if(partial_update):
             amber_data = amber.get_data(
@@ -346,7 +346,7 @@ def main_loop_code():
                 sim_end=mpc.sim_end,
             )
         
-        #elapsed_time("Amber Data")
+        elapsed_time("Amber Data")
 
         set_sensor_if_changed(ha_mqtt.estimated_price_status_sensor, int(amber_data.prices_estimated))
 

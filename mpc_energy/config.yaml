@@ -1,6 +1,6 @@
 name: "MPC Energy Dev"
 description: "A profit optimiser for home batteries with wholesale electricity pricing."
-version: "0.4.89"
+version: "0.4.90"
 slug: "mpc_energy"
 url: "https://github.com/4tiernan/mpc_energy"
 init: false
@@ -38,7 +38,7 @@ options:
 
   spike_price_warning_level: 25
   notification_target: ""
-  notification_target_option: both
+  notification_target_option: none
 
   estimated_daily_load_energy_consumption: 24
 
@@ -100,7 +100,7 @@ schema:
 
   spike_price_warning_level: int  
   notification_target: str?
-  notification_target_option: list(price_spike_warning, error_warning, both)
+  notification_target_option: list(none, price_spike_warning, error_warning, both)
 
   estimated_daily_load_energy_consumption: int
 

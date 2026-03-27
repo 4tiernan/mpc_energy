@@ -231,20 +231,20 @@ last_spike_warning_timestamp = 0
 def check_for_spike(amber_data):
     global last_spike_warning_timestamp
     if(time.time() - last_spike_warning_timestamp > 60*60): # If it's been more than 60 minutes since the last spike warning, check for new ones
-        for i, feedIn in enumerate(amber_data.feedIn_price_forecast):
-            if(feedIn >= config_manager.spike_price_warning_level): # If the feed in price forecast contains a price above the spike warning level and it's been more than 60 minutes since the last warning, send a new warning
+        for i, feedIn in enumerate(amber_data.feedIn_12hr_forecast):
+            if(feedIn.price >= config_manager.spike_price_warning_level): # If the feed in price forecast contains a price above the spike warning level and it's been more than 60 minutes since the last warning, send a new warning
                 last_spike_warning_timestamp = time.time()
                 datetime_of_spike = datetime.datetime.now() + datetime.timedelta(minutes=i*5)
                 spike_time_24h = datetime_of_spike.strftime("%H:%M")
-                logger.warning(f"Feed in price spike forecasted! Upcoming feed in price is {feedIn} c/kWh and will occour at {spike_time_24h}. Check the MPC Energy Log for details.")
+                logger.warning(f"Feed in price spike forecasted! Upcoming feed in price is {feedIn.price} c/kWh and will occour at {spike_time_24h}. Check the MPC Energy Log for details.")
                 ha.create_persistent_notification(
                     title="MPC Forecast Feed In Price Spike",
-                    message=f"A feed in price spike is forecasted! Upcoming feed in price is {feedIn} c/kWh at {spike_time_24h}. Check the MPC Energy Log for details."
+                    message=f"A feed in price spike is forecasted! Upcoming feed in price is {feedIn.price} c/kWh at {spike_time_24h}. Check the MPC Energy Log for details."
                 )
                 if(config_manager.notification_target_option in ["price_spike_warning", "both"] and config_manager.notification_target != ""):
                     ha.send_notification(
                         title="MPC Forecast Feed In Price Spike",
-                        message=f"A feed in price spike is forecasted! Upcoming feed in price is {feedIn} c/kWh at {spike_time_24h}. Check the MPC Energy Log for details.",
+                        message=f"A feed in price spike is forecasted! Upcoming feed in price is {feedIn.price} c/kWh at {spike_time_24h}. Check the MPC Energy Log for details.",
                         target=config_manager.notification_target
                     )
                 break # Only need to send one warning for the entire forecast, so break after the first one is found

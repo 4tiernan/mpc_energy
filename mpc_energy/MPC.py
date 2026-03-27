@@ -32,13 +32,13 @@ class MPC:
         self.update_limits()    # Update fixed limits (some are required for config)
 
         # ---------- Config ----------
-        #self.forecast_hrs = 48
+        self.forecast_hrs = 72
         self.steps_per_price = 30 // 5  # = 6
         self.steps_per_hr = 60 // 5
 
         #self.N_5min = self.forecast_hrs * (60 // 5)
 
-        self.load_inflation_percentage = 10 # Percentage to inflate the load forecast by to ensure we don't run out in the morning.
+        self.load_inflation_percentage = 20 # Percentage to inflate the load forecast by to ensure we don't run out in the morning.
 
         self.dt_5min = 5/60      # 5 minutes in hours
 
@@ -94,7 +94,7 @@ class MPC:
         sim_start = round_minutes(time=now, nearest_minute=5) # Round the sim start time to the nearest 5 minutes to ensure the time steps align with the forecast data
         morning_cutoff = sim_start.replace(hour=6, minute=0)
         #horizon_end = morning_cutoff + timedelta(days=3)  # 3 mornings from now
-        horizon_end = sim_start + timedelta(hours=48) # Default to 48 hours from now
+        horizon_end = sim_start + timedelta(hours=72) # Default to 72 hours from now
 
         horizon_seconds = max((horizon_end - sim_start).total_seconds(), 300)
         self.sim_start = sim_start
@@ -104,8 +104,7 @@ class MPC:
 
         logger.debug(
             f"MPC forecast horizon set dynamically: {round(self.forecast_hrs, 2)} hrs "
-            f"({self.N_5min}x5min) ending at {horizon_end.strftime('%Y-%m-%d %H:%M %Z')}"
-            f"({self.N_5min}x5min) from {self.sim_start.strftime('%Y-%m-%d %H:%M %Z')} "
+            f"({self.N_5min}x5min) segments from {self.sim_start.strftime('%Y-%m-%d %H:%M %Z')} "
             f"to {self.sim_end.strftime('%Y-%m-%d %H:%M %Z')}"
         )
              

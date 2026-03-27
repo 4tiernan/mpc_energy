@@ -100,7 +100,7 @@ schema:
 
   spike_price_warning_level: int  
   notification_target: str?
-  notification_target_option: list(none, price_spike_warning, error_warning, both)
+  notification_target_option: list(none|price_spike_warning|error_warning|both)
 
   estimated_daily_load_energy_consumption: int
 

@@ -244,15 +244,17 @@ def check_for_spike(amber_data):
             rounded_price = round(feedIn.price)
             if(rounded_price >= config_manager.spike_price_warning_level): # If the feed in price forecast contains a price above the spike warning level and it's been more than 60 minutes since the last warning, send a new warning
                 last_spike_warning_timestamp = time.time()
-                datetime_of_spike = datetime.datetime.now() + datetime.timedelta(minutes=i*5)
+                datetime_of_spike = amber_data.feedIn_12hr_forecast[0].time + datetime.timedelta(minutes=i*5)
                 spike_time_24h = datetime_of_spike.strftime("%H:%M")
-                logger.warning(f"Feed in price spike forecasted! Upcoming feed in price is {rounded_price} c/kWh and will occur at {spike_time_24h}. Check the MPC Energy Log for details.")
+
+                spike_message = f"Feed in price spike forecasted! Upcoming feed in price is {rounded_price} c/kWh and will occur at {spike_time_24h}."
+                logger.warning(spike_message)
                 ha.create_persistent_notification(
                     title="MPC Forecast Feed In Price Spike",
-                    message=f"A feed in price spike is forecasted! Upcoming feed in price is {rounded_price} c/kWh at {spike_time_24h}. Check the MPC Energy Log for details."
+                    message=spike_message
                 )
                 if(config_manager.notification_target_option in ["price_spike_warning", "both"] and config_manager.notification_target != ""):
-                    send_mobile_notification(title="MPC Forecast Feed In Price Spike", message=f"A feed in price spike is forecasted! Upcoming feed in price is {rounded_price} c/kWh at {spike_time_24h}. Check the MPC Energy Log for details.")
+                    send_mobile_notification(title="MPC Forecast Feed In Price Spike", message=spike_message)
                     
                 break # Only need to send one warning for the entire forecast, so break after the first one is found
 

@@ -62,7 +62,7 @@ class Plant:
                      f"Max Inverter: {self.max_inverter_power} kW | "
                      f"Max Export: {self.max_export_power} kW | "
                      f"Max Import: {self.max_import_power} kW | "
-                     f"Backup Buffer: {self.kwh_backup_buffer} kWh | "
+                     f"Backup Buffer: {self.kwh_backup_buffer} kWh"
                 )
 
     def get_sigenergy_state(self, entity_id):

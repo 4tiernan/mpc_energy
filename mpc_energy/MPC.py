@@ -92,7 +92,7 @@ class MPC:
         now = datetime.now(self.local_tz).replace(second=0, microsecond=0)
 
         sim_start = round_minutes(time=now, nearest_minute=5) # Round the sim start time to the nearest 5 minutes to ensure the time steps align with the forecast data
-        morning_cutoff = sim_start.replace(hour=6, minute=0)
+        #morning_cutoff = sim_start.replace(hour=6, minute=0)
         #horizon_end = morning_cutoff + timedelta(days=3)  # 3 mornings from now
         horizon_end = sim_start + timedelta(hours=72) # Default to 72 hours from now
 
@@ -103,7 +103,7 @@ class MPC:
         self.forecast_hrs = self.N_5min * self.dt_5min
 
         logger.debug(
-            f"MPC forecast horizon set dynamically: {round(self.forecast_hrs, 2)} hrs "
+            f"MPC forecast horizon set to {round(self.forecast_hrs, 2)} hrs "
             f"({self.N_5min}x5min) segments from {self.sim_start.strftime('%Y-%m-%d %H:%M %Z')} "
             f"to {self.sim_end.strftime('%Y-%m-%d %H:%M %Z')}"
         )

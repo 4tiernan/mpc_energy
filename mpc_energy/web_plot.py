@@ -294,7 +294,7 @@ def plot_mpc_results(st, output):
 
     fig.update_yaxes(
         title_text="Grid Energy (kWh / segment)",
-        showticks=False,
+        showticklabels=False,
         zeroline=True,
         zerolinewidth=2,
         zerolinecolor="black",

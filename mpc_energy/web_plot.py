@@ -262,7 +262,8 @@ def plot_mpc_results(st, output):
     fig.update_yaxes(
         title_text="Grid Energy (kWh / segment)",
         row=3,
-        col=1
+        col=1,
+        secondary_y=True
     )
 
     fig.update_yaxes(
@@ -272,6 +273,7 @@ def plot_mpc_results(st, output):
         row=3,
         col=1,
         title="Control Mode",
+        secondary_y=False
     )
     
 
@@ -292,6 +294,7 @@ def plot_mpc_results(st, output):
 
     fig.update_yaxes(
         title_text="Grid Energy (kWh / segment)",
+        showticks=False,
         zeroline=True,
         zerolinewidth=2,
         zerolinecolor="black",

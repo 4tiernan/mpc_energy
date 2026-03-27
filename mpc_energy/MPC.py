@@ -104,8 +104,7 @@ class MPC:
 
         logger.debug(
             f"MPC forecast horizon set dynamically: {round(self.forecast_hrs, 2)} hrs "
-            f"({self.N_5min}x5min) ending at {horizon_end.strftime('%Y-%m-%d %H:%M %Z')}"
-            f"({self.N_5min}x5min) from {self.sim_start.strftime('%Y-%m-%d %H:%M %Z')} "
+            f"({self.N_5min}x5min) segments from {self.sim_start.strftime('%Y-%m-%d %H:%M %Z')} "
             f"to {self.sim_end.strftime('%Y-%m-%d %H:%M %Z')}"
         )
              

@@ -1,5 +1,5 @@
 ## 0.5.0
-* Increased MPC forecast horizon to 48hrs and added dynamic extension up to 72hrs to ensure overnight load is considered
+* Increased MPC forecast horizon to 72hrs
 * Implemented warm start for MPC to improve solve time (for RPI, solve times went from 25 sec to <1 sec!! with 48hr horizon)
 * Added price forecast uncertainty consideration in MPC plan.
 * Fixed issue causing battery discharge cost input not adjusting MPC behaviour

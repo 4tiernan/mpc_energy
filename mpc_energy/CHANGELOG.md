@@ -1,3 +1,5 @@
+## 0.6.0
+
 ## 0.5.0
 * Increased MPC forecast horizon to 72hrs
 * Implemented warm start for MPC to improve solve time (for RPI, solve times went from 25 sec to <1 sec!! with 48hr horizon, approx 1-2 sec for 72hr)

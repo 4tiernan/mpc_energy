@@ -237,17 +237,24 @@ def update_sensors(amber_data):
     set_sensor_if_changed(ha_mqtt.curtailment_reason_sensor, curtailment_resp['reason'])
 
 last_spike_warning_timestamp = 0
+spike_found_timestamp = 0
 def check_for_spike(amber_data):
-    global last_spike_warning_timestamp
+    global last_spike_warning_timestamp, spike_found_timestamp
     if(time.time() - last_spike_warning_timestamp > 60*60): # If it's been more than 60 minutes since the last spike warning, check for new ones
-        for i, feedIn in enumerate(amber_data.feedIn_12hr_forecast):
-            rounded_price = round(feedIn.price)
-            if(rounded_price >= config_manager.spike_price_warning_level): # If the feed in price forecast contains a price above the spike warning level and it's been more than 60 minutes since the last warning, send a new warning
+        for i, feedIn in enumerate(amber_data.feedIn_12hr_forecast[0:(1*(60//5))]): # Only check for spiks in the next hour
+            if(round(feedIn.price) > max_price):
+                max_price = round(feedIn.price)
+
+        if(max_price >= config_manager.spike_price_warning_level): # If the feed in price forecast contains a price above the spike warning level and it's been more than 60 minutes since the last warning, send a new warning
+            if(spike_found_timestamp == 0): # If we haven't already recorded the time that the spike was found, do so now to start the 9 minute timer
+                spike_found_timestamp = time.time()
+
+            if(time.time() - spike_found_timestamp > 9*60): # If the spike has been present in the forecast for over 9 minutes, notify
                 last_spike_warning_timestamp = time.time()
                 datetime_of_spike = mpc.sim_start + datetime.timedelta(minutes=i*5)
                 spike_time_24h = datetime_of_spike.strftime("%H:%M")
 
-                spike_message = f"Feed in price spike forecasted! Upcoming feed in price is {rounded_price} c/kWh and will occur at {spike_time_24h}."
+                spike_message = f"Feed in price spike forecasted! Upcoming feed in price is {max_price} c/kWh and will occur at {spike_time_24h}."
                 logger.warning(spike_message)
                 ha.create_persistent_notification(
                     title="MPC Forecast Feed In Price Spike",
@@ -255,9 +262,11 @@ def check_for_spike(amber_data):
                     notification_id="mpc_energy_price_spike_warning"
                 )
                 if(config_manager.notification_target_option in ["price_spike_warning", "both"] and config_manager.notification_target != ""):
-                    send_mobile_notification(title="MPC Forecast Feed In Price Spike", message=spike_message)
-                    
-                break # Only need to send one warning for the entire forecast, so break after the first one is found
+                    send_mobile_notification(title="MPC Forecast Feed In Price Spike", message=spike_message)   
+            
+        else:
+            spike_found_timestamp = 0 # Reset the spike found timestamp if no spikes are currently forecasted
+                
 
 def run_controller(price_update=False):
     global automatic_control, last_control_mode

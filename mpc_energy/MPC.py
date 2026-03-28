@@ -1,19 +1,19 @@
-#pip install ecos
-#pip install cvxpy numpy pandas
+import math
+
 import numpy as np
 import cvxpy as cp
-import matplotlib.pyplot as plt
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
-import matplotlib.dates as mdates
 import time
 from energy_controller import ControlMode
 from mpc_logger import logger
+import warnings
 
 import json
 import paho.mqtt.client as mqtt
 import const
 import config_manager
+from helper_functions import round_minutes
 
 mqtt_client = mqtt.Client()
 mqtt_client.username_pw_set(config_manager.MQTT_USER, config_manager.MQTT_PASS) 
@@ -32,33 +32,82 @@ class MPC:
         self.update_limits()    # Update fixed limits (some are required for config)
 
         # ---------- Config ----------
-        self.forecast_hrs = 24
+        self.forecast_hrs = 72
         self.steps_per_price = 30 // 5  # = 6
         self.steps_per_hr = 60 // 5
 
-        self.N_30min = self.forecast_hrs * (60 // 30) # forecast hours, 5-min timesteps
-        self.N_5min = self.forecast_hrs * (60 // 5)
-        self.amber_forecast_30min_intervals = (60//30)*12    # Get the max 12hr forecast
-        self.amber_past_30min_intervals = self.N_30min - self.amber_forecast_30min_intervals  # Fill the rest of the sim with past prices
-        self.amber_5min_intervals = (60//5)*12
+        #self.N_5min = self.forecast_hrs * (60 // 5)
 
-        self.load_inflation_percentage = 10 # Percentage to inflate the load forecast by to ensure we don't run out in the morning.
+        self.load_inflation_percentage = 20 # Percentage to inflate the load forecast by to ensure we don't run out in the morning.
 
         self.dt_5min = 5/60      # 5 minutes in hours
 
         # Reward and penalty settings
         self.discharge_efficiency = 0.95
-        self.battery_min_export_cost = 0.07  # $/kWh (Export will only occour ABOVE this value)
         self.grid_import_penalty_cost = 0.03 # $/kWh penalty for using grid power
-        self.full_battery_reward = 0.03  # $/kWh — tune this value to encourage the battery to be full by the end of the solar day
-        self.maintain_soc_reward = 0 #0.0002 # $/kWh / interval reward for maintaining higher SOC throughout the day
+        self.full_battery_reward = 0.03  # $/kWh — use this value to encourage the battery to be full by the end of the solar day
+        self.charge_maintain_reward = 0.01 / (self.steps_per_hr*self.battery_capacity) # $/kWh / interval reward for maintaining higher SOC throughout the day, currently equates to 1c total over the whole day
         self.demand_tarrif = demand_tarrif # True if the selected site has a demand tarrif applied
         self.current_effective_price = 0 # Set to zero until we run an optimisation and determine the current effective price based on the MPC plan and current conditions
+        
+
+
+        # User configured values
+        self.battery_min_export_cost = config_manager.battery_discharge_cost/100  # $/kWh (Export will only occour ABOVE this value)
+        logger.debug(f"Battery discharge cost set to: {self.battery_min_export_cost} $/kWh")
+        if(self.battery_min_export_cost < 0 or self.battery_min_export_cost > 1):
+            logger.warning(f"Battery discharge cost of {self.battery_min_export_cost} $/kWh seems very high or low, please ensure this value is correct to avoid unexpected behaviour.")
+
+        # Forecast uncertainty tuning. These intentionally bias decisions toward near-term certainty.
+        # Set to 0 to disable.
+        self.buy_price_uncertainty_premium_per_hour = 1      # +%/hr applied to future buy prices
+        self.sell_price_uncertainty_discount_per_hour = 1    # -%/hr applied to future sell prices
+        self.max_price_uncertainty_adjustment = 30           # Cap the absolute buy/sell adjustment (+/-30%)
+
+        logger.debug(f"Forecast uncertainty: Buy premium: {self.buy_price_uncertainty_premium_per_hour} %/hr, Sell discount: {self.sell_price_uncertainty_discount_per_hour} %/hr, Max adjustment: {self.max_price_uncertainty_adjustment} %")
+        
+        if(self.buy_price_uncertainty_premium_per_hour < 0 or self.buy_price_uncertainty_premium_per_hour > 100):
+            logger.warning(f"Buy price uncertainty premium of {self.buy_price_uncertainty_premium_per_hour} %/hr seems very high or low, please ensure this value is correct to avoid unexpected behaviour.")
+        if(self.sell_price_uncertainty_discount_per_hour < 0 or self.sell_price_uncertainty_discount_per_hour > 100):
+            logger.warning(f"Sell price uncertainty discount of {self.sell_price_uncertainty_discount_per_hour} %/hr seems very high or low, please ensure this value is correct to avoid unexpected behaviour.")
+        if(self.max_price_uncertainty_adjustment < 0 or self.max_price_uncertainty_adjustment > 100):
+            logger.warning(f"Max price uncertainty adjustment of {self.max_price_uncertainty_adjustment} % seems very high or low, please ensure this value is correct to avoid unexpected behaviour.")
 
         # Profit Variables
         self.profit_remaining_today = 0
         self.profit_tomorrow = 0
+
+        self.update_forecast_horizon()
+
+        # Build the CVXPY optimisation template once and reuse it on each run.
+        # This avoids repeated canonicalization overhead at every control interval.
+        self.build_optimisation_template()
+
+    def update_forecast_horizon(self):
+        """
+        Set the MPC horizon to finish at 06:00 on the next-next-next morning
+        in local time (i.e., the third upcoming 06:00 boundary).
+        """
         
+        now = datetime.now(self.local_tz).replace(second=0, microsecond=0)
+
+        sim_start = round_minutes(time=now, nearest_minute=5) # Round the sim start time to the nearest 5 minutes to ensure the time steps align with the forecast data
+        #morning_cutoff = sim_start.replace(hour=6, minute=0)
+        #horizon_end = morning_cutoff + timedelta(days=3)  # 3 mornings from now
+        horizon_end = sim_start + timedelta(hours=72) # Default to 72 hours from now
+
+        horizon_seconds = max((horizon_end - sim_start).total_seconds(), 300)
+        self.sim_start = sim_start
+        self.sim_end = horizon_end
+        self.N_5min = max(1, int(horizon_seconds // (5 * 60)))
+        self.forecast_hrs = self.N_5min * self.dt_5min
+
+        logger.debug(
+            f"MPC forecast horizon set to {round(self.forecast_hrs, 2)} hrs "
+            f"({self.N_5min}x5min) segments from {self.sim_start.strftime('%Y-%m-%d %H:%M %Z')} "
+            f"to {self.sim_end.strftime('%Y-%m-%d %H:%M %Z')}"
+        )
+             
     def update_limits(self):
         # Battery Settings
         self.battery_capacity = self.plant.rated_capacity  # kWh
@@ -73,24 +122,34 @@ class MPC:
         self.grid_export_limit = self.plant.max_export_power    # kW (Grid export limit)      
 
     # Update any values or forecasts required to run the sim
-    def update_values(self, amber_data, inject_real_values = True):   
+    def update_values(self, amber_data, inject_real_values = True):
         self.update_limits() # Update the limits in case the user has changed any config values that affect the limits since the last update
         
         current_soc = (self.plant.battery_soc / 100)*self.soc_max
         self.soc_init = min(max(current_soc, self.soc_min), self.soc_max) #constrain the soc to within limits to stop solver from doing weird stuff
 
         # ---------- Historical Data ---------- 
-        self.historical_data = self.plant.historical_data(hours=6) # Get the last 6 hours of historical data
+        #self.historical_data = self.plant.historical_data(hours=6) # Get the last 6 hours of historical data (Primarily used for displaying historical data on plot)
+        self.historical_data = self.plant.historical_data(hours=0.25)
         self.daily_profit = self.plant.daily_net_profit
         
         # ---------- Forecasts ----------
         # Load Forecast
-        load_power_states = self.plant.forecast_load_power(forecast_hours_from_now=self.forecast_hrs) # Calculate the average load power
+        load_power_states = self.plant.forecast_load_power(
+            forecast_hours_from_now=self.forecast_hrs,
+            forecast_start_time=self.sim_start,
+            forecast_end_time=self.sim_end,
+        )
+
         self.load_5min = [powerstate.avg_state*(1+self.load_inflation_percentage/100.0) for powerstate in load_power_states]
         
         
         # Solar Forecast
-        self.solar_5min = self.plant.forecast_solar_power(forecast_hours_from_now=self.forecast_hrs)
+        self.solar_5min = self.plant.forecast_solar_power(
+            forecast_hours_from_now=self.forecast_hrs,
+            forecast_start_time=self.sim_start,
+            forecast_end_time=self.sim_end,
+        )
 
         # Inject the current real load and solar values into the sim
         if(inject_real_values):
@@ -112,23 +171,114 @@ class MPC:
         
 
         # Amber Forecast (forecast hrs is set in main.py in the get_data call)
-        self.demand_tarrif_price = amber_data.demand_tarrif_price
-        general_price_forecast = amber_data.general_extrapolated_forecast
-        feed_in_price_forecast = amber_data.feedIn_extrapolated_forecast
-        self.demand_window_forecast = np.array(amber_data.demand_window_extrapolated_forecast, dtype=float)
+        self.demand_tarrif_price = amber_data.demand_tarrif_price if amber_data.demand_tarrif_price is not None else 0.0
+        general_price_forecast = amber_data.general_extrapolated_forecast[:int(self.N_5min)]
+        feed_in_price_forecast = amber_data.feedIn_extrapolated_forecast[:int(self.N_5min)]
+        self.demand_window_forecast = np.array(amber_data.demand_window_extrapolated_forecast[:int(self.N_5min)], dtype=float)
 
         # Convert to $/kWh
         self.prices_buy = np.array(general_price_forecast) / 100      # buy price in $ from cents
         self.prices_sell  = np.array(feed_in_price_forecast) / 100      # sell price in $ from cents
 
+        # Build uncertainty-adjusted prices so near-term intervals are valued more than
+        # far-future forecast intervals (which are less reliable).
+        hours_from_now = np.arange(int(self.N_5min)) * self.dt_5min
+        buy_price_uncertainty_factor = np.minimum(
+            1 + (hours_from_now * (self.buy_price_uncertainty_premium_per_hour/100)),
+            1 + (self.max_price_uncertainty_adjustment/100)
+        )
+        sell_price_uncertainty_factor = np.maximum(
+            1 - (hours_from_now * (self.sell_price_uncertainty_discount_per_hour/100)),
+            1 - (self.max_price_uncertainty_adjustment/100)
+        )
+
+        self.effective_prices_buy = np.multiply(self.prices_buy, buy_price_uncertainty_factor)
+        self.effective_prices_sell = np.multiply(self.prices_sell, sell_price_uncertainty_factor)
+
+        self.effective_prices_sell = self.effective_prices_sell - 0.0001 # Decrease prices slightly to discorage selling at a zero price
+
         #self.prices_buy[0:5] = 0.03 #Testing
         #self.prices_sell[0:5] = 0.01
         #self.soc_init = 0.95*self.soc_max
 
+    def build_optimisation_template(self):
+        n = int(self.N_5min)
+
+        # Variables
+        self.p_charge = cp.Variable(n, nonneg=True)
+        self.p_discharge = cp.Variable(n, nonneg=True)
+        self.soc = cp.Variable(n + 1)
+        self.solar_used = cp.Variable(n, nonneg=True)
+        self.solar_curtail = cp.Variable(n, nonneg=True)
+        self.grid_import = cp.Variable(n, nonneg=True)
+        self.grid_export = cp.Variable(n, nonneg=True)
+        self.peak_demand = cp.Variable(nonneg=True)
+        self.inverter_power = cp.Variable(n)
+
+        # Parameters (updated every run)
+        self.soc_init_param = cp.Parameter(nonneg=True, name="soc_init")
+        self.solar_forecast_param = cp.Parameter(n, nonneg=True, name="solar_forecast")
+        self.load_forecast_param = cp.Parameter(n, nonneg=True, name="load_forecast")
+        self.price_buy_param = cp.Parameter(n, name="price_buy")
+        self.price_sell_param = cp.Parameter(n, name="price_sell")
+        self.demand_mask_param = cp.Parameter(n, nonneg=True, name="demand_mask")
+        self.solar_eod_reward_mask_param = cp.Parameter(n, nonneg=True, name="solar_eod_reward_mask")
+
+        self.grid_import_limit_param = cp.Parameter(nonneg=True, name="grid_import_limit")
+        self.grid_export_limit_param = cp.Parameter(nonneg=True, name="grid_export_limit")
+        self.p_max_charge_param = cp.Parameter(nonneg=True, name="p_max_charge")
+        self.p_max_discharge_param = cp.Parameter(nonneg=True, name="p_max_discharge")
+        self.inverter_p_max_param = cp.Parameter(nonneg=True, name="inverter_p_max")
+        self.solar_dc_max_param = cp.Parameter(nonneg=True, name="solar_dc_max")
+        self.soc_min_param = cp.Parameter(nonneg=True, name="soc_min")
+        self.soc_max_param = cp.Parameter(nonneg=True, name="soc_max")
+        self.demand_peak_price_param = cp.Parameter(nonneg=True, name="demand_peak_price")
+
+        # Vectorized constraints
+        constraints = [
+            self.soc[0] == self.soc_init_param,
+            self.soc[1:] == self.soc[:-1] + self.dt_5min * self.discharge_efficiency * self.p_charge - self.dt_5min / self.discharge_efficiency * self.p_discharge,
+            self.soc[1:] >= self.soc_min_param,
+            self.soc[1:] <= self.soc_max_param,
+            self.p_charge <= self.p_max_charge_param,
+            self.p_discharge <= self.p_max_discharge_param,
+            self.solar_used <= self.solar_forecast_param,
+            self.solar_used <= self.solar_dc_max_param,
+            self.solar_used + self.solar_curtail == self.solar_forecast_param,
+            self.solar_used + self.p_discharge == self.p_charge + self.inverter_power,
+            self.grid_import + self.inverter_power == self.load_forecast_param + self.grid_export,
+            self.grid_import <= self.grid_import_limit_param,
+            self.grid_export <= self.grid_export_limit_param,
+            self.inverter_power <= self.inverter_p_max_param,
+            self.inverter_power >= -self.inverter_p_max_param,
+            self.peak_demand >= cp.multiply(self.demand_mask_param, self.grid_import),
+        ]
+
+        objective_list = (
+            cp.multiply(self.grid_import, self.price_buy_param) * self.dt_5min
+            - cp.multiply(self.grid_export, self.price_sell_param) * self.dt_5min
+            + cp.multiply(self.grid_import, self.grid_import_penalty_cost) * self.dt_5min
+            + cp.multiply(self.battery_min_export_cost, self.p_discharge) * self.dt_5min
+            - cp.multiply(self.charge_maintain_reward, self.soc[0:-1])
+            - cp.multiply(self.full_battery_reward, cp.multiply(self.solar_eod_reward_mask_param, self.soc[0:-1]))
+        )
+
+        self.objective_expression = (
+            cp.sum(objective_list)
+            + self.peak_demand * self.demand_peak_price_param # not summed as it's a single peak charge
+        )
+
+        self.prob = cp.Problem(cp.Minimize(self.objective_expression), constraints)
+
     def run_optimisation(self, amber_data):
+        start_optimisation = time.time()
+
         self.update_values(amber_data)
 
-        self.prices_sell = self.prices_sell - 0.0001 # Not sure what this is for
+        now = datetime.now(self.local_tz).replace(second=0, microsecond=0)
+        minute = (now.minute // 5) * 5
+        now = now.replace(minute=minute)
+        time_index = [now + timedelta(minutes=5 * i) for i in range(int(self.N_5min))]
 
         #logger.error("Messing with prices!!")
         #self.prices_sell[180:] = 0.02 # Allow testing of various pricings
@@ -141,136 +291,96 @@ class MPC:
         #self.prices_sell[100:120] = 10 # Allow testing of various pricings
         #self.prices_buy[100:120] = 11
 
-        start = time.time()
-        # ----------- Variables -----------
-        # Battery
-        p_charge = cp.Variable(int(self.N_5min), nonneg=True)
-        p_discharge = cp.Variable(int(self.N_5min), nonneg=True)
-        soc = cp.Variable(int(self.N_5min)+1)
-
-        # Solar
-        solar_used = cp.Variable(int(self.N_5min), nonneg=True) # Solar used out of the forecast value (allows for curtailment)
-        solar_curtail = cp.Variable(int(self.N_5min), nonneg=True) # Approximate amount of curtailment occouring
-
-
-        # Grid import/export
-        grid_import = cp.Variable(int(self.N_5min), nonneg=True)
-        grid_export = cp.Variable(int(self.N_5min), nonneg=True)
-
-        # Peak Demand Charge (if demand tarrif is applied)
-        peak_demand = cp.Variable(nonneg=True) # Variable to represent the peak demand in the demand window, used for demand tarrif calculation.
-
-        # Inverter
-        inverter_power = cp.Variable(int(self.N_5min), nonneg=False) # Discharge to grid is positive
-
-        # ----------- Constraints -----------
-        constraints = []
-        constraints += [soc[0] == self.soc_init] # Set the inital soc 
-        #constraints += [soc[-1] == min(self.soc_max*0.99, self.soc_init)] # Set the final soc to be close to the starting soc but limit to ensure possibility
-
-        for t in range(int(self.N_5min)):
-            # SoC dynamics
-            constraints += [soc[t+1] == soc[t] + self.dt_5min * self.discharge_efficiency * p_charge[t] 
-                            - self.dt_5min / self.discharge_efficiency * p_discharge[t]]
-            # SoC limits
-            constraints += [soc[t+1] >= self.soc_min, soc[t+1] <= self.soc_max]
-
-            # Battery Power limits
-            constraints += [p_charge[t] <= self.p_max_charge]
-            constraints += [p_discharge[t] <= self.p_max_discharge]
-
-            # DC Solar Limits
-            constraints += [solar_used[t] <= self.solar_5min[t],    # Solar cannot exceed forecast
-                            solar_used[t] <= self.solar_dc_max,     # DC MPPT Limit
-                            solar_used[t] + solar_curtail[t] == self.solar_5min[t] # Solar Curtailment
-                            ]     
-            
-            # DC Balance, Sum Inputs == Sum Outputs to DC bus
-            constraints += [solar_used[t] + p_discharge[t] == p_charge[t] + inverter_power[t]]
-
-            # AC Power Balance, Sum AC Sources == Sum AC Sinks
-            constraints += [grid_import[t] + inverter_power[t] == self.load_5min[t] + grid_export[t]]
-
-            constraints += [grid_import[t] <= self.grid_import_limit,
-                            grid_export[t] <= self.grid_export_limit]
-
-            # Inverter AC Limit
-            constraints += [inverter_power[t] <= self.inverter_p_max,
-                            inverter_power[t] >= -self.inverter_p_max]
-            
-
-        # Constrain peak_demand to be >= grid_import at every demand window interval if demand tarrif is applied
-        if self.demand_tarrif:
-            for t in range(int(self.N_5min)):
-                if self.demand_window_forecast[t] > 0:
-                    constraints += [peak_demand >= grid_import[t]]
-
-
         # Find end of TODAY's solar window (ignore tomorrow's solar)
         # Solar day = first time solar drops to ~0 after having been >0
-        solar_started = False
-        solar_end_index = 0
+        today_solar_end_index = None
+        tomorrow_solar_end_index = None
 
-        for t in range(int(self.N_5min)):
-            if self.solar_5min[t] > self.load_5min[t]:
-                solar_started = True
-            elif solar_started and self.solar_5min[t] <= self.load_5min[t]:
-                solar_end_index = t - 1  # last index with meaningful solar
-                break  # stop at first sunset — ignore tomorrow
+        def SolarEODIndexValid(idx):  # Returns true if the solar eod falls between 2pm - 9pm
+            t = time_index[idx].time()
+            return (14, 0) <= (t.hour, t.minute) <= (21, 0)
 
+        today_date = now.date()
+        tomorrow_date = (now + timedelta(days=1)).date()
+        # Run backwards from the end of the list to find the last index where solar is significent today.
+        for idx in range(int(self.N_5min)-1, -1, -1): 
+            if self.solar_5min[idx] > self.load_5min[idx]+ self.power_threshold:      
+                if(today_solar_end_index == None and time_index[idx].date() == today_date and SolarEODIndexValid(idx)):
+                    today_solar_end_index = idx
+                    logger.debug(f"Solar Day today ends at index: {today_solar_end_index}, time: {time_index[today_solar_end_index]}")
 
-        # -------------------------------
-        # Objective: Minimise cost including battery discharge cost
-        # -------------------------------
-        
-        objective_list = (
-            cp.multiply(grid_import, self.prices_buy) * self.dt_5min
-            - cp.multiply(grid_export, self.prices_sell) * self.dt_5min
-            + cp.multiply(grid_import, self.grid_import_penalty_cost) * self.dt_5min
-            + cp.multiply(self.battery_min_export_cost, p_discharge) * self.dt_5min
-            - cp.multiply(self.maintain_soc_reward, soc[0:-1]) # Small reward for maintaining higher SOC throughout the day
-        )
+                elif(tomorrow_solar_end_index == None and time_index[idx].date() == tomorrow_date and SolarEODIndexValid(idx)):
+                    tomorrow_solar_end_index = idx
+                    logger.debug(f"Solar Day tomorrow ends at index: {tomorrow_solar_end_index}, time: {time_index[tomorrow_solar_end_index]}")
 
-        non_sum_objective_list = 0
+        # Set parameter values for this optimisation run.
+        self.soc_init_param.value = float(self.soc_init)
+        solar_forecast_arr = np.array(self.solar_5min, dtype=float)
+        load_forecast_arr = np.array(self.load_5min, dtype=float)
+        price_buy_arr = np.array(self.effective_prices_buy, dtype=float)
+        price_sell_arr = np.array(self.effective_prices_sell, dtype=float)
+        if not (len(solar_forecast_arr) == len(load_forecast_arr) == len(price_buy_arr) == len(price_sell_arr) == int(self.N_5min)):
+            raise RuntimeError(
+                f"Forecast lengths must all equal N_5min ({int(self.N_5min)}), got "
+                f"solar={len(solar_forecast_arr)}, load={len(load_forecast_arr)}, "
+                f"buy={len(price_buy_arr)}, sell={len(price_sell_arr)}"
+            )
 
-        if solar_started and solar_end_index > 0:
-            non_sum_objective_list = non_sum_objective_list - cp.multiply(self.full_battery_reward, soc[solar_end_index]) # Encorage the battery to be full by the end of the solar day
+        self.solar_forecast_param.value = solar_forecast_arr
+        self.load_forecast_param.value = load_forecast_arr
+        self.price_buy_param.value = price_buy_arr
+        self.price_sell_param.value = price_sell_arr
+        self.grid_import_limit_param.value = float(self.grid_import_limit)
+        self.grid_export_limit_param.value = float(self.grid_export_limit)
+        self.p_max_charge_param.value = float(self.p_max_charge)
+        self.p_max_discharge_param.value = float(self.p_max_discharge)
+        self.inverter_p_max_param.value = float(self.inverter_p_max)
+        self.solar_dc_max_param.value = float(self.solar_dc_max)
+        self.soc_min_param.value = float(self.soc_min)
+        self.soc_max_param.value = float(self.soc_max)
+        demand_mask = np.array((self.demand_window_forecast > 0).astype(float), dtype=float)
+        if len(demand_mask) != int(self.N_5min):
+            raise RuntimeError(f"Demand mask length ({len(demand_mask)}) must equal N_5min ({int(self.N_5min)})")
+        self.demand_mask_param.value = demand_mask
+        self.demand_peak_price_param.value = float(self.demand_tarrif_price) if self.demand_tarrif else 0.0
 
-        if(self.demand_tarrif):
-            non_sum_objective_list = non_sum_objective_list + peak_demand * self.demand_tarrif_price # no dt multiply - it's a peak charge
+        solar_eod_reward_mask = np.zeros(int(self.N_5min), dtype=float)
 
+        if today_solar_end_index is not None and today_solar_end_index > 0:
+            solar_eod_reward_mask[today_solar_end_index] = 1.0 # Encorage the battery to be full by the end of the solar day today
 
-        objective = cp.Minimize(
-            cp.sum(objective_list)
-            + non_sum_objective_list # Don't sum the one off objectives 
-        )
-        
+        if tomorrow_solar_end_index is not None and tomorrow_solar_end_index > 0:
+            solar_eod_reward_mask[tomorrow_solar_end_index] = 1.0 # Encorage the battery to be full by the end of the solar day tomorrow
+
+        self.solar_eod_reward_mask_param.value = solar_eod_reward_mask # Put the mask into the assigned parameter
+
         # ---------- Solve ----------
-        prob = cp.Problem(objective, constraints)
-        prob.solve(solver=cp.ECOS)
-        logger.info(f"Solver took {round(time.time()-start,2)} seconds to solve")
+        # Prefer ECOS for speed, but fall back to CLARABEL when ECOS reports an
+        # inaccurate solution to avoid propagating unstable plans.
+        ecos_inaccurate = False
+        with warnings.catch_warnings(record=True) as caught_warnings:
+            warnings.simplefilter("always", UserWarning)
+            self.prob.solve(solver=cp.ECOS, warm_start=True, max_iters=300) # Increased max iters to allow more time for solving
+            ecos_inaccurate = any("Solution may be inaccurate" in str(w.message) for w in caught_warnings)
+
+        if self.prob.status == "optimal_inaccurate" or ecos_inaccurate:
+            logger.warning(
+                f"ECOS returned {self.prob.status} (inaccurate={ecos_inaccurate}); retrying with CLARABEL."
+            )
+            self.prob.solve(solver=cp.CLARABEL, warm_start=True)
 
         # Don't continue if the solver failed
-        if prob.status not in ("optimal", "optimal_inaccurate"):
-            raise RuntimeError(f"MPC solve failed: {prob.status}")
+        if self.prob.status not in ("optimal", "optimal_inaccurate"):
+            raise RuntimeError(f"MPC solve failed: {self.prob.status}")
         
         else: # Sim successfull 
             # ---------- Results ----------
-            battery_power = (p_discharge.value - p_charge.value).tolist()
-            grid_net = (grid_import.value - grid_export.value).tolist()
+            battery_power = (self.p_discharge.value - self.p_charge.value).tolist()
+            grid_net = (self.grid_import.value - self.grid_export.value).tolist()
             #hours = np.arange(int(self.N_5min)) * self.dt_5min
 
-            now = datetime.now(self.local_tz).replace(second=0, microsecond=0)
-            minute = (now.minute // 5) * 5
-            now = now.replace(minute=minute)
-            time_index = [now + timedelta(minutes=5 * i) for i in range(int(self.N_5min))]
-            
-            # if solar_started and solar_end_index > 0:
-            #     logger.info(f"Solar Day ends at index {solar_end_index} time:{time_index[solar_end_index]}")
-
-
-            grid_kwh_import_per_interval = grid_import.value / self.steps_per_hr 
-            grid_kwh_export_per_interval = grid_export.value / self.steps_per_hr 
+            grid_kwh_import_per_interval = self.grid_import.value / self.steps_per_hr 
+            grid_kwh_export_per_interval = self.grid_export.value / self.steps_per_hr 
 
             # Per-interval profit ($)
             interval_profit = (
@@ -292,11 +402,11 @@ class MPC:
 
             # Round all the mpc data to 2 dp
             battery_power = [round(x, 2) for x in battery_power]
-            battery_soc = [round(x, 2) for x in soc.value.tolist()]
+            battery_soc = [round(x, 2) for x in self.soc.value.tolist()]
             grid_net = [round(x, 2) for x in grid_net]
-            inverter_power = [round(x, 2) for x in inverter_power.value.tolist()]
+            inverter_power = [round(x, 2) for x in self.inverter_power.value.tolist()]
             solar_forecast_power = [round(x, 2) for x in self.solar_5min]
-            solar_used_power = [round(x, 2) for x in solar_used.value.tolist()]
+            solar_used_power = [round(x, 2) for x in self.solar_used.value.tolist()]
             load_power = [round(x, 2) for x in self.load_5min]
 
             self.profit_remaining_today = round(float(forecast_profit_today), 2)
@@ -312,6 +422,8 @@ class MPC:
                 "demand_tarrif": self.demand_tarrif,
                 "prices_buy": self.prices_buy.tolist(),
                 "prices_sell": self.prices_sell.tolist(),
+                "effective_prices_buy": self.effective_prices_buy.tolist(),
+                "effective_prices_sell": self.effective_prices_sell.tolist(),
                 "profit_already_today": float(self.daily_profit),
                 "profit_remaining_today": self.profit_remaining_today,
                 "profit_tomorrow": self.profit_tomorrow,
@@ -329,7 +441,7 @@ class MPC:
             if(self.demand_tarrif):
                 output.update({
                     "demand_window_forecast": self.demand_window_forecast.tolist(),
-                    "peak_demand": float(peak_demand.value),
+                    "peak_demand": float(self.peak_demand.value),
                 })
 
             # Add the historical data to the mpc plan
@@ -358,6 +470,8 @@ class MPC:
             mqtt_client.publish("home/mpc/output", json.dumps(output), retain=True)
         
             self.current_effective_price = self.determine_current_effective_price(output) # Determine the current effective price of electricity based on the MPC plan and current conditions. 
+
+            logger.info(f"Solver took {round(time.time()-start_optimisation,2)} seconds to get data, build and solve. The selected mode is: {output['plan_modes'][0]}")
 
             return [output, plotted_output]
         
@@ -447,61 +561,15 @@ class MPC:
             if(grid_net > self.power_threshold): # If there is significant grid import, set price to grid import price
                 return general_price_list[i]
             elif(grid_net < -self.power_threshold): # If there is significant grid export, set price to grid export price
-                return feedIn_price_list[i]
+                if(feedIn_price_list[0] > feedIn_price_list[i]): # If the current feed in price is higher than the future feed in price, use the current feed in price as the effective price as if power was lower we would be exporting now.
+                    return feedIn_price_list[0]
+                else:   
+                    return feedIn_price_list[i]
             else: # If there is no significant import or export, set price based on solar conditions
                 if(solar_used_list[i] < solar_forecast_list[i] - self.power_threshold): # If solar is being curtailed, set price to zero as using more power won't cost anything
                     return 0
                 
         return general_price_list[0] # Default to current grid price if no significant import or export is occouring
-    
-    def display_results(self, output):
-        logger.info(f"Profit: ${round(output['profit'], 2)}")
-        #print(f"Solar Remaining {np.sum(solar_5min*(5/60))}")
-        logger.info(f"solar used: {round(output['solar_used'][0],2)}  bat: {round(output['battery_power'][0],2)}  load: {round(output['load'][0],2)} grid: {round(output['grid_net'][0],2)}  inverter_power: {round(output['inverter_power'][0], 2)}")
-
-        plt.figure(figsize=(14,8))
-
-        time_index = output["time_index"]
-        # --------- Top plot: battery & net load ----------
-        plt.subplot(2,1,1)
-        plt.plot(time_index, output["battery_power"], label='Battery Power (kW)', color='blue')
-        plt.plot(time_index, output["load"], label='Load', color='orange', alpha=1)
-        plt.plot(time_index, output["solar_forecast"], label='Available Solar', color='limegreen', alpha=1, linestyle='--')
-        plt.plot(time_index, output["solar_used"], label='Solar Used', color='limegreen')
-        plt.plot(time_index, output["inverter_power"], label='Inverter Power (kW)', color='purple')
-        plt.plot(time_index, output["grid_net"], label='Grid Net Import (+ buy, - sell)', color='black', linestyle='--')
-        plt.axhline(0, color='black', linewidth=0.5)
-        plt.ylabel('Power (kW)')
-        plt.title('Battery Schedule & Net Load with 24h Amber Forecast and Discharge Cost')
-        plt.legend()
-        plt.grid(True)
-
-        # Secondary y-axis for prices
-        plt.twinx()
-        plt.plot(time_index, output["prices_buy"], label='Buy Price', color='green')
-        plt.plot(time_index, output["prices_sell"], label='Sell Price', color='red')
-        plt.ylabel('Price ($/kWh)')
-        plt.legend(loc='upper right')
-
-        # --------- Bottom plot: SOC ----------
-        plt.subplot(2,1,2)
-        plt.plot(time_index, output["soc"][0:-1], label='Battery SOC (kWh)', color='purple')
-        plt.axhline(self.soc_min, color='red', linestyle='--', label='SOC Min/Max')
-        plt.axhline(self.soc_max, color='red', linestyle='--')
-
-        plt.xlabel('Hour of Day')
-        plt.ylabel('SOC (kWh)')
-        plt.title('Battery State of Charge')
-        plt.legend()
-        plt.grid(True)
-
-        for ax in plt.gcf().axes:
-            ax.xaxis.set_major_locator(mdates.HourLocator())
-            ax.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
-            ax.tick_params(axis='x', rotation=0)
-
-        plt.tight_layout()
-        plt.show()
 
 def approx_equal(a, b, threshold = 0.2):
     return abs(a-b) < threshold

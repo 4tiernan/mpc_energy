@@ -27,6 +27,7 @@ class HomeAssistantAPI:
         self.session.headers.update(self.headers)
 
         self.local_tz = self.get_timezone()
+        self.ha_went_down_flag = False
 
     def get_timezone(self):
         url = f"{self.base_url}/api/config"
@@ -42,6 +43,12 @@ class HomeAssistantAPI:
             logger.error("Unable to get timezone from HA config. Falling back to Australia/Brisbane.")
 
         return DEFAULT_TZ
+    
+    def ha_api_went_down(self):
+        if(self.ha_went_down_flag):
+            self.ha_went_down_flag = False
+            return True
+        return False
 
     def check_api_running(self): #Checks to see if we can connect to the ha api
         url = f"{self.base_url}/api/"
@@ -51,7 +58,10 @@ class HomeAssistantAPI:
         except:
             return False
         
-        return response.get("message") == "API running."
+        api_running = response.get("message") == "API running."
+        if(not api_running): 
+            self.ha_went_down = True
+        return api_running
 
     def ha_request(self, url, method, data=None, params = None):
         def log_status(r):
@@ -100,11 +110,11 @@ class HomeAssistantAPI:
             else:
                 while(not self.check_api_running()): # If we can't connect to the HA API, wait and retry until we can. This is to handle the case where the add-on starts before HA is fully up and running.
                     logger.error(f"Unable to connect to HA API, retrying in 30 seconds")
+                    self.ha_went_down_flag = True
                     time.sleep(30)
                     
                 return self.ha_request(url, method, data, params)
 
-    
     def get_state(self, entity_id):
         url = f"{self.base_url}/api/states/{entity_id}"
         return self.ha_request(url=url, method='get')
@@ -124,13 +134,40 @@ class HomeAssistantAPI:
         url = f"{self.base_url}/api/services/{domain}/{service}"
         return self.ha_request(url=url, data=data, method='post')
 
-    def send_notification(self, title, msg, target):
+    def send_notification(self, title, message, target):
+        if not target:
+            raise HAAPIError("Notification target is empty. Please set a valid Home Assistant notify service.")
+
+        # Supports both "mobile_app_phone_name" and "notify.mobile_app_phone_name".
+        target = str(target).strip()
+        if target.startswith("notify."):
+            service = target.split(".", 1)[1]
+        else:
+            service = target
+
+        if not service:
+            raise HAAPIError(
+                f"Invalid notification target '{target}'. Expected format like "
+                "'mobile_app_pixel_10_pro' or 'notify.mobile_app_pixel_10_pro'."
+            )
+        
         self.call_service(
             "notify",
-            target,
+            service,
             {
                 "title": title,
-                "message": msg
+                "message": message
+            }
+        )
+
+    def create_persistent_notification(self, title, message, notification_id="mpc_energy_error"):
+        return self.call_service(
+            "persistent_notification",
+            "create",
+            {
+                "title": title,
+                "message": message,
+                "notification_id": notification_id
             }
         )
     

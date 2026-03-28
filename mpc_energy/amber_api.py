@@ -1,6 +1,7 @@
 import requests
 import time
 import numpy as np
+import math
 from datetime import datetime, timezone, timedelta
 from dataclasses import dataclass
 from mpc_logger import logger
@@ -34,7 +35,13 @@ class amber_data:
     general_extrapolated_forecast: list[float]
     feedIn_extrapolated_forecast: list[float]
     demand_window_extrapolated_forecast: list[bool]  # True for each 5-min interval that falls in a demand window
-    
+
+def normalise_time(ts: datetime):
+    # Amber can return timestamps with small offsets (seconds and
+    # occasionally minute drift). Snap to the 5-minute grid used by MPC
+    # so dictionary keys line up with ordered_times bins.
+    ts = ts.replace(second=0, microsecond=0)
+    return ts - timedelta(minutes=ts.minute % 5)  
 
 class AmberAPI:
     def __init__(self, api_key, site_id, local_tz=None, demand_price="", errors=True):
@@ -85,7 +92,6 @@ class AmberAPI:
         except requests.exceptions.ConnectionError:
             raise AmberAPIConnectionError("Amber API connection error") from None
            
-
         except requests.exceptions.RequestException as e:
             raise AmberAPIRequestError(f"Amber API error: {e}") from None
             
@@ -113,9 +119,12 @@ class AmberAPI:
                 logger.error(r)
                 logger.error(r.headers)
                 logger.error(f"Exceeded AmazonAWS Amber API request rate limit. Note this is an issue with the Amber API not MPC Energy, please ignore.")
-                logger.error(f"Waiting 10 seconds before retrying")
-                time.sleep(10)
+                logger.error(f"Waiting 1 second before retrying")
+                time.sleep(1)
             return self.send_request(url)
+        
+        elif r.status_code == 404:
+            raise AmberAPIError(f"Unable to reach desired API endpoint, please check the Site ID is correct. Site ID: {self.site_id}, Target URL: {url}") from None
 
         elif r.status_code == 403:
             logger.error("API key provided for Amber API does not have authorisation to access the Amber API. Please check the key is correct or create a new key.")
@@ -236,14 +245,33 @@ class AmberAPI:
 
         else:
             raise AmberAPIError("Failed to get price forecast data")
+
+    def get_forecast_duration_hours(self, forecast_data):
+        """Return the forecast span in hours from the first interval start to the last interval end."""
+        if not forecast_data:
+            return 0.0
+
+        start_time = forecast_data[0].start_time
+        end_time = forecast_data[-1].end_time
+
+        return (end_time - start_time).total_seconds() / 3600
     
     # Get the 5 min, 30 min and past prices and combine into a 5 minutely 'forecast' that extends past the 12 hr limit
-    def get_extrapolated_forecast_old(self, hours, advanced_forecast = False): 
-        N_30min = int(hours / (30/60)) # Number of 30 min segments requested
-        N_5min = int(hours / (5/60))   # Number of 5 min segments requested
+    def get_extrapolated_forecast(self, hours, advanced_forecast = False, sim_start=None, sim_end=None): 
+        if sim_start is not None and sim_end is not None:
+            timeline_seconds = max((sim_end - sim_start).total_seconds(), 300)
+            N_5min = max(1, int(timeline_seconds // (5 * 60)))
+            N_30min = max(1, math.ceil(N_5min / (30 // 5)))
+            current_5min_slot = sim_start.replace(second=0, microsecond=0)
+        else:
+            # Fallback for legacy callers that only provide a duration.
+            N_30min = max(1, math.ceil(hours / (30/60))) # Number of 30 min segments requested
+            N_5min = max(1, math.ceil(hours / (5/60)))   # Number of 5 min segments requested
+            current_time = datetime.now(self.local_tz if self.local_tz is not None else timezone.utc)
+            current_5min_slot = current_time.replace(second=0, microsecond=0) - timedelta(minutes=current_time.minute % 5)
 
-        amber_forecast_30min_intervals = (60//30)*12    # Get the max 12hr forecast
-        amber_past_30min_intervals = max(N_30min - amber_forecast_30min_intervals, 0)  # Fill the rest of the sim with past prices
+        amber_forecast_30min_intervals = N_30min    # Get the max 12hr forecast
+        amber_past_30min_intervals = max(N_30min - (60//30)*12, 0)  # Fill the rest of the sim with past prices, we should always receive 12 hrs worth of prices so get enough data to cover that
     
         # Get the 5 minutely price forecasts
         [general_price_forecast_5_min_data, feed_in_price_forecast_5_min_data] = self.get_forecast(next_intervals=60//5, resolution=5, advanced_forecast=advanced_forecast)
@@ -254,89 +282,28 @@ class AmberAPI:
         # Getz the past prices to form the 2nd half of the 24hr forecast due to the 12hr limit on forecasts
         [past_general_30_min_data, past_feed_in_30_min_data] = self.get_past_prices(amber_past_30min_intervals, resolution=30)
 
-        # Build a 5-minute forecast keyed by the timestamps returned by Amber.
-        # Start with 30-minute intervals expanded to 5-minute points, then overwrite
-        # those points with the native 5-minute data where available.
-        general_points = {}
-        feed_in_points = {}
-        demand_window_points = {}
+        duration_5_min_forecast = round(self.get_forecast_duration_hours(general_price_forecast_5_min_data), 2)
+        duration_30_min_forecast = round(self.get_forecast_duration_hours(general_price_forecast_30_min_data), 2)
+        duration_30_min_past_data = round(self.get_forecast_duration_hours(past_general_30_min_data), 2)
 
-        def normalize_time(ts: datetime):
-            # Amber can return timestamps with a few extra seconds (e.g. xx:30:01).
-            # Normalise to exact minute boundaries so 5-minute keys align correctly.
-            return ts.replace(second=0, microsecond=0)
-
-        def add_intervals(general_intervals, feed_in_intervals, time_offset=timedelta(0)):
-            for general, feed_in in zip(general_intervals, feed_in_intervals):
-                start_time = normalize_time(general.start_time) + time_offset
-                end_time = normalize_time(general.end_time) + time_offset
-
-                interval_minutes = int((end_time - start_time).total_seconds() // 60)
-                steps = max(interval_minutes // 5, 0)
-
-                for step in range(steps):
-                    t = start_time + timedelta(minutes=step * 5)
-                    general_points[t] = round(general.price)
-                    feed_in_points[t] = round(feed_in.price)
-                    demand_window_points[t] = bool(general.demand_window)
-
-        add_intervals(general_price_forecast_30_min_data, feed_in_price_forecast_30_min_data)
-        # Shift "past" intervals forward by one day so they fill the post-12h horizon.
-        add_intervals(past_general_30_min_data, past_feed_in_30_min_data, time_offset=timedelta(days=1))
-
-        # Overwrite with native 5-minute data where available
-        for general, feed_in in zip(general_price_forecast_5_min_data, feed_in_price_forecast_5_min_data):
-            point_time = normalize_time(general.start_time)
-            general_points[point_time] = round(general.price)
-            feed_in_points[point_time] = round(feed_in.price)
-            demand_window_points[point_time] = bool(general.demand_window)
-
-        ordered_times = sorted(general_points.keys()) # Get the timestamps in order so we can return lists of prices in the correct sequence.
-
-        # Trim to the current time so we don't return extrapolated points that are in the past.
-        current_time = datetime.now(self.local_tz if self.local_tz is not None else timezone.utc)
-        current_5min_slot = current_time.replace(second=0, microsecond=0) - timedelta(minutes=current_time.minute % 5)
-        ordered_times = [t for t in ordered_times if t >= current_5min_slot]
-
-        general_price_extrapolated_forecast = [general_points[t] for t in ordered_times]
-        feed_in_price_extrapolated_forecast = [feed_in_points[t] for t in ordered_times]
-        demand_window_extrapolated_forecast = [demand_window_points[t] for t in ordered_times]
-
-        # Return extended forecast
-        return [general_price_extrapolated_forecast[:N_5min], feed_in_price_extrapolated_forecast[:N_5min], demand_window_extrapolated_forecast[:N_5min], ordered_times[:N_5min]]
-
-    # Get the 5 min, 30 min and past prices and combine into a 5 minutely 'forecast' that extends past the 12 hr limit
-    def get_extrapolated_forecast(self, hours, advanced_forecast = False): 
-        N_30min = int(hours / (30/60)) # Number of 30 min segments requested
-        N_5min = int(hours / (5/60))   # Number of 5 min segments requested
-
-        amber_forecast_30min_intervals = (60//30)*12    # Get the max 12hr forecast
-        amber_past_30min_intervals = max(N_30min - amber_forecast_30min_intervals, 0)  # Fill the rest of the sim with past prices
-    
-        # Get the 5 minutely price forecasts
-        [general_price_forecast_5_min_data, feed_in_price_forecast_5_min_data] = self.get_forecast(next_intervals=60//5, resolution=5, advanced_forecast=advanced_forecast)
-
-        # Get the 30 minutely forecast
-        [general_price_forecast_30_min_data, feed_in_price_forecast_30_min_data] = self.get_forecast(next_intervals=amber_forecast_30min_intervals, resolution=30, advanced_forecast=advanced_forecast)
-
-        # Getz the past prices to form the 2nd half of the 24hr forecast due to the 12hr limit on forecasts
-        [past_general_30_min_data, past_feed_in_30_min_data] = self.get_past_prices(amber_past_30min_intervals, resolution=30)
-
+        logger.debug(f"Amber data duration received: 5 Minute Forecast: {duration_5_min_forecast} hrs, 30 Minute Forecast: {duration_30_min_forecast} hrs, 30 Minute Past Data: {duration_30_min_past_data} hrs")
+        
+        if duration_30_min_forecast < 11.5: # We expect at least 12 hrs of forecast data
+            logger.warning(
+                f"Amber 30-minute forecast appears shorter than expected ({duration_30_min_forecast} hrs). "
+                "Past-price projection will be aligned to the end of the available forecast to avoid gaps."
+            )
         # Build a 5-minute forecast keyed by timestamps, then project onto an explicit
         # fixed-length 5-minute timeline so callers always receive exactly N_5min bins.
         general_points = {}
         feed_in_points = {}
         demand_window_points = {}
 
-        def normalize_time(ts: datetime):
-            # Amber can return timestamps with a few extra seconds (e.g. xx:30:01).
-            # Normalise to exact minute boundaries so 5-minute keys align correctly.
-            return ts.replace(second=0, microsecond=0)
-
         def add_intervals(intervals, points, time_offset=timedelta(0), demand_points=None):
+            # Add the intervals to the correct time slot in the points dict.
             for interval in intervals:
-                start_time = normalize_time(interval.start_time) + time_offset
-                end_time = normalize_time(interval.end_time) + time_offset
+                start_time = normalise_time(interval.start_time) + time_offset
+                end_time = normalise_time(interval.end_time) + time_offset
 
                 interval_minutes = int((end_time - start_time).total_seconds() // 60)
                 steps = max(interval_minutes // 5, 0)
@@ -347,76 +314,72 @@ class AmberAPI:
                     if demand_points is not None and self.demand_tarrif:
                         demand_points[t] = bool(interval.demand_window)
 
-        # Seed from 30-minute and shifted-past data.
+        # Use shifted past data as future 'forecast'. 
+
+        # Shift so projected past data begins where forecast data ends.
+        # Aligning to latest past *end* truncates coverage when a long past
+        # window (e.g. 36h) is requested for a longer horizon (e.g. 48h).
+        if(hours > 0 and hours <= 24):
+            past_projection_offset = timedelta(days=1)
+        elif hours > 24 and hours <= 48:
+            past_projection_offset = timedelta(days=2)
+        elif hours > 48 and hours <= 72:
+            past_projection_offset = timedelta(days=3)
+            
+        add_intervals(past_general_30_min_data, general_points, time_offset=past_projection_offset, demand_points=demand_window_points)
+        add_intervals(past_feed_in_30_min_data, feed_in_points, time_offset=past_projection_offset)
+        
+        # Override past data forecast with amber forecast
         add_intervals(general_price_forecast_30_min_data, general_points, demand_points=demand_window_points)
         add_intervals(feed_in_price_forecast_30_min_data, feed_in_points)
-        add_intervals(past_general_30_min_data, general_points, time_offset=timedelta(days=1), demand_points=demand_window_points)
-        add_intervals(past_feed_in_30_min_data, feed_in_points, time_offset=timedelta(days=1))
 
         # Overwrite with native 5-minute data where available.
         for interval in general_price_forecast_5_min_data:
-            point_time = normalize_time(interval.start_time)
+            point_time = normalise_time(interval.start_time)
             general_points[point_time] = round(interval.price)
             if(self.demand_tarrif):
                 demand_window_points[point_time] = bool(interval.demand_window)
         for interval in feed_in_price_forecast_5_min_data:
-            point_time = normalize_time(interval.start_time)
+            point_time = normalise_time(interval.start_time)
             feed_in_points[point_time] = round(interval.price)
 
-        # Build fixed timeline anchored to the current 5-minute slot.
-        current_time = datetime.now(self.local_tz if self.local_tz is not None else timezone.utc)
-        current_5min_slot = current_time.replace(second=0, microsecond=0) - timedelta(minutes=current_time.minute % 5)
+        # Build fixed timeline anchored to the simulation start slot.
         ordered_times = [current_5min_slot + timedelta(minutes=5 * i) for i in range(N_5min)]
 
         def fill_from_points(points, times, default_value):
+            # Normalise data to a fixed length and fill any missing slots with a
+            # conservative default value. This ensures we never silently carry
+            # forward stale prices across missing forecast gaps.
+            
             if len(points) == 0:
                 return [default_value for _ in times], len(times)
 
-            known_times = sorted(points.keys())
-            idx = 0
-            last_value = points[known_times[0]]
             missing_count = 0
             filled = []
 
             for t in times:
-                while idx < len(known_times) and known_times[idx] <= t:
-                    last_value = points[known_times[idx]]
-                    idx += 1
-
                 if t in points:
                     filled.append(points[t])
-                elif idx == 0 and t < known_times[0]:
+                else:
                     filled.append(default_value)
                     missing_count += 1
-                else:
-                    filled.append(last_value)
-                    if t not in points:
-                        missing_count += 1
 
             return filled, missing_count
-
-        general_price_extrapolated_forecast, general_missing = fill_from_points(general_points, ordered_times, default_value=50)
-        feed_in_price_extrapolated_forecast, feed_missing = fill_from_points(feed_in_points, ordered_times, default_value=-10)
+        
+        default_general_price = 50
+        default_feed_in_price = -10
+        
+        general_price_extrapolated_forecast, general_missing = fill_from_points(general_points, ordered_times, default_value=default_general_price)
+        feed_in_price_extrapolated_forecast, feed_missing = fill_from_points(feed_in_points, ordered_times, default_value=default_feed_in_price)
         demand_window_extrapolated_forecast, demand_missing = fill_from_points(demand_window_points, ordered_times, default_value=True)
 
         if general_missing or feed_missing or (self.demand_tarrif and demand_missing):
             if(self.demand_tarrif):
-                logger.warning(
-                    "Amber extrapolated forecast required gap fill. Missing bin QTYs: (general=%s, feed-in=%s, demand-window=%s).",
-                    N_5min,
-                    general_missing,
-                    feed_missing,
-                    demand_missing,
-                )
-                logger.warning("Missing points were filled with default values (general=50 c/kWh, feed-in=-10 c/kWh, demand-window=True). This will impact MPC performance.")
+                logger.warning(f"Amber extrapolated forecast required gap fill. Requested bins={N_5min}. Missing bin QTYs: (general={general_missing}, feed-in={feed_missing}, demand-window={demand_missing}).")
+                logger.warning(f"Missing points were filled with default values (general={default_general_price} c/kWh, feed-in={default_feed_in_price} c/kWh, demand-window=True). This will impact MPC performance.")
             else:
-                logger.warning(
-                    "Amber extrapolated forecast required gap fill. Missing bin QTYs: (general=%s, feed-in=%s).",
-                    N_5min,
-                    general_missing,
-                    feed_missing,
-                )
-                logger.warning("Missing points were filled with default values (general=50 c/kWh, feed-in=-10 c/kWh). This will impact MPC performance.")
+                logger.warning(f"Amber extrapolated forecast required gap fill. Requested bins={N_5min}. Missing bin QTYs: (general={general_missing}, feed-in={feed_missing}).")
+                logger.warning(f"Missing points were filled with default values (general={default_general_price} c/kWh, feed-in={default_feed_in_price} c/kWh). This will impact MPC performance.")
 
         # Return extended forecast with guaranteed length.
         return [general_price_extrapolated_forecast, feed_in_price_extrapolated_forecast, demand_window_extrapolated_forecast, ordered_times]
@@ -440,7 +403,7 @@ class AmberAPI:
         else:
             raise AmberAPIError("Failed to get current price data from Amber API")
         
-    def get_data(self, partial_update=False, forecast_hrs=None):
+    def get_data(self, partial_update=False, forecast_hrs=None, sim_start=None, sim_end=None):
         [general_price, feed_in_price, estimate] = self.get_current_prices()
         
         if(self.data == None or partial_update == False):
@@ -462,7 +425,11 @@ class AmberAPI:
             feed_in_price = self.data.feedIn_price
 
         if((not estimate and forecast_hrs != None) or self.data == None):
-            [general_extrapolated_forecast, feedIn_extrapolated_forecast, demand_window_extrapolated_forecast, extrapolated_timestamps] = self.get_extrapolated_forecast(hours=forecast_hrs)
+            [general_extrapolated_forecast, feedIn_extrapolated_forecast, demand_window_extrapolated_forecast, extrapolated_timestamps] = self.get_extrapolated_forecast(
+                hours=forecast_hrs,
+                sim_start=sim_start,
+                sim_end=sim_end,
+            )
         else:
             general_extrapolated_forecast = self.data.general_extrapolated_forecast
             feedIn_extrapolated_forecast = self.data.feedIn_extrapolated_forecast

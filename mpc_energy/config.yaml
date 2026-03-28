@@ -1,6 +1,6 @@
-name: "MPC Energy"
+name: "MPC Energy Dev"
 description: "A profit optimiser for home batteries with wholesale electricity pricing."
-version: "0.4.0"
+version: "0.4.109"
 slug: "mpc_energy"
 url: "https://github.com/4tiernan/mpc_energy"
 init: false
@@ -36,6 +36,10 @@ options:
 
   battery_discharge_cost: 7
 
+  spike_price_warning_level: 25
+  notification_target: ""
+  notification_target_option: none
+
   estimated_daily_load_energy_consumption: 24
 
   battery_max_discharge_power_limit_entity_id: "sensor.sigen_plant_ess_rated_discharging_power"
@@ -49,6 +53,8 @@ options:
 
   solcast_forecast_today_entity_id: "sensor.solcast_pv_forecast_forecast_today"
   solcast_forecast_tomorrow_entity_id: "sensor.solcast_pv_forecast_forecast_tomorrow"
+  solcast_forecast_day_3_entity_id: "sensor.solcast_pv_forecast_forecast_day_3"
+  solcast_forecast_day_4_entity_id: "sensor.solcast_pv_forecast_forecast_day_4"
   solcast_solar_kwh_remaining_today_entity_id: "sensor.solcast_pv_forecast_forecast_remaining_today"
   solcast_solar_power_this_hour_entity_id: "sensor.solcast_pv_forecast_forecast_this_hour"
 
@@ -79,6 +85,8 @@ options:
   export_limiter_entity_id: "number.sigen_plant_grid_export_limitation"
   import_limiter_entity_id: "number.sigen_plant_grid_import_limitation"
 
+  log_level: info
+
 
 schema:
   accepted_risks: bool
@@ -89,6 +97,10 @@ schema:
   amber_site_id: str?
   amber_demand_price: str?
   battery_discharge_cost: int?
+
+  spike_price_warning_level: int  
+  notification_target: str?
+  notification_target_option: list(none|price_spike_warning|error_warning|both)
 
   estimated_daily_load_energy_consumption: int
 
@@ -103,6 +115,8 @@ schema:
 
   solcast_forecast_today_entity_id: str
   solcast_forecast_tomorrow_entity_id: str
+  solcast_forecast_day_3_entity_id: str
+  solcast_forecast_day_4_entity_id: str
   solcast_solar_kwh_remaining_today_entity_id: str
   solcast_solar_power_this_hour_entity_id: str
 
@@ -132,6 +146,8 @@ schema:
   pv_limiter_entity_id: str
   export_limiter_entity_id: str
   import_limiter_entity_id: str
+
+  log_level: list(debug|info|warning)
 
 
 

@@ -25,6 +25,48 @@ CONTROL_MODE_COLORS = {
     "Unable to determine":                 "#ff0000",  # grey
 }
 
+def contiguous_segments(values):
+    """
+    Yield contiguous (start_idx, end_idx_exclusive, value) segments.
+    """
+    if not values:
+        return []
+
+    segments = []
+    start = 0
+    current = values[0]
+    for idx in range(1, len(values)):
+        if values[idx] != current:
+            segments.append((start, idx, current))
+            start = idx
+            current = values[idx]
+    segments.append((start, len(values), current))
+    return segments
+
+def get_segment_end_time(time_index, end_idx_exclusive, default_step_minutes=5):
+    """
+    Return the x1 value for a segment end index.
+    """
+    if end_idx_exclusive < len(time_index):
+        return time_index[end_idx_exclusive]
+
+    return time_index[-1] + datetime.timedelta(minutes=default_step_minutes)
+
+def get_segment_midpoint(start_x, end_x):
+    if isinstance(start_x, datetime.datetime) and isinstance(end_x, datetime.datetime):
+        return start_x + (end_x - start_x) / 2
+    return (start_x + end_x) / 2
+
+def get_segment_width(start_x, end_x):
+    """
+    Plotly Bar.width must be numeric.
+    For datetime x-axes, width is in milliseconds.
+    """
+    if isinstance(start_x, datetime.datetime) and isinstance(end_x, datetime.datetime):
+        return (end_x - start_x).total_seconds() * 1000
+    return end_x - start_x
+
+
 
 def round_to_nearest_5min(dt: datetime) -> datetime:
     seconds = dt.minute * 60 + dt.second
@@ -116,12 +158,13 @@ def plot_mpc_results(st, output):
     historical_data_len = output["historical_data_length"] # Get the length of the historical data portion of the data
 
     # Shade past data
+    past_end_idx = min(historical_data_len + 1, len(time_index) - 1)
     past_shape = dict(
         type="rect",
         xref="x",
         yref="paper",  # span the full height of the subplot
         x0=time_index[0],   # start of past (beginning of your data)
-        x1=time_index[historical_data_len+1],             # end of past (current time)
+        x1=time_index[past_end_idx],             # end of past (current time)
         y0=0,
         y1=1,
         fillcolor="grey",
@@ -131,14 +174,15 @@ def plot_mpc_results(st, output):
     )
     shapes.append(past_shape)
 
-    for t, mode in enumerate(output["plan_modes"]):
+    # Merge contiguous control-mode regions to reduce DOM size / render time
+    for start_idx, end_idx_exclusive, mode in contiguous_segments(output["plan_modes"]):
         shapes.append(
             dict(
                 type="rect",
                 xref="x",
                 yref="paper",        # span full subplot height
-                x0=time_index[t],
-                x1=time_index[t] + datetime.timedelta(minutes=5),
+                x0=time_index[start_idx],
+                x1=get_segment_end_time(time_index, end_idx_exclusive),
                 y0=0,
                 y1=1,
                 fillcolor=CONTROL_MODE_COLORS.get(mode, "#bdbdbd"),
@@ -150,14 +194,15 @@ def plot_mpc_results(st, output):
     
     # Shade for Demand Window
     if(output["demand_tarrif"]):
-        for t, dw in enumerate(output["demand_window_forecast"][:-1]):
-            if dw:
+        demand_window = output["demand_window_forecast"][:-1]
+        for start_idx, end_idx_exclusive, in_window in contiguous_segments(demand_window):
+            if in_window:
                 shapes.append(dict(
                     type="rect",
                     xref="x",
                     yref="y3",  # SOC subplot y-axis
-                    x0=time_index[t],
-                    x1=time_index[t] + datetime.timedelta(minutes=5),
+                    x0=time_index[start_idx],
+                    x1=get_segment_end_time(time_index, end_idx_exclusive),
                     y0=0,
                     y1=40,  # or soc_max if available
                     fillcolor="red",
@@ -185,25 +230,40 @@ def plot_mpc_results(st, output):
     DT_HOURS = 5 / 60
     grid_power = np.array(output["grid_net"])
     grid_energy_kwh = np.round(grid_power * DT_HOURS, 2)
+    
+    # Aggregate grid energy over each contiguous control-mode segment
+    segment_x = []
+    segment_width = []
+    segment_energy_kwh = []
+    for start_idx, end_idx_exclusive, _mode in contiguous_segments(output["plan_modes"]):
+        x0 = time_index[start_idx]
+        x1 = get_segment_end_time(time_index, end_idx_exclusive)
+        segment_x.append(get_segment_midpoint(x0, x1))
+        segment_width.append(get_segment_width(x0, x1))
+        segment_energy_kwh.append(np.round(grid_energy_kwh[start_idx:end_idx_exclusive].sum(), 2))
+
     fig.add_trace(
         go.Bar(
-            x=time_index,
-            y=grid_energy_kwh,
-            name="Grid Energy (kWh)",
+            x=segment_x,
+            y=segment_energy_kwh,
+            width=segment_width,
+            name="Grid Energy by Segment (kWh)",
             marker_color=[
                 "green" if e < 0 else "red"
-                for e in grid_energy_kwh
+                for e in segment_energy_kwh
             ],
-            opacity=0.6
+            opacity=0.6,
+            hovertemplate="Segment Grid Energy: %{y:.2f} kWh<extra></extra>",
         ),
         row=3,
         col=1,
         secondary_y=True
     )
     fig.update_yaxes(
-        title_text="Grid Energy (kWh / 5 min)",
+        title_text="Grid Energy (kWh / segment)",
         row=3,
-        col=1
+        col=1,
+        secondary_y=True
     )
 
     fig.update_yaxes(
@@ -213,10 +273,15 @@ def plot_mpc_results(st, output):
         row=3,
         col=1,
         title="Control Mode",
+        secondary_y=False
     )
     
 
-    max_abs = max(abs(grid_energy_kwh.min()), abs(grid_energy_kwh.max()))*1.2
+    if segment_energy_kwh:
+        max_abs = max(abs(min(segment_energy_kwh)), abs(max(segment_energy_kwh))) * 1.2 # Add 20% padding to max for better visualization
+    else:
+        max_abs = 1
+
     fig.update_yaxes(
         range=[-max_abs, max_abs],
         zeroline=True,
@@ -228,7 +293,8 @@ def plot_mpc_results(st, output):
     )
 
     fig.update_yaxes(
-        title_text="Grid Energy (kWh / 5 min)",
+        title_text="Grid Energy (kWh / segment)",
+        showticklabels=False,
         zeroline=True,
         zerolinewidth=2,
         zerolinecolor="black",
@@ -296,6 +362,23 @@ def plot_mpc_results(st, output):
         y=[round(v*100) for v in output["prices_sell"]],
         name="Sell Price (c/kWh)",
         line=dict(color="red", shape="hv")
+    ), row=1, col=1, secondary_y=True)
+
+    # Effective Prices (right axis)
+    fig.add_trace(go.Scatter(
+        x=time_index,
+        y=[round(v*100,2) for v in output["effective_prices_buy"]],
+        name="Effective Buy Price (c/kWh)",
+        line=dict(color="#66bb6a", shape="hv", dash="dash"),  # lighter green + dashed
+        visible="legendonly" # Set to "legendonly" to hide by default
+    ), row=1, col=1, secondary_y=True)
+
+    fig.add_trace(go.Scatter(
+        x=time_index,
+        y=[round(v*100,2) for v in output["effective_prices_sell"]],
+        name="Effective Sell Price (c/kWh)",
+        line=dict(color="#ef5350", shape="hv", dash="dash"),  # lighter red + dashed
+        visible="legendonly"
     ), row=1, col=1, secondary_y=True)
 
     fig.add_hline(y=0, row=1, col=1, line_color="black", line_width=1)

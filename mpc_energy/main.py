@@ -17,7 +17,8 @@ def start_timer():
 def elapsed_time(code_block_name="Code Block"):
     global start_time
     elapsed = time.time() - start_time
-    logger.info(f"{code_block_name} took {round(elapsed, 2)} seconds")
+    logger.debug(f"{code_block_name} took {round(elapsed, 2)} seconds")
+    start_time = time.time()
     return elapsed
 
 if(not config_manager.accepted_risks):
@@ -74,11 +75,34 @@ def start_streamlit_dashboard():
         "--theme.base=light"
     ])
 
+def send_mobile_notification(title, message):
+    try:
+        ha.send_notification(
+            title=title,
+            message=message,
+            target=config_manager.notification_target
+        )
+    except Exception as notification_error:
+        logger.error(f"Failed to send mobile notification. This likely means that the notification target is incorrect. Check the notification target and try again. Error sending notification: {notification_error}")
+
+last_error_mobile_notification_timestamp = 0
 def PrintError(e):
     logger.error(f"Exception occoured: {e}")
     if(not isinstance(e, MPCEnergyError)):
         traceback.print_exc() # Prints the full traceback to the console for unexpected errors
-    logger.warning("Trying again after 30 seconds")
+    
+    try:
+        ha.create_persistent_notification(
+            title="MPC Energy Error",
+            message=f"An error occurred: {e}. Check the MPC Energy Log for details."
+        )
+        if(config_manager.notification_target_option in ["error_warning", "both"] and config_manager.notification_target != "" and time.time() - last_error_mobile_notification_timestamp > 60*60): # If the user has selected to receive error warnings and it's been more than 60 minutes since the last error notification, send a new one
+            last_error_mobile_notification_timestamp = time.time()
+            send_mobile_notification(title="MPC Energy Error", message=f"An error occurred: {e}. Check the MPC Energy Log for details.")
+            
+
+    except Exception as notification_error:
+        logger.error(f"Failed to create Home Assistant notification for the error. This likely means that the Home Assistant API is down. Check the API and try again. Error creating notification: {notification_error}")
 
 def FailSafe(e):
     global EC, ha_mqtt
@@ -86,9 +110,12 @@ def FailSafe(e):
     try:
         if(ha_mqtt.automatic_control_switch.state == True):
             EC.self_consumption()
-            logger.warning("Succsesfully put system into safe mode after detecting an error.")        
+            logger.warning("Succsessfully put system into safe mode after detecting an error.")        
     except:
-        logger.error("Failed to put system into safe mode after detecting an error.")       
+        logger.error("Failed to put system into safe mode after detecting an error.")   
+
+    logger.warning("Trying again after 30 seconds")
+    time.sleep(30)    
         
 
 while(started == False):
@@ -159,7 +186,6 @@ last_real_price_timestamp = time.time() # var to keep track of when the last rea
 next_amber_update_timestamp = time.time() #time to run the next amber update
 partial_update = False #Indicates wheather to do a full amber update or just the current prices (if only estimated prices)
 
-#amber_data = amber.get_data(forecast_hrs=mpc.forecast_hrs)
 last_control_mode = ""
         
 sensor_state_cache = {}
@@ -169,7 +195,7 @@ def set_sensor_if_changed(sensor, value):
     if sensor_state_cache.get(cache_key) != value:
         sensor.set_state(value)
         sensor_state_cache[cache_key] = value   
-    
+
 # Update HA MQTT sensors
 def update_sensors(amber_data):
     rbc.update_values(amber_data=amber_data)
@@ -177,7 +203,6 @@ def update_sensors(amber_data):
     override_status = control_mode_override_manager.state['active']
     override_mode = control_mode_override_manager.state['mode']
     opperating_mode = override_mode if override_status else EC.working_mode
-
     set_sensor_if_changed(ha_mqtt.max_feedIn_sensor, round(amber_data.feedIn_max_forecast_price))
     set_sensor_if_changed(ha_mqtt.current_feedIn_sensor, round(amber_data.feedIn_price))
     set_sensor_if_changed(ha_mqtt.current_general_price_sensor, round(amber_data.general_price))
@@ -211,6 +236,44 @@ def update_sensors(amber_data):
     set_sensor_if_changed(ha_mqtt.curtailment_status_sensor, int(curtailment_resp['curtailing']))
     set_sensor_if_changed(ha_mqtt.curtailment_reason_sensor, curtailment_resp['reason'])
 
+last_spike_warning_timestamp = 0
+spike_found_timestamp = 0
+def check_for_spike(amber_data):
+    global last_spike_warning_timestamp, spike_found_timestamp
+    max_price = -99999
+    spike_index = None
+    if(time.time() - last_spike_warning_timestamp > 60*60): # If it's been more than 60 minutes since the last spike warning, check for new ones
+        for i, feedIn in enumerate(amber_data.feedIn_extrapolated_forecast[0:(1*(60//5))]): # Only check for spikes in the next hour
+            rounded_price = round(feedIn)
+            if(rounded_price > max_price):
+                max_price = rounded_price
+                spike_index = i
+        
+        datetime_of_spike = mpc.sim_start + datetime.timedelta(minutes=spike_index*5)
+        spike_time_24h = datetime_of_spike.strftime("%H:%M")
+
+        logger.debug(f"Spike Detection: Max feed in price in the next hour: {max_price} c/kWh at index {spike_index}, occouring at: {spike_time_24h}") # Debug log to show the max price found in the forecast and when it occurs to help with troubleshooting the spike detection logic
+
+        if(max_price >= config_manager.spike_price_warning_level): # If the feed in price forecast contains a price above the spike warning level and it's been more than 60 minutes since the last warning, send a new warning
+            if(spike_found_timestamp == 0): # If we haven't already recorded the time that the spike was found, do so now to start the 9 minute timer
+                spike_found_timestamp = time.time()
+
+            if(time.time() - spike_found_timestamp > 9*60): # If the spike has been present in the forecast for over 9 minutes, notify
+                last_spike_warning_timestamp = time.time()
+
+                spike_message = f"Feed in price spike forecasted! Upcoming feed in price is {max_price} c/kWh and will occur at {spike_time_24h}."
+                logger.warning(spike_message)
+                ha.create_persistent_notification(
+                    title="MPC Forecast Feed In Price Spike",
+                    message=spike_message,
+                    notification_id="mpc_energy_price_spike_warning"
+                )
+                if(config_manager.notification_target_option in ["price_spike_warning", "both"] and config_manager.notification_target != ""):
+                    send_mobile_notification(title="MPC Forecast Feed In Price Spike", message=spike_message)   
+            
+        else:
+            spike_found_timestamp = 0 # Reset the spike found timestamp if no spikes are currently forecasted
+                
 
 def run_controller(price_update=False):
     global automatic_control, last_control_mode
@@ -283,10 +346,23 @@ def main_loop_code():
     plant.update_data() # Update the plant data once for everything else to use.
 
     if(time.time() >= next_amber_update_timestamp):
+        start_timer()
+        mpc.update_forecast_horizon() # Update forecast horizon to get the start and end times of the plan (to feed into the amber API call)
         if(partial_update):
-            amber_data = amber.get_data(partial_update=True, forecast_hrs=mpc.forecast_hrs)
+            amber_data = amber.get_data(
+                partial_update=True,
+                forecast_hrs=mpc.forecast_hrs,
+                sim_start=mpc.sim_start,
+                sim_end=mpc.sim_end,
+            )
         else:
-            amber_data = amber.get_data(forecast_hrs=mpc.forecast_hrs)
+            amber_data = amber.get_data(
+                forecast_hrs=mpc.forecast_hrs,
+                sim_start=mpc.sim_start,
+                sim_end=mpc.sim_end,
+            )
+        
+        elapsed_time("Amber Data")
 
         set_sensor_if_changed(ha_mqtt.estimated_price_status_sensor, int(amber_data.prices_estimated))
 
@@ -310,25 +386,30 @@ def main_loop_code():
         
 
         if(not amber_data.prices_estimated): #If the prices are real
-            start_timer()
             run_controller(price_update=True) # Send the price update flag to indicate that new pricing data has been received.
-            elapsed_time("Controller Run")
+            check_for_spike(amber_data) # Check for any spikes in the feed in price forecast and send warnings if any are found
 
-            logger.info(f"General: {amber_data.general_price} c/kWh  Feed In: {amber_data.feedIn_price} c/kWh  Max 12hr Feed In: {amber_data.feedIn_max_forecast_price} c/kWh")    
-            logger.info(f"Seconds till next update: {round(next_amber_update_timestamp - time.time())}")
+            logger.info(f"General: {amber_data.general_price} c/kWh  Feed In: {amber_data.feedIn_price} c/kWh  Max 12hr Feed In: {amber_data.feedIn_max_forecast_price} c/kWh, {round(next_amber_update_timestamp - time.time())} seconds till next update.")    
             logger.info("....")
     
     
     run_controller() # Run the selected controller  
     
-    
+    if(ha.ha_api_went_down()): # If the API went offline, clear the sensor cache to force a publish of all MQTT sensor data
+        logger.warning("Detected Home Assistant API recovery. Clearing MQTT sensor cache to republish states.")
+        sensor_state_cache.clear()
+        
     update_sensors(amber_data)
 
 last_loop_timestamp = 0
 last_alive_time_timestamp = 0
 while True:
     try:
-        if(time.time() - last_loop_timestamp >= 10): # Run the loop every 10 seconds to reduce CPU usage
+        regular_loop_update_due = time.time() - last_loop_timestamp >= 10
+        seconds_till_price_update = next_amber_update_timestamp - time.time()
+
+        # Run main code if a price update is due or if its been more than 10s since the last loop (but not close to the price update so we're free to run asap for the price update)
+        if(time.time() >= next_amber_update_timestamp or (regular_loop_update_due and seconds_till_price_update > 20)): 
             last_loop_timestamp = time.time()
             main_loop_code()
         
@@ -336,7 +417,7 @@ while True:
             last_alive_time_timestamp = time.time()
             ha_mqtt.alive_time_sensor.set_state(round(time.time()-app_start_timestamp))
 
-        time.sleep(1) # Sleep a little to reduce CPU usage, we don't need to check the time constantly
+        time.sleep(0.1) # Sleep a little to reduce CPU usage, we don't need to check the time constantly
         
 
     except KeyboardInterrupt:
@@ -346,6 +427,4 @@ while True:
     
     except Exception as e:
         FailSafe(e)
-        time.sleep(30)
-
     

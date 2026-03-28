@@ -10,6 +10,8 @@ from typing import Any
 import config_manager
 from mpc_logger import logger
 from exceptions import HAAPIError, SigenergyConnectionError
+import traceback
+from helper_functions import round_minutes
 
 
 @dataclass
@@ -39,8 +41,8 @@ class Plant:
         self.max_inverter_power = self.get_config_entry_value(config_manager.inverter_max_power_limit_entity_id)
         self.max_export_power = self.get_config_entry_value(config_manager.export_max_power_limit_entity_id)
         self.max_import_power = self.get_config_entry_value(config_manager.import_max_power_limit_entity_id)
+                            
         
-        #print(f"Battery Cap: {self.rated_capacity} kWh | Max Discharge: {self.max_discharge_power} kW | Max Charge: {self.max_charge_power} kW | Max PV: {self.max_pv_power} kW | Max Inverter: {self.max_inverter_power} kW | Max Export: {self.max_export_power} kW | Max Import: {self.max_import_power} kW")
         self.load_avg_days = 3
 
         self.last_load_data_retrival_timestamp = 0
@@ -49,7 +51,19 @@ class Plant:
         self.last_base_load_estimate_timestamp = 0
         self.base_load_estimate = None
 
+        self.history_since_midnight = None
+
         self.update_data()
+
+        logger.debug(f"Battery Capacity: {self.rated_capacity} kWh | "
+                     f"Max Discharge: {self.max_discharge_power} kW | "
+                     f"Max Charge: {self.max_charge_power} kW | "
+                     f"Max PV: {self.max_pv_power} kW | "
+                     f"Max Inverter: {self.max_inverter_power} kW | "
+                     f"Max Export: {self.max_export_power} kW | "
+                     f"Max Import: {self.max_import_power} kW | "
+                     f"Backup Buffer: {self.kwh_backup_buffer} kWh"
+                )
 
     def get_sigenergy_state(self, entity_id):
         state_payload = self.ha.get_state(entity_id)
@@ -127,6 +141,12 @@ class Plant:
         Battery SOC >= 97% is treated as a charging constraint because near-full
         batteries commonly trigger charge tapering/curtailment behaviour.
         """
+        if(self.get_sigenergy_state(config_manager.ha_ems_control_switch_entity_id)['state'] != "on"):
+            return {
+                "curtailing": False,
+                "reason": "Remote EMS Switch Off, unable to determine curtailment status",
+            }
+
         control_mode = self.get_plant_mode()
 
         inverter_limit_kw = self.get_sigenergy_numeric_state(config_manager.inverter_max_power_limit_entity_id)
@@ -167,7 +187,7 @@ class Plant:
             "ac_sink_limit": f"Load + export sink limit ({round(ac_sink_limit_kw + effective_charge_limit_kw, 2)} kW)",
         }
 
-        reason_parts = reason_text_map[limiting_reason]
+        reason = reason_text_map[limiting_reason]
         '''
         if control_mode in charge_disabled_modes:
             reason_parts.append("battery charging disabled by mode")
@@ -176,16 +196,10 @@ class Plant:
 
         return {
             "curtailing": curtailing,
-            "reason": reason_parts,
-            "limiting_reason_key": limiting_reason,
-            "configured_ceiling_kw": round(configured_ceiling_kw, 2),
-            "derated_ceiling_kw": round(derated_ceiling_kw, 2),
-            "solar_kw": round(self.solar_kw, 2),
-            "battery_soc": round(self.battery_soc, 2),
-            "control_mode": control_mode,
+            "reason": reason,
         }
     
-    def historical_data(self, hours, bin_period=5): # Get the requested hours of historical data for the plant being (SOC, battery power, inverter power, solar power, grid power, load power and prices.) in order oldest to newest
+    def historical_data(self, start_datetime=None, end_datetime=None, hours=None, bin_period=5): # Get the requested hours of historical data for the plant being (SOC, battery power, inverter power, solar power, grid power, load power and prices.) in order oldest to newest
         """
         hours  -> hours of historical data to retreive
         bin_period -> bin size in minutes to average data across
@@ -198,14 +212,26 @@ class Plant:
                 ...
             ]
         """
-        now = datetime.datetime.now(self.local_tz)
-        rounded_now = self.round_minutes(time=now, nearest_minute=bin_period)
-        start = self.round_minutes(time=rounded_now - datetime.timedelta(hours=hours), nearest_minute=bin_period)
-        end = now
-        data_bin_qty = int((hours * 60) / bin_period) + 1 # +1 to captre the end time otherwise it would only get the 2nd last time
+        start_timestamp = time.time()
+        if(hours == None and (start_datetime == None or end_datetime == None)):
+            logger.error("Error: Must provide either hours or start and end datetimes for historical data retrieval.")
+            raise ValueError(f"Must provide either hours or start and end datetimes for historical data retrieval. Received hours: {hours}, start_datetime: {start_datetime}, end_datetime: {end_datetime}")
 
-        battery_soc_state_history = self.ha.get_history(config_manager.battery_soc_entity_id, start_time=start, end_time=end)
-        battery_power_state_history = self.ha.get_history(config_manager.battery_power_entity_id, start_time=start, end_time=end)
+        if(hours != None and (start_datetime != None or end_datetime != None)):
+            logger.error("Error: Must provide either hours or start and end datetimes for historical data retrieval, not both.")
+            raise ValueError(f"Must provide either hours or start and end datetimes for historical data retrieval, not both. Received hours: {hours}, start_datetime: {start_datetime}, end_datetime: {end_datetime}")
+        
+        if(hours != None):
+            now = datetime.datetime.now(self.local_tz)
+            rounded_now = round_minutes(time=now, nearest_minute=bin_period)
+            start_datetime = round_minutes(time=rounded_now - datetime.timedelta(hours=hours), nearest_minute=bin_period)
+            end_datetime = rounded_now
+
+        requested_hours = (end_datetime - start_datetime).total_seconds() / 3600
+        logger.debug(f"Requesting historical data from {start_datetime.isoformat()} to {end_datetime.isoformat()} ({round(requested_hours, 2)} hours)")
+
+        battery_soc_state_history = self.ha.get_history(config_manager.battery_soc_entity_id, start_time=start_datetime, end_time=end_datetime)
+        battery_power_state_history = self.ha.get_history(config_manager.battery_power_entity_id, start_time=start_datetime, end_time=end_datetime)
         if(config_manager.battery_power_sign_convention == "+ Charge, - Discharge"):
             for state in battery_power_state_history:
                 try:
@@ -216,38 +242,40 @@ class Plant:
         #   +kW = discharging (battery supplying power)
         #   -kW = charging (battery absorbing power)
 
-        inverter_power_state_history = self.ha.get_history(config_manager.inverter_power_entity_id, start_time=start, end_time=end)
-        solar_power_state_history = self.ha.get_history(config_manager.solar_power_entity_id, start_time=start, end_time=end)
-        load_power_state_history = self.ha.get_history(config_manager.load_power_entity_id, start_time=start, end_time=end)
-        grid_power_state_history = self.ha.get_history(config_manager.grid_power_entity_id, start_time=start, end_time=end)
-        grid_import_kwh_state_history = self.ha.get_history(config_manager.plant_daily_import_kwh_entity_id, start_time=start, end_time=end)
-        grid_export_kwh_state_history = self.ha.get_history(config_manager.plant_daily_export_kwh_entity_id, start_time=start, end_time=end)
+        inverter_power_state_history = self.ha.get_history(config_manager.inverter_power_entity_id, start_time=start_datetime, end_time=end_datetime)
+        solar_power_state_history = self.ha.get_history(config_manager.solar_power_entity_id, start_time=start_datetime, end_time=end_datetime)
+        load_power_state_history = self.ha.get_history(config_manager.load_power_entity_id, start_time=start_datetime, end_time=end_datetime)
+        grid_power_state_history = self.ha.get_history(config_manager.grid_power_entity_id, start_time=start_datetime, end_time=end_datetime)
+        grid_import_kwh_state_history = self.ha.get_history(config_manager.plant_daily_import_kwh_entity_id, start_time=start_datetime, end_time=end_datetime)
+        grid_export_kwh_state_history = self.ha.get_history(config_manager.plant_daily_export_kwh_entity_id, start_time=start_datetime, end_time=end_datetime)
 
-        feed_in_state_history = self.ha.get_history("sensor.mpc_energy_manager_device_feed_in_price", start_time=start, end_time=end) 
-        general_price_state_history = self.ha.get_history("sensor.mpc_energy_manager_device_general_price", start_time=start, end_time=end)
-        working_mode_state_history = self.ha.get_history("sensor.mpc_energy_manager_device_working_mode", start_time=start, end_time=end, type=str)
+        feed_in_state_history = self.ha.get_history("sensor.mpc_energy_manager_device_feed_in_price", start_time=start_datetime, end_time=end_datetime) 
+        general_price_state_history = self.ha.get_history("sensor.mpc_energy_manager_device_general_price", start_time=start_datetime, end_time=end_datetime)
+        working_mode_state_history = self.ha.get_history("sensor.mpc_energy_manager_device_working_mode", start_time=start_datetime, end_time=end_datetime, type=str)
 
-        #requested_data_received = self.validate_returned_data_timedelta(inverter_power_state_history, start, end)
+        #requested_data_received = self.validate_returned_data_timedelta(inverter_power_state_history, start_datetime, end_datetime)
 
 
-        binned_battery_soc_state_history = self.bin_data(battery_soc_state_history, bin_period=bin_period, start_bin_datetime=start, bin_qty=data_bin_qty)
-        binned_battery_power_state_history = self.bin_data(battery_power_state_history, bin_period=bin_period, start_bin_datetime=start, bin_qty=data_bin_qty)
-        binned_inverter_power_state_history = self.bin_data(inverter_power_state_history, bin_period=bin_period, start_bin_datetime=start, bin_qty=data_bin_qty)
-        binned_solar_power_state_history = self.bin_data(solar_power_state_history, bin_period=bin_period, start_bin_datetime=start, bin_qty=data_bin_qty)
-        binned_load_power_state_history = self.bin_data(load_power_state_history, bin_period=bin_period, start_bin_datetime=start, bin_qty=data_bin_qty)
-        binned_grid_power_state_history = self.bin_data(grid_power_state_history, bin_period=bin_period, start_bin_datetime=start, bin_qty=data_bin_qty)
+        binned_battery_soc_state_history = self.bin_data(battery_soc_state_history, bin_period=bin_period, start_bin_datetime=start_datetime, end_bin_datetime=end_datetime)
+        binned_battery_power_state_history = self.bin_data(battery_power_state_history, bin_period=bin_period, start_bin_datetime=start_datetime, end_bin_datetime=end_datetime)
+        binned_inverter_power_state_history = self.bin_data(inverter_power_state_history, bin_period=bin_period, start_bin_datetime=start_datetime, end_bin_datetime=end_datetime)
+        binned_solar_power_state_history = self.bin_data(solar_power_state_history, bin_period=bin_period, start_bin_datetime=start_datetime, end_bin_datetime=end_datetime)
+        binned_load_power_state_history = self.bin_data(load_power_state_history, bin_period=bin_period, start_bin_datetime=start_datetime, end_bin_datetime=end_datetime)
+        binned_grid_power_state_history = self.bin_data(grid_power_state_history, bin_period=bin_period, start_bin_datetime=start_datetime, end_bin_datetime=end_datetime)
 
-        binned_grid_import_kwh_state_history = self.bin_data(grid_import_kwh_state_history, bin_period=bin_period, start_bin_datetime=start, bin_qty=data_bin_qty)
-        binned_grid_export_kwh_state_history = self.bin_data(grid_export_kwh_state_history, bin_period=bin_period, start_bin_datetime=start, bin_qty=data_bin_qty)
+        binned_grid_import_kwh_state_history = self.bin_data(grid_import_kwh_state_history, bin_period=bin_period, start_bin_datetime=start_datetime, end_bin_datetime=end_datetime)
+        binned_grid_export_kwh_state_history = self.bin_data(grid_export_kwh_state_history, bin_period=bin_period, start_bin_datetime=start_datetime, end_bin_datetime=end_datetime)
 
         
-        binned_feed_in_state_history = self.bin_data(feed_in_state_history, bin_period=bin_period, start_bin_datetime=start, bin_qty=data_bin_qty, interpolation_method="step")
-        binned_general_price_state_history = self.bin_data(general_price_state_history, bin_period=bin_period, start_bin_datetime=start, bin_qty=data_bin_qty, interpolation_method="step")# Step Interpolation as prices dont gradually change
-        binned_working_mode_state_history = self.bin_data(working_mode_state_history, bin_period=bin_period, start_bin_datetime=start, bin_qty=data_bin_qty, string_state=True)
+        binned_feed_in_state_history = self.bin_data(feed_in_state_history, bin_period=bin_period, start_bin_datetime=start_datetime, end_bin_datetime=end_datetime, interpolation_method="step")
+        binned_general_price_state_history = self.bin_data(general_price_state_history, bin_period=bin_period, start_bin_datetime=start_datetime, end_bin_datetime=end_datetime, interpolation_method="step")# Step Interpolation as prices dont gradually change
+        binned_working_mode_state_history = self.bin_data(working_mode_state_history, bin_period=bin_period, start_bin_datetime=start_datetime, end_bin_datetime=end_datetime, string_state=True)
 
         binned_battery_soc_kwh_history = [(item.avg_state / 100.0) * self.rated_capacity for item in binned_battery_soc_state_history]
         
         history_time_index = [item.time.isoformat() for item in binned_battery_soc_state_history] # Get the time marks from the data
+
+        logger.debug(f"Received data bins span from {history_time_index[0]} to {history_time_index[-1]} ({len(history_time_index)} bins), request took {round(time.time()-start_timestamp,2)} seconds to retrieve and process.")
 
         output = {
             "time_index": history_time_index,
@@ -264,22 +292,65 @@ class Plant:
             "grid_export_kwh": [state.avg_state for state in binned_grid_export_kwh_state_history],
         }
         return output
+    
+    def get_profit_history(self): #Get the history required for the profit calcs and use cached data if its not too old to avoid the expensive historical data retrieval and processing if possible.
+        now = datetime.datetime.now(self.local_tz)
+        rounded_now = round_minutes(time=now, nearest_minute=5)
+        today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+
+        if self.history_since_midnight is not None and self.history_since_midnight.get("time_index"):
+            first_cached_timestamp = self.history_since_midnight["time_index"][0]
+            first_cached_dt = datetime.datetime.fromisoformat(first_cached_timestamp)
+            # Reset the cache at local midnight so "today" calculations do not include yesterday's bins.
+            if first_cached_dt.date() != now.date():
+                self.history_since_midnight = None
+
+        if self.history_since_midnight == None:
+            self.history_since_midnight = self.historical_data(start_datetime=today_start, end_datetime=rounded_now, bin_period=5)
+            return self.history_since_midnight
+        else:
+            last_history_timestamp = self.history_since_midnight['time_index'][-1]
+            start = datetime.datetime.fromisoformat(last_history_timestamp)
+            end = now
+            minutes_since_last_history = (end - start).total_seconds() / 60
+            if minutes_since_last_history > 5: # If the history is more than 5 minutes old, get new history
+                latest_history = self.historical_data(start_datetime=start, end_datetime=rounded_now, bin_period=5)
+                logger.debug(f"Updating profit history cache with {len(latest_history['time_index'])} new data points spanning from {latest_history['time_index'][0]} to {latest_history['time_index'][-1]}.")
+
+                last_ts = self.history_since_midnight["time_index"][-1]
+                new_times = latest_history["time_index"]
+
+                if new_times and new_times[0] == last_ts:
+                    # Override the last cached point with latest recomputed point
+                    for k in self.history_since_midnight.keys():
+                        self.history_since_midnight[k][-1] = latest_history[k][0]
+                    start_idx = 1
+                else:
+                    # No exact overlap found at first point; append from first strictly newer point
+                    start_idx = 0
+                    while start_idx < len(new_times) and new_times[start_idx] <= last_ts:
+                        start_idx += 1
+
+                # Append remaining new points
+                for k in self.history_since_midnight.keys():
+                    self.history_since_midnight[k].extend(latest_history[k][start_idx:])
+
+        return self.history_since_midnight
 
     def calculate_today_profit_cost(self):
         # Get today's historical data
-        start = datetime.datetime.now(self.local_tz).replace(hour=0, minute=0, second=0, microsecond=0)
-        end = datetime.datetime.now(self.local_tz)
-        hours_since_midnight = (end - start).total_seconds() / 3600
-        history = self.historical_data(hours=hours_since_midnight, bin_period=5)
+        history = self.get_profit_history()
+
+        now = datetime.datetime.now(self.local_tz)
 
         # Check to see if the requested amount of data was recieved, use the configured default if not
         if(len(history['prices_sell']) < 2):
-            logger.error(f"Insufficent data to calulate profit.")
-            return {
-                "total_export_revenue": 0,
-                "total_import_cost": 0,
-                "net_profit": 0
-            }
+            if(now.time() > datetime.time(0,30)): # If its early in the day, its likely there just isn't enough history yet, so don't log a warning and set profit to 0
+                logger.error(f"Insufficent data to calulate profit.")
+            self.daily_export_profit = 0
+            self.daily_import_cost = 0
+            self.daily_net_profit = 0
+            return
 
         # Convert lists to numpy arrays
         export_cumsum = np.array(history["grid_export_kwh"])
@@ -320,6 +391,8 @@ class Plant:
             return f"{int(hours)} hours {round((hours%1)*60)} minutes"
 
     def check_control_limits(self, working_mode, control_mode, discharge, charge, pv, grid_export, grid_import): # Check if control limits match desired values and change them if required. 
+        self.ensure_remote_ems() # Make sure the EMS is able to be controlled
+
         current_control_mode = self.get_plant_mode()
         curent_discharge_limit = self.get_sigenergy_numeric_state(config_manager.battery_discharge_limiter_entity_id)
         curent_charge_limit = self.get_sigenergy_numeric_state(config_manager.battery_charge_limiter_entity_id)
@@ -341,19 +414,18 @@ class Plant:
 
         if any_limits_wrong:          
             self.set_control_limits(control_mode, discharge, charge, pv, grid_export, grid_import)
-            logger.info(f"{working_mode} !!!")
+            logger.info(f"Changing control entities for mode: {working_mode}")
             time.sleep(5) # Allow time for HA to update
     
     def ensure_remote_ems(self): # Ensures the remote EMS switch is on provided the automatic control switch is on
         if(self.get_sigenergy_state(config_manager.ha_ems_control_switch_entity_id)['state'] != "on"):
                 logger.warning(f"Remote EMS switch is '{self.get_sigenergy_state(config_manager.ha_ems_control_switch_entity_id)['state']}', turning on to allow control.")
                 self.ha.set_switch_state(config_manager.ha_ems_control_switch_entity_id, True)
-                time.sleep(2) # delay to ensure the change has time to become effective
+                time.sleep(10) # delay to ensure the change has time to become effective
 
     def check_for_enabled_entites(self): # Checks to make sure all the entities needed for control are available and enabled, if not it raises an error
         entity_ids = [
             config_manager.ha_ems_control_switch_entity_id,
-            config_manager.ems_control_mode_entity_id,
             config_manager.backup_soc_entity_id,
             config_manager.charge_cutoff_soc_entity_id,
             config_manager.battery_max_discharge_power_limit_entity_id,
@@ -365,6 +437,11 @@ class Plant:
             config_manager.battery_max_charge_power_limit_entity_id,
             config_manager.battery_max_discharge_power_limit_entity_id
         ]
+
+        # Only check for the EMS control mode if the HA EMS Control switch is on as otherwise the mode controller is disabled.
+        if(self.get_sigenergy_state(config_manager.ha_ems_control_switch_entity_id)['state'] == "on"):
+            entity_ids.append(config_manager.ems_control_mode_entity_id)
+
         unavailable_ids = []
         for entity_id in entity_ids:
             try:
@@ -388,11 +465,8 @@ class Plant:
                 logger.error(id)
             exit()
 
-
     def set_control_limits(self, control_mode, discharge, charge, pv, grid_export, grid_import): # Set the control limits to the desired values
-        #if(self.get_plant_mode() != control_mode):
         self.ensure_remote_ems() # Make sure the EMS is able to be controlled
-
 
         self.ha.set_number(config_manager.battery_discharge_limiter_entity_id, discharge)
         self.ha.set_number(config_manager.battery_charge_limiter_entity_id, charge)
@@ -461,13 +535,13 @@ class Plant:
         else:
             raise ValueError("method must be 'linear' or 'step'")
 
-    def bin_data(self, history, bin_period, start_bin_datetime, bin_qty, string_state=False, interpolation_method="linear"): 
+    def bin_data(self, history, bin_period, start_bin_datetime, end_bin_datetime, string_state=False, interpolation_method="linear"): 
         """
         history[x].state    -> numeric value (string or float)
         history[x].time     -> datetime object (tz-aware)
         start_bin_datetime  -> datetime object for bin start time
+        end_bin_datetime    -> datetime object for bin end time
         bin_period          -> time period (minutes) to bin data into
-        bin_qty             -> total qty of bins to be outputted
 
         Returns:
             List of BinnedStateClass objs:
@@ -478,6 +552,9 @@ class Plant:
             ]
         """
         bin_delta = datetime.timedelta(minutes=bin_period)
+        if end_bin_datetime < start_bin_datetime:
+            raise ValueError(f"end_bin_datetime: '{end_bin_datetime}' must be greater than or equal to start_bin_datetime: '{start_bin_datetime}'")
+        bin_qty = int(((end_bin_datetime - start_bin_datetime).total_seconds()) // bin_delta.total_seconds()) + 1
 
         # Remove any invalid states from the history list (Unavailable, None, etc)
         clean_history = []
@@ -765,19 +842,23 @@ class Plant:
 
         return avg_day
 
-    def round_forecast_times(self, forecast_hours_from_now=None, forecast_till_time=None):
-        rounded_current_time = self.round_minutes(datetime.datetime.now(self.local_tz), nearest_minute=5)
+    def round_forecast_times(self, forecast_hours_from_now=None, forecast_till_time=None, forecast_start_time=None, forecast_end_time=None):
+        if forecast_start_time is not None and forecast_end_time is not None:
+            rounded_current_time = round_minutes(forecast_start_time, nearest_minute=5)
+            rounded_forecast_time = round_minutes(forecast_end_time, nearest_minute=5)
+            return [rounded_current_time, rounded_forecast_time]
+        
+        rounded_current_time = round_minutes(datetime.datetime.now(self.local_tz), nearest_minute=5)
         if(forecast_hours_from_now):
-            if(forecast_hours_from_now > 24):
-                raise Exception(f"Unable to provide forecast more than 24hrs in the future. {forecast_hours_from_now} hrs requested")
-            rounded_forecast_time = self.round_minutes(rounded_current_time + datetime.timedelta(hours=forecast_hours_from_now), nearest_minute=5).time()
+            rounded_forecast_time = round_minutes(rounded_current_time + datetime.timedelta(hours=forecast_hours_from_now), nearest_minute=5)
         elif(forecast_till_time):
-            rounded_forecast_time = self.round_minutes(forecast_till_time, nearest_minute=5)
+            rounded_forecast_time = datetime.datetime.combine(rounded_current_time.date(), forecast_till_time, tzinfo=self.local_tz)
+            rounded_forecast_time = round_minutes(rounded_forecast_time, nearest_minute=5)
+            if(rounded_forecast_time <= rounded_current_time):
+                rounded_forecast_time = rounded_forecast_time + datetime.timedelta(days=1)
         else:
             raise Exception("Must provide forecast hours or time to determine forecast!")
         
-        rounded_current_time = rounded_current_time.time()
-
         return [rounded_current_time, rounded_forecast_time]
     
     def get_load_avg(self, days_ago, hours_update_interval=24): # hours_update_interval: frequency to update the load date
@@ -786,46 +867,43 @@ class Plant:
             self.last_load_data_retrival_timestamp = time.time()
         return self.avg_load_day
     
-    def forecast_load_power(self, forecast_hours_from_now=None, forecast_till_time=None):
+    def forecast_load_power(self, forecast_hours_from_now=None, forecast_till_time=None, forecast_start_time=None, forecast_end_time=None):
         avg_day = self.get_load_avg(days_ago=self.load_avg_days)
 
-        [rounded_current_time, rounded_forecast_time] = self.round_forecast_times(forecast_hours_from_now, forecast_till_time)
+        # Determine the current and the end of the forecast datetimes, both rounded to 5 min
+        [rounded_current_time, rounded_forecast_time] = self.round_forecast_times(
+            forecast_hours_from_now,
+            forecast_till_time,
+            forecast_start_time=forecast_start_time,
+            forecast_end_time=forecast_end_time,
+        )
 
-        avg_day_1_kwh = []
-        avg_day_2_kwh = []
-        for bin in avg_day:
-            avg_day_1_kwh.append(BinnedStateClass(avg_state=bin.avg_state, states=[], time=bin.time))
-            avg_day_2_kwh.append(BinnedStateClass(avg_state=bin.avg_state + avg_day[-1].avg_state, states=[], time=bin.time))# Add the last kwh reading to the first to seemlesly transition to day 2
+        # Create a lookup dict for each time bin
+        avg_day_kwh_lookup = {bin.time: bin.avg_state for bin in avg_day}
+        avg_day_total_kwh = avg_day[-1].avg_state
 
-
-        avg_48hr_period_kwh = avg_day_1_kwh + avg_day_2_kwh
-
-        #print(f"Avg1: {[round(a.avg_state) for a in avg_day_1_kwh]}  \n\nAvg2: {[round(a.avg_state) for a in avg_day_2_kwh]}")
-
-        #print(f"Avg48: {[round(a.avg_state,2) for a in avg_48hr_period_kwh[490:510]]}")
-
-        start_idx = None
-        end_idx = None
-        for i in range(len(avg_48hr_period_kwh)):
-            if(start_idx == None and avg_48hr_period_kwh[i].time == rounded_current_time):
-                start_idx = i
-            elif(start_idx != None and end_idx == None and avg_48hr_period_kwh[i].time == rounded_forecast_time):
-                end_idx = i
-                break
-        
-        #print(f"start: {start_idx}  stop: {end_idx}  total:{len(avg_48hr_period_kwh)}")
+        # Get the appropriate kwh for the provided time
+        def cumulative_kwh_for_time(target_time):
+            day_offset = (target_time.date() - rounded_current_time.date()).days
+            return avg_day_kwh_lookup[target_time.time()] + (day_offset * avg_day_total_kwh)
 
         forecast_power = []
-        for i in range(start_idx, end_idx):
-            if(i == 0):
-                power = (avg_48hr_period_kwh[1].avg_state - avg_48hr_period_kwh[0].avg_state) / (5/60)
+        forecast_steps = int((rounded_forecast_time - rounded_current_time).total_seconds() // (5 * 60))
+
+        # Loop through the forecast and fill the forecast array as the kwh between the current and next time divided by the time step
+        for i in range(forecast_steps):
+            point_time = rounded_current_time + datetime.timedelta(minutes=5 * i)
+            if(i == 0 and forecast_steps > 1):
+                next_time = point_time + datetime.timedelta(minutes=5)
+                power = (cumulative_kwh_for_time(next_time) - cumulative_kwh_for_time(point_time)) / (5/60)
             else:
-                power = (avg_48hr_period_kwh[i].avg_state - avg_48hr_period_kwh[i-1].avg_state) / (5/60)
+                prev_time = point_time - datetime.timedelta(minutes=5)
+                power = (cumulative_kwh_for_time(point_time) - cumulative_kwh_for_time(prev_time)) / (5/60)
 
             if(power <= 0):
-                power = (avg_48hr_period_kwh[-1].avg_state - avg_48hr_period_kwh[0].avg_state)/48 #If we get a weird reading, replace it with the average
+                power = avg_day_total_kwh / 24 #If we get a weird reading, replace it with the average
 
-            forecast_power.append(BinnedStateClass(avg_state=power, states=[], time=avg_48hr_period_kwh[i].time))
+            forecast_power.append(BinnedStateClass(avg_state=power, states=[], time=point_time))
         
         return forecast_power
             
@@ -834,21 +912,14 @@ class Plant:
 
         [rounded_current_time, rounded_forecast_time] = self.round_forecast_times(forecast_hours_from_now, forecast_till_time)
     
-        starting_kwh = None
-        ending_kwh = None
-        for bin in avg_day:
-            #print(f"time: {bin.time} state: {bin.avg_state}")
-            if(bin.time == rounded_current_time):
-                starting_kwh = bin.avg_state
-            elif(starting_kwh != None and bin.time == rounded_forecast_time):
-                ending_kwh = bin.avg_state
-        
-        if(ending_kwh == None):
-            for bin in avg_day:
-                if(bin.time == rounded_forecast_time):
-                    ending_kwh = bin.avg_state + avg_day[-1].avg_state # If the number of hours wraps past midnight, add the last avg_state from the previous day to the total kwh
-        
-        return ending_kwh-starting_kwh
+        avg_day_kwh_lookup = {bin.time: bin.avg_state for bin in avg_day}
+        avg_day_total_kwh = avg_day[-1].avg_state
+
+        starting_kwh = avg_day_kwh_lookup[rounded_current_time.time()]
+        day_offset = (rounded_forecast_time.date() - rounded_current_time.date()).days
+        ending_kwh = avg_day_kwh_lookup[rounded_forecast_time.time()] + (day_offset * avg_day_total_kwh)
+
+        return ending_kwh - starting_kwh
     
     def kwh_required_remaining(self, buffer_percentage=20):
         forecast_kwh = self.forecast_consumption_amount(forecast_till_time=datetime.time(6, 0, 0))
@@ -857,54 +928,72 @@ class Plant:
     def kwh_required_till_sundown(self, buffer_percentage=20):
         forecast_kwh = self.forecast_consumption_amount(forecast_till_time=datetime.time(18, 0, 0))
         return max(forecast_kwh, 0) * (1 + (buffer_percentage/100)) + 2
-        
-    def round_minutes(self, time, nearest_minute):
-        return time.replace(
-            minute=(time.minute // nearest_minute) * nearest_minute,
-            second=0,
-            microsecond=0
-            )  
-    
+            
     # returns the forecast solar power for the requested time period in 5 minute increments
-    def forecast_solar_power(self, forecast_hours_from_now):
-        N_30min = forecast_hours_from_now * (60//30)
-        N_5min = forecast_hours_from_now * (60//5)
+    def forecast_solar_power(self, forecast_hours_from_now, forecast_start_time=None, forecast_end_time=None):
+        if forecast_start_time is not None and forecast_end_time is not None:
+            rounded_start_time = round_minutes(forecast_start_time, nearest_minute=5)
+            rounded_end_time = round_minutes(forecast_end_time, nearest_minute=5)
+            forecast_seconds = max((rounded_end_time - rounded_start_time).total_seconds(), 0)
+            forecast_hours = forecast_seconds / 3600
+            N_5min = max(0, int(forecast_seconds // (5 * 60)))
+        else:
+            forecast_hours = float(forecast_hours_from_now)
+            N_5min = max(0, int(np.ceil(forecast_hours * (60 / 5))))
+
+        N_30min = max(0, int(np.ceil(N_5min / (30 // 5))))
         interpolation_steps = 30//5
 
         # Solar Forecast
         # Get solar forecast list from HA
-        today = self.get_sigenergy_state(config_manager.solcast_forecast_today_entity_id)["attributes"]["detailedForecast"]
-        tomorrow = self.get_sigenergy_state(config_manager.solcast_forecast_tomorrow_entity_id)["attributes"]["detailedForecast"]
+        today = self.ha.get_state(config_manager.solcast_forecast_today_entity_id)["attributes"]["detailedForecast"]
+        tomorrow = self.ha.get_state(config_manager.solcast_forecast_tomorrow_entity_id)["attributes"]["detailedForecast"]
+
         forecast = today + tomorrow # Combine
 
+        if(forecast_hours > 24):
+            day_3_forecast = self.ha.get_state(config_manager.solcast_forecast_day_3_entity_id)["attributes"]["detailedForecast"]
+            forecast = forecast + day_3_forecast # Add day 3's forecast to the list if requesting more than 24 hrs of forecast
+        
+        if(forecast_hours > 48):
+            day_4_forecast = self.ha.get_state(config_manager.solcast_forecast_day_4_entity_id)["attributes"]["detailedForecast"]
+            forecast = forecast + day_4_forecast # Add day 4's forecast to the list if requesting more than 48 hrs of forecast
+        
         df = pd.DataFrame(forecast) # Convert to DataFrame for easy time handling
         
         df["period_start"] = pd.to_datetime(df["period_start"]) # Parse timestamps (Solcast provides timezone-aware ISO strings)
 
         # Current time in same timezone
-        now = pd.Timestamp.now(tz=df["period_start"].dt.tz)
-        now = now.ceil("5min") #round to nearest 5 min
+        if forecast_start_time is not None:
+            now = pd.Timestamp(round_minutes(forecast_start_time, nearest_minute=5))
+            if df["period_start"].dt.tz is not None and now.tzinfo is None:
+                now = now.tz_localize(df["period_start"].dt.tz)
+            elif df["period_start"].dt.tz is not None and now.tzinfo is not None:
+                now = now.tz_convert(df["period_start"].dt.tz)
+        else:
+            now = pd.Timestamp.now(tz=df["period_start"].dt.tz)
+            now = now.ceil("5min") #round to nearest 5 min
 
         # Keep only future (or current) periods
         df_future = (
             df[df["period_start"] >= now]
             .sort_values("period_start")
-            .iloc[:N_5min]
+            .iloc[:N_30min]
         )
 
         # Solar forecast (kW)
         solar_30min = df_future["pv_estimate"].to_numpy()
         solar_30min = solar_30min[:N_30min]
-        solar_5min = np.interp(
-            np.arange(N_5min),
-            np.arange(0, N_5min, interpolation_steps),
-            solar_30min
-        )
-        solar_5min = solar_5min
-        if len(solar_5min) < N_5min:
-            raise RuntimeError(
-                f"Solcast forecast too short: {len(solar_5min)} < {N_5min}"
-            )
+
+        if len(solar_30min) == 0:
+            logger.warning("Solcast returned no future 30 minute forecast intervals. Falling back to zero solar forecast.")
+            return np.zeros(N_5min)
+
+        if len(solar_30min) < N_30min:
+            logger.warning(f"Solcast forecast shorter than requested horizon. Requested 30 min bins={N_30min}, received={len(solar_30min)}. Extending with last known value.")
+
+        solar_30min_x = np.arange(0, len(solar_30min) * interpolation_steps, interpolation_steps)
+        solar_5min = np.interp(np.arange(N_5min), solar_30min_x, solar_30min)
         
         return solar_5min[:N_5min] # return the solar forecast but limit the list length to the requested length
 

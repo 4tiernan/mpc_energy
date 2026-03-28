@@ -252,7 +252,7 @@ def check_for_spike(amber_data):
         datetime_of_spike = mpc.sim_start + datetime.timedelta(minutes=spike_index*5)
         spike_time_24h = datetime_of_spike.strftime("%H:%M")
 
-        logger.debug(f"Spike Detection: Max feed in price in the next hour: {max_price} c/kWh at index {spike_index} occouring at: {spike_time_24h}") # Debug log to show the max price found in the forecast and when it occurs to help with troubleshooting the spike detection logic
+        logger.debug(f"Spike Detection: Max feed in price in the next hour: {max_price} c/kWh at index {spike_index}, occouring at: {spike_time_24h}") # Debug log to show the max price found in the forecast and when it occurs to help with troubleshooting the spike detection logic
 
         if(max_price >= config_manager.spike_price_warning_level): # If the feed in price forecast contains a price above the spike warning level and it's been more than 60 minutes since the last warning, send a new warning
             if(spike_found_timestamp == 0): # If we haven't already recorded the time that the spike was found, do so now to start the 9 minute timer

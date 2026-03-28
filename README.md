@@ -6,16 +6,17 @@ A profit optimiser for home batteries with wholesale electricity pricing.
 
 ##  🚀 Getting Started
 
-👉 [Click here for onboarding instructions](https://github.com/4tiernan/mpc_energy/blob/main/docs/ONBOARDING.md)
+- [Click here for onboarding instructions](https://github.com/4tiernan/mpc_energy/blob/main/docs/ONBOARDING.md)
 <br/>
-<br/>
+
+## 📚 Additional Documentation
+- To find out more about what all the MQTT sensors and how the system opperates, please view the Descrition docuement [here](https://github.com/4tiernan/mpc_energy/blob/main/docs/DESCRIPTION.md)
+
 <br/>
 
 ## FAQ
-If you're having issues or the controller is doing something weird, please view the FAQ's [here](https://github.com/4tiernan/mpc_energy/blob/main/docs/FAQ.md)
+- If you're having issues or the controller is doing something weird, please view the FAQ's [here](https://github.com/4tiernan/mpc_energy/blob/main/docs/FAQ.md)
 
-<br/>
-<br/>
 <br/>
 
 ## ⚠️ Important Safety Notice

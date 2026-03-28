@@ -244,7 +244,7 @@ def check_for_spike(amber_data):
     spike_index = None
     if(time.time() - last_spike_warning_timestamp > 60*60): # If it's been more than 60 minutes since the last spike warning, check for new ones
         for i, feedIn in enumerate(amber_data.feedIn_extrapolated_forecast[0:(1*(60//5))]): # Only check for spikes in the next hour
-            rounded_price = round(feedIn.price)
+            rounded_price = round(feedIn)
             if(rounded_price > max_price):
                 max_price = rounded_price
                 spike_index = i

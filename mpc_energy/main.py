@@ -130,10 +130,20 @@ while(started == False):
         from PlantControl import Plant
         from control_mode_override import ControlModeOverrideManager
 
+        from External_Interfaces.flow_power import FlowPowerInterface
+
         ha = HomeAssistantAPI(
             base_url=const.HA_API_URL,
             token=const.HA_TOKEN,
         )
+
+        flow = FlowPowerInterface(
+            ha=ha,
+            import_price_entity_id="sensor.flow_power_qld1_import_price",
+            export_price_entity_id="sensor.flow_power_qld1_export_price",
+            price_forecast_entity_id="sensor.flow_power_qld1_price_forecast"
+            )
+        
 
         
         amber = AmberAPI(
@@ -167,7 +177,8 @@ while(started == False):
             plant=plant,
             EC=EC, 
             local_tz=ha.local_tz,
-            demand_tarrif=amber.demand_tarrif
+            demand_tarrif=amber.demand_tarrif, 
+            retailer=config_manager.energy_retailer
         ) 
 
         # Start Streamlit dashboard
@@ -198,15 +209,15 @@ def set_sensor_if_changed(sensor, value):
         sensor_state_cache[cache_key] = value   
 
 # Update HA MQTT sensors
-def update_sensors(amber_data):
-    rbc.update_values(amber_data=amber_data)
+def update_sensors(price_data):
+    rbc.update_values(amber_data=price_data)
 
     override_status = control_mode_override_manager.state['active']
     override_mode = control_mode_override_manager.state['mode']
     opperating_mode = override_mode if override_status else EC.working_mode
-    set_sensor_if_changed(ha_mqtt.max_feedIn_sensor, round(amber_data.feedIn_max_forecast_price))
-    set_sensor_if_changed(ha_mqtt.current_feedIn_sensor, round(amber_data.feedIn_price))
-    set_sensor_if_changed(ha_mqtt.current_general_price_sensor, round(amber_data.general_price))
+    set_sensor_if_changed(ha_mqtt.max_feedIn_sensor, round(price_data.feedIn_max_forecast_price))
+    set_sensor_if_changed(ha_mqtt.current_feedIn_sensor, round(price_data.feedIn_price))
+    set_sensor_if_changed(ha_mqtt.current_general_price_sensor, round(price_data.general_price))
     set_sensor_if_changed(ha_mqtt.kwh_discharged_sensor, round(plant.kwh_till_full, 2))
     set_sensor_if_changed(ha_mqtt.kwh_remaining_sensor, round(plant.kwh_stored_available, 2))
     set_sensor_if_changed(ha_mqtt.target_discharge_sensor, round(rbc.target_dispatch_price))
@@ -222,10 +233,10 @@ def update_sensors(amber_data):
     set_sensor_if_changed(ha_mqtt.profit_tomorrow_sensor, round(mpc.profit_tomorrow, 2))
 
     if(plant.grid_power < 0):
-        price = amber_data.feedIn_price
+        price = price_data.feedIn_price
         grid_status = "E"
     else:
-        price = amber_data.general_price
+        price = price_data.general_price
         grid_status = "I"
     
     set_sensor_if_changed(ha_mqtt.system_state_sensor, opperating_mode + f" {round(abs(plant.grid_power),1)}{grid_status}@{price} c/kWh ${round(plant.daily_net_profit,2)} profit")
@@ -239,12 +250,12 @@ def update_sensors(amber_data):
 
 last_spike_warning_timestamp = 0
 spike_found_timestamp = 0
-def check_for_spike(amber_data):
+def check_for_spike(price_data):
     global last_spike_warning_timestamp, spike_found_timestamp
     max_price = -99999
     spike_index = None
     if(time.time() - last_spike_warning_timestamp > 60*60): # If it's been more than 60 minutes since the last spike warning, check for new ones
-        for i, feedIn in enumerate(amber_data.feedIn_extrapolated_forecast[0:(1*(60//5))]): # Only check for spikes in the next hour
+        for i, feedIn in enumerate(price_data.feedIn_extrapolated_forecast[0:(1*(60//5))]): # Only check for spikes in the next hour
             rounded_price = round(feedIn)
             if(rounded_price > max_price):
                 max_price = rounded_price
@@ -281,10 +292,10 @@ def run_controller(price_update=False):
     # If Auto control has been TURNED on, print a msg and reset flag
     selected_controller = ha_mqtt.energy_controller_selector.state
 
-    if(control_mode_override_manager.run(amber_data)): # If the user selects manual control, don't allow another controller to run.
+    if(control_mode_override_manager.run(price_data)): # If the user selects manual control, don't allow another controller to run.
         last_control_mode = "Manual Override"
         if(price_update):
-            mpc.run_optimisation(amber_data) # Run the MPC optimisation each time the price updates to keep the plot updated
+            mpc.run_optimisation(price_data) # Run the MPC optimisation each time the price updates to keep the plot updated
         return
     
     if(last_control_mode == "Manual Override"):
@@ -292,9 +303,9 @@ def run_controller(price_update=False):
             logger.warning(f"Manual override finished. Returning control to {selected_controller}.")
 
             if(selected_controller == "MPC"):
-                mpc.run(amber_data)
+                mpc.run(price_data)
             elif(selected_controller == "RBC"):
-                rbc.run(amber_data)
+                rbc.run(price_data)
             else:
                 EC.self_consumption()
 
@@ -313,10 +324,10 @@ def run_controller(price_update=False):
 
         if(selected_controller == "MPC"):
             if(last_control_mode != selected_controller or price_update == True):
-                mpc.run(amber_data) # Run the MPC Controller if the price updates (every 5 min) or if it was just selected as the new controller
+                mpc.run(price_data) # Run the MPC Controller if the price updates (every 5 min) or if it was just selected as the new controller
 
         elif(selected_controller == "RBC"):
-            rbc.run(amber_data) # RBC needs to run every loop
+            rbc.run(price_data) # RBC needs to run every loop
 
         else: # Selected Controller must be safe mode
             EC.self_consumption()
@@ -327,7 +338,7 @@ def run_controller(price_update=False):
         last_control_mode = selected_controller # Reset the controller tracker
  
         # If auto control is on, run the energy controller and RBC (every 2 seconds as we need to keep track of some things)
-        EC.run(amber_data=amber_data)
+        EC.run(amber_data=price_data)
 
     else: # Automatic Control Turned off
         if(automatic_control == True):
@@ -336,38 +347,46 @@ def run_controller(price_update=False):
             logger.warning(f"Automatic Control turned off.")
 
     if(price_update and (selected_controller != "MPC" or automatic_control == False)):
-        mpc.run_optimisation(amber_data) # Run the MPC optimisation each time the price updates to keep the plot updated if the mpc.ran() function wasn't called
+        mpc.run_optimisation(price_data) # Run the MPC optimisation each time the price updates to keep the plot updated if the mpc.ran() function wasn't called
 
 
 logger.info("Configuration complete. Running")
 
 # Code runs every 10 seconds (to reduce cpu usage)
 def main_loop_code():
-    global automatic_control, next_amber_update_timestamp, partial_update, amber_data, last_control_mode, last_real_price_timestamp
+    global automatic_control, next_amber_update_timestamp, partial_update, price_data, last_control_mode, last_real_price_timestamp
     plant.update_data() # Update the plant data once for everything else to use.
 
     if(time.time() >= next_amber_update_timestamp):
         start_timer()
         mpc.update_forecast_horizon() # Update forecast horizon to get the start and end times of the plan (to feed into the amber API call)
         if(partial_update):
-            amber_data = amber.get_data(
+            price_data = amber.get_data(
                 partial_update=True,
                 forecast_hrs=mpc.forecast_hrs,
                 sim_start=mpc.sim_start,
                 sim_end=mpc.sim_end,
             )
+            data = flow.get_data()
         else:
-            amber_data = amber.get_data(
+            price_data = amber.get_data(
                 forecast_hrs=mpc.forecast_hrs,
                 sim_start=mpc.sim_start,
                 sim_end=mpc.sim_end,
             )
+
+        price_data = flow.get_data(
+            partial_update=True,
+            forecast_hrs=mpc.forecast_hrs,
+            sim_start=mpc.sim_start,
+            sim_end=mpc.sim_end,
+        )
         
         elapsed_time("Amber Data")
 
-        set_sensor_if_changed(ha_mqtt.estimated_price_status_sensor, int(amber_data.prices_estimated))
+        set_sensor_if_changed(ha_mqtt.estimated_price_status_sensor, int(price_data.prices_estimated))
 
-        if(amber_data.prices_estimated): # If prices are estimated, don't use them
+        if(price_data.prices_estimated): # If prices are estimated, don't use them
             seconds_till_next_update = 5
             partial_update = True # Make the next update a partial one
             logger.info(f"Prices are estimated, running partial update without price update. Will update prices in {seconds_till_next_update} seconds.")
@@ -386,11 +405,11 @@ def main_loop_code():
         next_amber_update_timestamp = time.time() + seconds_till_next_update #update the time here before running MPC to ensure more accurate timings
         
 
-        if(not amber_data.prices_estimated): #If the prices are real
+        if(not price_data.prices_estimated): #If the prices are real
             run_controller(price_update=True) # Send the price update flag to indicate that new pricing data has been received.
-            check_for_spike(amber_data) # Check for any spikes in the feed in price forecast and send warnings if any are found
+            check_for_spike(price_data) # Check for any spikes in the feed in price forecast and send warnings if any are found
 
-            logger.info(f"General: {amber_data.general_price} c/kWh  Feed In: {amber_data.feedIn_price} c/kWh  Max 12hr Feed In: {amber_data.feedIn_max_forecast_price} c/kWh, {round(next_amber_update_timestamp - time.time())} seconds till next update.")    
+            logger.info(f"General: {price_data.general_price} c/kWh  Feed In: {price_data.feedIn_price} c/kWh  Max 12hr Feed In: {price_data.feedIn_max_forecast_price} c/kWh, {round(next_amber_update_timestamp - time.time())} seconds till next update.")    
             logger.info("....")
     
     
@@ -400,7 +419,7 @@ def main_loop_code():
         logger.warning("Detected Home Assistant API recovery. Clearing MQTT sensor cache to republish states.")
         sensor_state_cache.clear()
         
-    update_sensors(amber_data)
+    update_sensors(price_data)
 
 last_loop_timestamp = 0
 last_alive_time_timestamp = 0

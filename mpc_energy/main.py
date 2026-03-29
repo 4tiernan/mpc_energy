@@ -87,6 +87,7 @@ def send_mobile_notification(title, message):
 
 last_error_mobile_notification_timestamp = 0
 def PrintError(e):
+    global last_error_mobile_notification_timestamp
     logger.error(f"Exception occoured: {e}")
     if(not isinstance(e, MPCEnergyError)):
         traceback.print_exc() # Prints the full traceback to the console for unexpected errors

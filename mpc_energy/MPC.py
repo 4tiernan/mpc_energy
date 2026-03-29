@@ -71,6 +71,7 @@ class MPC:
             # Holding-SOC reward can delay discharge within a flat high-price window, so
             # disable it in Flow mode to prioritise immediate arbitrage when profitable.
             self.charge_maintain_reward = 0
+            logger.debug("Flow retailer detected: Disabling sell price uncertainty discount and charge maintain reward to prioritise immediate arbitrage with known prices.")
 
         logger.debug(f"Forecast uncertainty: Buy premium: {self.buy_price_uncertainty_premium_per_hour} %/hr, Sell discount: {self.sell_price_uncertainty_discount_per_hour} %/hr, Max adjustment: {self.max_price_uncertainty_adjustment} %")
         
@@ -218,8 +219,12 @@ class MPC:
         self.soc = cp.Variable(n + 1)
         self.solar_used = cp.Variable(n, nonneg=True)
         self.solar_curtail = cp.Variable(n, nonneg=True)
-        self.grid_import = cp.Variable(n, nonneg=True)
-        self.grid_export = cp.Variable(n, nonneg=True)
+        #self.grid_import = cp.Variable(n, nonneg=True)
+        #self.grid_export = cp.Variable(n, nonneg=True)
+        # Net grid power (+ import / - export). Using a single net variable
+        # prevents the optimiser from "buying and selling at the same time"
+        # in the same interval when sell price can exceed buy price.
+        self.grid_net = cp.Variable(n)
         self.peak_demand = cp.Variable(nonneg=True)
         self.inverter_power = cp.Variable(n)
 
@@ -254,18 +259,18 @@ class MPC:
             self.solar_used <= self.solar_dc_max_param,
             self.solar_used + self.solar_curtail == self.solar_forecast_param,
             self.solar_used + self.p_discharge == self.p_charge + self.inverter_power,
-            self.grid_import + self.inverter_power == self.load_forecast_param + self.grid_export,
-            self.grid_import <= self.grid_import_limit_param,
-            self.grid_export <= self.grid_export_limit_param,
+            self.grid_net + self.inverter_power == self.load_forecast_param,
+            self.grid_net <= self.grid_import_limit_param,
+            self.grid_net >= -self.grid_export_limit_param,
             self.inverter_power <= self.inverter_p_max_param,
             self.inverter_power >= -self.inverter_p_max_param,
             self.peak_demand >= cp.multiply(self.demand_mask_param, self.grid_import),
         ]
 
         objective_list = (
-            cp.multiply(self.grid_import, self.price_buy_param) * self.dt_5min
-            - cp.multiply(self.grid_export, self.price_sell_param) * self.dt_5min
-            + cp.multiply(self.grid_import, self.grid_import_penalty_cost) * self.dt_5min
+            cp.multiply(cp.pos(self.grid_net), self.price_buy_param) * self.dt_5min
+            - cp.multiply(cp.neg(self.grid_net), self.price_sell_param) * self.dt_5min
+            + cp.multiply(cp.pos(self.grid_net), self.grid_import_penalty_cost) * self.dt_5min
             + cp.multiply(self.battery_min_export_cost, self.p_discharge) * self.dt_5min
             - cp.multiply(self.charge_maintain_reward, self.soc[0:-1])
             - cp.multiply(self.full_battery_reward, cp.multiply(self.solar_eod_reward_mask_param, self.soc[0:-1]))
@@ -384,11 +389,13 @@ class MPC:
         else: # Sim successfull 
             # ---------- Results ----------
             battery_power = (self.p_discharge.value - self.p_charge.value).tolist()
-            grid_net = (self.grid_import.value - self.grid_export.value).tolist()
+            grid_net = self.grid_net.value.tolist()
             #hours = np.arange(int(self.N_5min)) * self.dt_5min
 
-            grid_kwh_import_per_interval = self.grid_import.value / self.steps_per_hr 
-            grid_kwh_export_per_interval = self.grid_export.value / self.steps_per_hr 
+            grid_import_kw = np.maximum(self.grid_net.value, 0)
+            grid_export_kw = np.maximum(-self.grid_net.value, 0)
+            grid_kwh_import_per_interval = grid_import_kw / self.steps_per_hr
+            grid_kwh_export_per_interval = grid_export_kw / self.steps_per_hr
 
             # Per-interval profit ($)
             interval_profit = (

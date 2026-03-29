@@ -27,7 +27,7 @@ class FlowPowerInterface:
 
     def _get_state_payload(self, entity_id):
         state_payload = self.ha.get_state(entity_id)
-        #logger.info(f"Retrieved state_payload for entity '{entity_id}': {state_payload}")
+        logger.info(f"Retrieved state_payload for entity '{entity_id}': {state_payload}")
         return state_payload
 
     def _state_to_cents_per_kwh(self, state_payload, entity_id):
@@ -67,7 +67,7 @@ class FlowPowerInterface:
 
         return []
 
-    def _build_forecast(self, points, default_price_cents, periods=24, period_minutes=30):
+    def _build_forecast(self, points, default_price_cents, periods=None, period_minutes=30):
         now = datetime.now(self.ha.local_tz).replace(second=0, microsecond=0)
 
         parsed = []
@@ -82,7 +82,8 @@ class FlowPowerInterface:
         parsed = [p for p in parsed if p[0] + timedelta(minutes=period_minutes) > now]
 
         intervals = []
-        for start, cents in parsed[:periods]:
+        selected_points = parsed if periods is None else parsed[:periods]
+        for start, cents in selected_points:
             end = start + timedelta(minutes=period_minutes)
             intervals.append(
                 PriceForecast(price=cents, start_time=start, end_time=end, demand_window=False)
@@ -136,12 +137,6 @@ class FlowPowerInterface:
 
         export_points = self._extract_forecast_points(export_payload)
 
-        general_price_forecast = self._build_forecast(import_points, default_price_cents=general_price, periods=24, period_minutes=30)
-        feed_in_price_forecast = self._build_forecast(export_points, default_price_cents=feed_in_price, periods=24, period_minutes=30)
-
-        sorted_general_forecast = sorted(general_price_forecast, key=lambda x: x.price, reverse=True)
-        sorted_feed_in_forecast = sorted(feed_in_price_forecast, key=lambda x: x.price, reverse=True)
-
         if forecast_hrs is None:
             forecast_hrs = 24
 
@@ -151,8 +146,22 @@ class FlowPowerInterface:
         else:
             intervals_5m = max(int(math.ceil(forecast_hrs * 12)), 1)
 
-        general_extrapolated_forecast = self._forecast_to_5min(general_price_forecast, intervals_5m)
-        feed_in_extrapolated_forecast = self._forecast_to_5min(feed_in_price_forecast, intervals_5m)
+        required_30min_periods = max(int(math.ceil(intervals_5m / 6.0)), 1)
+
+        # Build full-horizon forecasts for MPC extrapolation so export happy-hour
+        # windows are consumed programmatically from HA forecast metadata.
+        general_price_forecast_full = self._build_forecast(import_points, default_price_cents=general_price, periods=required_30min_periods, period_minutes=30)
+        feed_in_price_forecast_full = self._build_forecast(export_points, default_price_cents=feed_in_price, periods=required_30min_periods, period_minutes=30)
+
+        # Keep legacy 12hr fields populated with 24 x 30-minute points.
+        general_price_forecast = general_price_forecast_full[:24]
+        feed_in_price_forecast = feed_in_price_forecast_full[:24]
+
+        sorted_general_forecast = sorted(general_price_forecast, key=lambda x: x.price, reverse=True)
+        sorted_feed_in_forecast = sorted(feed_in_price_forecast, key=lambda x: x.price, reverse=True)
+
+        general_extrapolated_forecast = self._forecast_to_5min(general_price_forecast_full, intervals_5m)
+        feed_in_extrapolated_forecast = self._forecast_to_5min(feed_in_price_forecast_full, intervals_5m)
         demand_window_extrapolated_forecast = [False] * intervals_5m
 
         self.data = amber_data(

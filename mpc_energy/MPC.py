@@ -177,8 +177,6 @@ class MPC:
         self.load_5min = [min(max(load, 0.0), self.grid_import_limit)  for load in self.load_5min] # Don't allow negative load or solar or load greater than import limit
         self.solar_5min = [max(solar, 0.0) for solar in self.solar_5min]
 
-        
-
         # Amber Forecast (forecast hrs is set in main.py in the get_data call)
         self.demand_tarrif_price = amber_data.demand_tarrif_price if amber_data.demand_tarrif_price is not None else 0.0
         general_price_forecast = amber_data.general_extrapolated_forecast[:int(self.N_5min)]
@@ -188,6 +186,11 @@ class MPC:
         # Convert to $/kWh
         self.prices_buy = np.array(general_price_forecast) / 100      # buy price in $ from cents
         self.prices_sell  = np.array(feed_in_price_forecast) / 100      # sell price in $ from cents
+
+        for i in range(len(self.prices_buy)):
+            if self.prices_buy[i] < self.prices_sell[i]:
+                logger.warning(f"Buy price is below sell price at index {i}, time: {(self.sim_start + timedelta(minutes=5*i)).isoformat()}. Buy price: {self.prices_buy[i]:.4f} $/kWh, Sell price: {self.prices_sell[i]:.4f} $/kWh. This may indicate an issue with the price forecast data. Increasing buy price to be 10c above sell price.")
+                self.prices_buy[i] = self.prices_sell[i] + 0.10 # Add a small premium to ensure buy price is above sell price to avoid weird solver behaviour.
 
         # Build uncertainty-adjusted prices so near-term intervals are valued more than
         # far-future forecast intervals (which are less reliable).

@@ -1,6 +1,6 @@
 name: "MPC Energy Dev"
 description: "A profit optimiser for home batteries with wholesale electricity pricing."
-version: "0.5.15"
+version: "0.5.16"
 slug: "mpc_energy"
 url: "https://github.com/4tiernan/mpc_energy"
 init: false

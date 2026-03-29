@@ -264,7 +264,7 @@ class MPC:
             self.grid_net >= -self.grid_export_limit_param,
             self.inverter_power <= self.inverter_p_max_param,
             self.inverter_power >= -self.inverter_p_max_param,
-            self.peak_demand >= cp.multiply(self.demand_mask_param, self.grid_import),
+            self.peak_demand >= cp.multiply(self.demand_mask_param, cp.pos(self.grid_net)),
         ]
 
         objective_list = (

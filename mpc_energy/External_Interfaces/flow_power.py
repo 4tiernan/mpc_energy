@@ -154,20 +154,37 @@ class FlowPowerInterface:
 
         return extended[:required_30min_periods]
 
-    def _forecast_to_5min(self, forecast_30min, intervals_5m):
+    def _forecast_to_5min(self, forecast_30min, intervals_5m, timeline_start, fallback_price_cents):
+        """
+        Convert 30-minute forecast intervals into 5-minute values aligned to the
+        MPC timeline start. This prevents time-shift when the first forecast
+        interval starts after the current 5-minute slot.
+        """
+        if intervals_5m <= 0:
+            return []
+
+        if not forecast_30min:
+            return [round(fallback_price_cents)] * intervals_5m
+
+        timeline_start = timeline_start.replace(second=0, microsecond=0)
         values = []
-        for interval in forecast_30min:
-            values.extend([round(interval.price)] * 6)
-            if len(values) >= intervals_5m:
-                break
+        interval_index = 0
 
-        if not values:
-            values = [0]
+        for step in range(intervals_5m):
+            t = timeline_start + timedelta(minutes=5 * step)
 
-        if len(values) < intervals_5m:
-            values.extend([values[-1]] * (intervals_5m - len(values)))
+            # Advance interval pointer while forecast intervals end before t.
+            while interval_index + 1 < len(forecast_30min) and t >= forecast_30min[interval_index].end_time:
+                interval_index += 1
 
-        return values[:intervals_5m]
+            if t < forecast_30min[0].start_time:
+                price = fallback_price_cents
+            else:
+                price = forecast_30min[interval_index].price
+
+            values.append(round(price))
+
+        return values
 
     def get_data(self, partial_update=False, forecast_hrs=None, sim_start=None, sim_end=None):
         import_payload = self._get_state_payload(self.import_price_entity_id)
@@ -220,8 +237,21 @@ class FlowPowerInterface:
         sorted_general_forecast = sorted(general_price_forecast, key=lambda x: x.price, reverse=True)
         sorted_feed_in_forecast = sorted(feed_in_price_forecast, key=lambda x: x.price, reverse=True)
 
-        general_extrapolated_forecast = self._forecast_to_5min(general_price_forecast_full, intervals_5m)
-        feed_in_extrapolated_forecast = self._forecast_to_5min(feed_in_price_forecast_full, intervals_5m)
+        timeline_start = sim_start if sim_start is not None else datetime.now(self.ha.local_tz)
+        timeline_start = timeline_start.replace(second=0, microsecond=0)
+
+        general_extrapolated_forecast = self._forecast_to_5min(
+            general_price_forecast_full,
+            intervals_5m,
+            timeline_start=timeline_start,
+            fallback_price_cents=general_price,
+        )
+        feed_in_extrapolated_forecast = self._forecast_to_5min(
+            feed_in_price_forecast_full,
+            intervals_5m,
+            timeline_start=timeline_start,
+            fallback_price_cents=feed_in_price,
+        )
         demand_window_extrapolated_forecast = [False] * intervals_5m
 
         self.data = amber_data(

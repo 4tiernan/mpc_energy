@@ -390,7 +390,7 @@ class MPC:
             grid_export = self.grid_export.value.tolist()
             for i in range(len(grid_import)):
                 if grid_import[i] > self.power_threshold and grid_export[i] > self.power_threshold:
-                    logger.error(f"Simultaneous import and export detected at index {i} (import: {grid_import[i]:.2f} kW, export: {grid_export[i]:.2f} kW). This may indicate a problem with the solver or model formulation or buy price is below sell price.")
+                    logger.error(f"Simultaneous import and export detected at index {i}, time: {time_index[i].isoformat()} (import: {grid_import[i]:.2f} kW, export: {grid_export[i]:.2f} kW). This may indicate a problem with the solver or model formulation or buy price is below sell price.")
 
             grid_net = (self.grid_import.value - self.grid_export.value).tolist()
             #hours = np.arange(int(self.N_5min)) * self.dt_5min

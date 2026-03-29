@@ -67,10 +67,7 @@ class MPC:
 
         if(self.retailer == "flow"):
             self.sell_price_uncertainty_discount_per_hour = 0 # Flow sell prices are known with certainty
-            # Flow tariffs can include deterministic high export windows (e.g., happy hour).
-            # Holding-SOC reward can delay discharge within a flat high-price window, so
-            # disable it in Flow mode to prioritise immediate arbitrage when profitable.
-            self.charge_maintain_reward = 0
+
             logger.debug("Flow retailer detected: Disabling sell price uncertainty discount and charge maintain reward to prioritise immediate arbitrage with known prices.")
 
         logger.debug(f"Forecast uncertainty: Buy premium: {self.buy_price_uncertainty_premium_per_hour} %/hr, Sell discount: {self.sell_price_uncertainty_discount_per_hour} %/hr, Max adjustment: {self.max_price_uncertainty_adjustment} %")

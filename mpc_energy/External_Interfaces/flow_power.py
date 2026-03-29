@@ -100,6 +100,60 @@ class FlowPowerInterface:
 
         return intervals
 
+
+    def _extend_export_forecast_with_schedule(self, forecast_30min, export_payload, default_price_cents, required_30min_periods):
+        """
+        Extend export forecast using Flow Power happy-hour attributes when the
+        payload forecast horizon is shorter than the requested MPC horizon.
+        """
+        if len(forecast_30min) >= required_30min_periods:
+            return forecast_30min[:required_30min_periods]
+
+        attributes = export_payload.get("attributes", {})
+        happy_hour_start = attributes.get("happy_hour_start")
+        happy_hour_end = attributes.get("happy_hour_end")
+        happy_hour_rate = attributes.get("happy_hour_rate")
+
+        if not happy_hour_start or not happy_hour_end or happy_hour_rate is None:
+            return forecast_30min
+
+        try:
+            start_hh, start_mm = [int(x) for x in str(happy_hour_start).split(":")[:2]]
+            end_hh, end_mm = [int(x) for x in str(happy_hour_end).split(":")[:2]]
+            happy_rate_cents = float(happy_hour_rate) * 100.0  # $/kWh -> c/kWh
+        except Exception:
+            return forecast_30min
+
+        # Build minute-of-day window boundaries.
+        happy_start_min = start_hh * 60 + start_mm
+        happy_end_min = end_hh * 60 + end_mm
+
+        if forecast_30min:
+            next_start = forecast_30min[-1].end_time
+            extended = list(forecast_30min)
+        else:
+            next_start = datetime.now(self.ha.local_tz).replace(second=0, microsecond=0)
+            extended = []
+
+        while len(extended) < required_30min_periods:
+            minute_of_day = next_start.hour * 60 + next_start.minute
+
+            in_happy_hour = False
+            if happy_start_min < happy_end_min:
+                in_happy_hour = happy_start_min <= minute_of_day < happy_end_min
+            elif happy_start_min > happy_end_min:
+                # Overnight window support.
+                in_happy_hour = minute_of_day >= happy_start_min or minute_of_day < happy_end_min
+
+            price_cents = happy_rate_cents if in_happy_hour else default_price_cents
+            end = next_start + timedelta(minutes=30)
+            extended.append(
+                PriceForecast(price=price_cents, start_time=next_start, end_time=end, demand_window=False)
+            )
+            next_start = end
+
+        return extended[:required_30min_periods]
+
     def _forecast_to_5min(self, forecast_30min, intervals_5m):
         values = []
         for interval in forecast_30min:
@@ -152,6 +206,12 @@ class FlowPowerInterface:
         # windows are consumed programmatically from HA forecast metadata.
         general_price_forecast_full = self._build_forecast(import_points, default_price_cents=general_price, periods=required_30min_periods, period_minutes=30)
         feed_in_price_forecast_full = self._build_forecast(export_points, default_price_cents=feed_in_price, periods=required_30min_periods, period_minutes=30)
+        feed_in_price_forecast_full = self._extend_export_forecast_with_schedule(
+            forecast_30min=feed_in_price_forecast_full,
+            export_payload=export_payload,
+            default_price_cents=feed_in_price,
+            required_30min_periods=required_30min_periods,
+        )
 
         # Keep legacy 12hr fields populated with 24 x 30-minute points.
         general_price_forecast = general_price_forecast_full[:24]

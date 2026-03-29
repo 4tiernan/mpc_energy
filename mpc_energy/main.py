@@ -145,6 +145,8 @@ while(started == False):
         
         flow.get_data()
 
+        exit()
+
         
         amber = AmberAPI(
             config_manager.amber_api_key,

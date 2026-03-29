@@ -11,15 +11,15 @@ class FlowPowerInterface:
 
     def __init__(self, ha, import_price_entity_id, export_price_entity_id, price_forecast_entity_id):
         self.ha = ha
-        self.general_price_entity_id = import_price_entity_id
-        self.feed_in_price_entity_id = export_price_entity_id
+        self.import_price_entity_id = import_price_entity_id
+        self.export_price_entity_id = export_price_entity_id
         self.price_forecast_entity_id = price_forecast_entity_id
 
         logger.error("Demand pricing not yet supported in Flow Power mode.")
         self.demand_tarrif = False
         self.demand_tarrif_price = None
 
-        if self.general_price_entity_id == "" or self.feed_in_price_entity_id == "" or self.price_forecast_entity_id == "":
+        if self.import_price_entity_id == "" or self.export_price_entity_id == "" or self.price_forecast_entity_id == "":
             raise ValueError(
                 "Flow Power mode selected but one or more Flow Power entity IDs are blank. "
                 "Please set all required Flow Power entity IDs."

@@ -1,4 +1,5 @@
 ## 0.6.0
+* Adding flow power as retailer option
 
 ## 0.5.0
 * Increased MPC forecast horizon to 72hrs

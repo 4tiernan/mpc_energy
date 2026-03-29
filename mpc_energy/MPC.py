@@ -21,11 +21,12 @@ mqtt_client.connect(const.MQTT_HOST, const.MQTT_PORT)
 mqtt_client.loop_start()
 
 class MPC:
-    def __init__(self, ha, plant, EC, local_tz, demand_tarrif):
+    def __init__(self, ha, plant, EC, local_tz, demand_tarrif, retailer):
         self.plant = plant
         self.ha = ha
         self.EC = EC
         self.local_tz = local_tz
+        self.retailer = retailer
 
         self.power_threshold = 0.2 # Threshold when comparing power values
 
@@ -63,6 +64,9 @@ class MPC:
         self.buy_price_uncertainty_premium_per_hour = 1      # +%/hr applied to future buy prices
         self.sell_price_uncertainty_discount_per_hour = 1    # -%/hr applied to future sell prices
         self.max_price_uncertainty_adjustment = 30           # Cap the absolute buy/sell adjustment (+/-30%)
+
+        if(self.retailer == "flow"):
+            self.sell_price_uncertainty_discount_per_hour = 0 # Flow sell prices are known with certainty
 
         logger.debug(f"Forecast uncertainty: Buy premium: {self.buy_price_uncertainty_premium_per_hour} %/hr, Sell discount: {self.sell_price_uncertainty_discount_per_hour} %/hr, Max adjustment: {self.max_price_uncertainty_adjustment} %")
         

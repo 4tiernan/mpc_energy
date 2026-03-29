@@ -7,6 +7,10 @@ configuration:
 
   ha_mqtt_pass:
     name: MQTT Brocker Password
+
+  energy_retailer:
+    name: Energy Retailer
+    description: Select your energy retailer to use their price data.
   
   amber_api_key:
     name: Amber API Key

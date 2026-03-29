@@ -143,10 +143,6 @@ while(started == False):
             price_forecast_entity_id="sensor.flow_power_qld1_price_forecast"
             )
         
-        data = flow.get_data()
-        logger.info(f"Successfully retrieved data from Flow Power entities: {data}")
-
-        exit()
 
         
         amber = AmberAPI(
@@ -369,12 +365,20 @@ def main_loop_code():
                 sim_start=mpc.sim_start,
                 sim_end=mpc.sim_end,
             )
+            data = flow.get_data()
         else:
             amber_data = amber.get_data(
                 forecast_hrs=mpc.forecast_hrs,
                 sim_start=mpc.sim_start,
                 sim_end=mpc.sim_end,
             )
+
+        amber_data = flow.get_data(
+            partial_update=True,
+            forecast_hrs=mpc.forecast_hrs,
+            sim_start=mpc.sim_start,
+            sim_end=mpc.sim_end,
+        )
         
         elapsed_time("Amber Data")
 

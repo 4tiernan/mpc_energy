@@ -25,33 +25,102 @@ class FlowPowerInterface:
                 "Please set all required Flow Power entity IDs."
             ) from None
 
-    def _get_numeric_state(self, entity_id):
+    def _get_state_payload(self, entity_id):
         state_payload = self.ha.get_state(entity_id)
+        #logger.info(f"Retrieved state_payload for entity '{entity_id}': {state_payload}")
+        return state_payload
+
+    def _state_to_cents_per_kwh(self, state_payload, entity_id):
         state = state_payload.get("state")
-        logger.info(f"Retrieved state_payload for entity '{entity_id}': {state_payload}")
+        attributes = state_payload.get("attributes", {})
+        unit = attributes.get("unit") or attributes.get("unit_of_measurement")
+
         try:
-            return float(state)
+            value = float(state)
         except Exception as e:
             raise ValueError(
                 f"Unable to convert state '{state}' for entity '{entity_id}' to float. "
-                "Please check the entity returns a numeric c/kWh value."
+                "Please check the entity returns a numeric value."
             ) from e
 
-    def _build_flat_forecast(self, price, periods, period_minutes=30):
+        if unit == "$/kWh":
+            return value * 100.0
+
+        return value
+
+    def _parse_forecast_timestamp(self, ts):
+        # Flow Power exposes timestamps like: 2026-03-29 22:00:00+1000
+        dt = datetime.strptime(ts, "%Y-%m-%d %H:%M:%S%z")
+        return dt.astimezone(self.ha.local_tz)
+
+    def _extract_forecast_points(self, state_payload):
+        attributes = state_payload.get("attributes", {})
+
+        forecast_dict = attributes.get("forecast_dict")
+        if isinstance(forecast_dict, dict) and forecast_dict:
+            return list(forecast_dict.items())
+
+        timestamps = attributes.get("timestamps", [])
+        forecast = attributes.get("forecast", [])
+        if timestamps and forecast:
+            return list(zip(timestamps, forecast))
+
+        return []
+
+    def _build_forecast(self, points, default_price_cents, periods=24, period_minutes=30):
         now = datetime.now(self.ha.local_tz).replace(second=0, microsecond=0)
+
+        parsed = []
+        for ts, price in points:
+            try:
+                start = self._parse_forecast_timestamp(ts)
+                parsed.append((start, float(price) * 100.0))  # $/kWh -> c/kWh
+            except Exception:
+                continue
+
+        parsed.sort(key=lambda x: x[0])
+        parsed = [p for p in parsed if p[0] + timedelta(minutes=period_minutes) > now]
+
         intervals = []
-        for i in range(periods):
-            start = now + timedelta(minutes=i * period_minutes)
+        for start, cents in parsed[:periods]:
             end = start + timedelta(minutes=period_minutes)
             intervals.append(
-                PriceForecast(price=price, start_time=start, end_time=end, demand_window=False)
+                PriceForecast(price=cents, start_time=start, end_time=end, demand_window=False)
             )
+
+        if not intervals:
+            # Fallback to flat forecast if no forecast data was available/parsible.
+            for i in range(periods):
+                start = now + timedelta(minutes=i * period_minutes)
+                end = start + timedelta(minutes=period_minutes)
+                intervals.append(
+                    PriceForecast(price=default_price_cents, start_time=start, end_time=end, demand_window=False)
+                )
+
         return intervals
 
+    def _forecast_to_5min(self, forecast_30min, intervals_5m):
+        values = []
+        for interval in forecast_30min:
+            values.extend([round(interval.price)] * 6)
+            if len(values) >= intervals_5m:
+                break
+
+        if not values:
+            values = [0]
+
+        if len(values) < intervals_5m:
+            values.extend([values[-1]] * (intervals_5m - len(values)))
+
+        return values[:intervals_5m]
+
     def get_data(self, partial_update=False, forecast_hrs=None, sim_start=None, sim_end=None):
-        general_price = self._get_numeric_state(self.import_price_entity_id)
-        feed_in_price = self._get_numeric_state(self.export_price_entity_id)
-        self.price_forecast_entity_id = self._get_numeric_state(self.price_forecast_entity_id)
+        import_payload = self._get_state_payload(self.import_price_entity_id)
+        export_payload = self._get_state_payload(self.export_price_entity_id)
+        forecast_payload = self._get_state_payload(self.price_forecast_entity_id)
+
+        general_price = self._state_to_cents_per_kwh(import_payload, self.import_price_entity_id)
+        feed_in_price = self._state_to_cents_per_kwh(export_payload, self.export_price_entity_id)
 
         if feed_in_price < -1000:
             logger.warning(
@@ -59,8 +128,16 @@ class FlowPowerInterface:
                 "Confirm the entity units are in c/kWh."
             )
 
-        general_price_forecast = self._build_flat_forecast(general_price, periods=24, period_minutes=30)
-        feed_in_price_forecast = self._build_flat_forecast(feed_in_price, periods=24, period_minutes=30)
+        # Prefer dedicated forecast entities when available. Fall back to the combined
+        # forecast sensor if import/export entities don't include forecast metadata.
+        import_points = self._extract_forecast_points(import_payload)
+        if not import_points:
+            import_points = self._extract_forecast_points(forecast_payload)
+
+        export_points = self._extract_forecast_points(export_payload)
+
+        general_price_forecast = self._build_forecast(import_points, default_price_cents=general_price, periods=24, period_minutes=30)
+        feed_in_price_forecast = self._build_forecast(export_points, default_price_cents=feed_in_price, periods=24, period_minutes=30)
 
         sorted_general_forecast = sorted(general_price_forecast, key=lambda x: x.price, reverse=True)
         sorted_feed_in_forecast = sorted(feed_in_price_forecast, key=lambda x: x.price, reverse=True)
@@ -74,8 +151,8 @@ class FlowPowerInterface:
         else:
             intervals_5m = max(int(math.ceil(forecast_hrs * 12)), 1)
 
-        general_extrapolated_forecast = [round(general_price)] * intervals_5m
-        feed_in_extrapolated_forecast = [round(feed_in_price)] * intervals_5m
+        general_extrapolated_forecast = self._forecast_to_5min(general_price_forecast, intervals_5m)
+        feed_in_extrapolated_forecast = self._forecast_to_5min(feed_in_price_forecast, intervals_5m)
         demand_window_extrapolated_forecast = [False] * intervals_5m
 
         self.data = amber_data(

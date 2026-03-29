@@ -143,7 +143,8 @@ while(started == False):
             price_forecast_entity_id="sensor.flow_power_qld1_price_forecast"
             )
         
-        flow.get_data()
+        data = flow.get_data()
+        logger.info(f"Successfully retrieved data from Flow Power entities: {data}")
 
         exit()
 

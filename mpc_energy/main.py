@@ -129,10 +129,21 @@ while(started == False):
         from PlantControl import Plant
         from control_mode_override import ControlModeOverrideManager
 
+        from External_Interfaces.flow_power import FlowPowerInterface
+
         ha = HomeAssistantAPI(
             base_url=const.HA_API_URL,
             token=const.HA_TOKEN,
         )
+
+        flow = FlowPowerInterface(
+            ha=ha,
+            import_price_entity_id="sensor.flow_power_qld1_import_price",
+            export_price_entity_id="sensor.flow_power_qld1_export_price",
+            price_forecast_entity_id="sensor.flow_power_qld1_price_forecast"
+            )
+        
+        flow.get_data()
 
         
         amber = AmberAPI(

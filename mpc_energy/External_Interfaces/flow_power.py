@@ -15,6 +15,8 @@ class FlowPowerInterface:
         self.export_price_entity_id = export_price_entity_id
         self.price_forecast_entity_id = price_forecast_entity_id
 
+        self.happy_hour_off_rate = 0.0  # Default off-peak rate in c/kWh when happy hour metadata is used.
+
         logger.error("Demand pricing not yet supported in Flow Power mode.")
         self.demand_tarrif = False
         self.demand_tarrif_price = None
@@ -226,7 +228,7 @@ class FlowPowerInterface:
         feed_in_price_forecast_full = self._extend_export_forecast_with_schedule(
             forecast_30min=feed_in_price_forecast_full,
             export_payload=export_payload,
-            default_price_cents=feed_in_price,
+            default_price_cents=self.happy_hour_off_rate,
             required_30min_periods=required_30min_periods,
         )
 

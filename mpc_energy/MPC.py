@@ -184,9 +184,16 @@ class MPC:
         self.prices_buy = np.array(general_price_forecast) / 100      # buy price in $ from cents
         self.prices_sell  = np.array(feed_in_price_forecast) / 100      # sell price in $ from cents
 
+        buy_prices_adjusted = 0
         for i in range(len(self.prices_buy)):
             if self.prices_buy[i] < self.prices_sell[i]:
-                logger.warning(f"Buy price is below sell price at index {i}, time: {(self.sim_start + timedelta(minutes=5*i)).isoformat()}. Buy price: {self.prices_buy[i]:.4f} $/kWh, Sell price: {self.prices_sell[i]:.4f} $/kWh. This may indicate an issue with the price forecast data. Increasing buy price to be 10c above sell price.")
+                if(buy_prices_adjusted == 0): # Only log the first time this happens to avoid spamming the logs
+                    logger.warning(f"Buy price is below sell price at index {i}, time: {(self.sim_start + timedelta(minutes=5*i)).isoformat()}. Buy price: {self.prices_buy[i]:.4f} $/kWh, Sell price: {self.prices_sell[i]:.4f} $/kWh. This may indicate an issue with the price forecast data. Increasing buy price to be 10c above sell price.")
+                    buy_prices_adjusted = 1
+                elif(buy_prices_adjusted == 1):
+                    logger.warning("More prices found where buy price is below sell price, adjusting without logging to avoid spamming the logs.")
+                    buy_prices_adjusted = 2
+                
                 self.prices_buy[i] = self.prices_sell[i] + 0.10 # Add a small premium to ensure buy price is above sell price to avoid weird solver behaviour.
 
         # Build uncertainty-adjusted prices so near-term intervals are valued more than

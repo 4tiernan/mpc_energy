@@ -29,7 +29,6 @@ class FlowPowerInterface:
 
     def _get_state_payload(self, entity_id):
         state_payload = self.ha.get_state(entity_id)
-        logger.info(f"Retrieved state_payload for entity '{entity_id}': {state_payload}")
         return state_payload
 
     def _state_to_cents_per_kwh(self, state_payload, entity_id):

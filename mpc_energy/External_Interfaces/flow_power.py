@@ -185,7 +185,6 @@ class FlowPowerInterface:
 
             values.append(round(price))
         
-        values[0] = round(current_price)  # Ensure first value reflects current price for MPC stability.
         return values
 
     def get_data(self, partial_update=False, forecast_hrs=None, sim_start=None, sim_end=None):

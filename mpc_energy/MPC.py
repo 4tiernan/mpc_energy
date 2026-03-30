@@ -66,7 +66,7 @@ class MPC:
         self.max_price_uncertainty_adjustment = 30           # Cap the absolute buy/sell adjustment (+/-30%)
 
         if(self.retailer == "flow"):
-            self.buy_price_uncertainty_premium_per_hour = 0.1      # +%/hr applied to future buy prices
+            self.buy_price_uncertainty_premium_per_hour = 0.5      # +%/hr applied to future buy prices
             self.sell_price_uncertainty_discount_per_hour = 0 # Flow sell prices are known with certainty
             self.max_price_uncertainty_adjustment = 5           # Cap the absolute buy/sell adjustment (+/-30%)
 

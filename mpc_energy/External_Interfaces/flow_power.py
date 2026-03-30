@@ -155,7 +155,7 @@ class FlowPowerInterface:
 
         return extended[:required_30min_periods]
 
-    def _forecast_to_5min(self, forecast_30min, intervals_5m, timeline_start, current_general_price):
+    def _forecast_to_5min(self, forecast_30min, intervals_5m, timeline_start, current_price):
         """
         Convert 30-minute forecast intervals into 5-minute values aligned to the
         MPC timeline start. This prevents time-shift when the first forecast
@@ -165,7 +165,7 @@ class FlowPowerInterface:
             return []
 
         if not forecast_30min:
-            return [round(current_general_price)] * intervals_5m
+            return [round(current_price)] * intervals_5m
 
         timeline_start = timeline_start.replace(second=0, microsecond=0)
         values = []
@@ -179,13 +179,13 @@ class FlowPowerInterface:
                 interval_index += 1
 
             if t < forecast_30min[0].start_time:
-                price = current_general_price
+                price = current_price
             else:
                 price = forecast_30min[interval_index].price
 
             values.append(round(price))
         
-        values[0] = round(current_general_price)  # Ensure first value reflects current price for MPC stability.
+        values[0] = round(current_price)  # Ensure first value reflects current price for MPC stability.
         return values
 
     def get_data(self, partial_update=False, forecast_hrs=None, sim_start=None, sim_end=None):
@@ -246,13 +246,13 @@ class FlowPowerInterface:
             general_price_forecast_full,
             intervals_5m,
             timeline_start=timeline_start,
-            current_general_price=general_price,
+            current_price=general_price,
         )
         feed_in_extrapolated_forecast = self._forecast_to_5min(
             feed_in_price_forecast_full,
             intervals_5m,
             timeline_start=timeline_start,
-            current_feed_in_price=feed_in_price,
+            current_price=feed_in_price,
         )
         demand_window_extrapolated_forecast = [False] * intervals_5m
 

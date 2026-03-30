@@ -66,7 +66,9 @@ class MPC:
         self.max_price_uncertainty_adjustment = 30           # Cap the absolute buy/sell adjustment (+/-30%)
 
         if(self.retailer == "flow"):
+            self.buy_price_uncertainty_premium_per_hour = 0.1      # +%/hr applied to future buy prices
             self.sell_price_uncertainty_discount_per_hour = 0 # Flow sell prices are known with certainty
+            self.max_price_uncertainty_adjustment = 5           # Cap the absolute buy/sell adjustment (+/-30%)
 
             logger.debug("Flow retailer detected: Disabling sell price uncertainty discount and charge maintain reward to prioritise immediate arbitrage with known prices.")
 
@@ -197,9 +199,9 @@ class MPC:
                 self.prices_buy[i] = self.prices_sell[i] + 0.10 # Add a small premium to ensure buy price is above sell price to avoid weird solver behaviour.
 
             elif(self.retailer == "flow"):
-                #self.prices_buy[i] = self.prices_buy[i] + 0.10 # Add a small premium to flow buy prices to encourage using the battery instead of buying from the grid, as flow prices are known with certainty and often very low, which can cause the solver to better represent weird pricing structure
-                pass
-            
+                self.prices_buy[i] = self.prices_buy[i] + 0.10 # Add a small premium to flow buy prices to encourage using the battery instead of buying from the grid, as flow prices are known with certainty and often very low, which can cause the solver to better represent weird pricing structure
+                
+
         # Build uncertainty-adjusted prices so near-term intervals are valued more than
         # far-future forecast intervals (which are less reliable).
         hours_from_now = np.arange(int(self.N_5min)) * self.dt_5min

@@ -20,7 +20,7 @@ demand_price = get_entity_id("demand_price", default="")
 demand_window_start = get_entity_id("demand_window_start", default="16:00")
 demand_window_end = get_entity_id("demand_window_end", default="21:00")
 
-amber_api_key = get_entity_id("amber_api_key")
+amber_api_key = get_entity_id("amber_api_key", default="")
 amber_site_id = get_entity_id("amber_site_id", default="")
 battery_discharge_cost = get_entity_id("battery_discharge_cost")
 spike_price_warning_level = get_entity_id("spike_price_warning_level", default=25)

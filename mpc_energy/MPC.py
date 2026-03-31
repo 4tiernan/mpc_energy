@@ -40,7 +40,12 @@ class MPC:
         #self.N_5min = self.forecast_hrs * (60 // 5)
 
         self.load_inflation_percentage = 20 # Percentage to inflate the load forecast by to ensure we don't run out in the morning.
-
+        self.load_correction_ramp_hours = 2 # Hours for actual-vs-forecast correction to fade back to 100% forecast
+        self.load_correction_ratio_min = 0.25 # Minimum multiplier allowed when current load is below forecast
+        self.load_correction_ratio_max = 2.0 # Maximum multiplier allowed when current load is above forecast
+        self.load_correction_deadband_kw = 0.5 # Ignore tiny differences between current actual and forecast load
+        
+        
         self.dt_5min = 5/60      # 5 minutes in hours
 
         # Reward and penalty settings
@@ -164,7 +169,10 @@ class MPC:
             # Inject the avg of the last 5 minutes of solar and load power
             self.solar_5min[0] = (self.solar_5min[0] + self.historical_data["solar_power"][-1]) / 2 # Avgerage the last 5 minutes of solar with the forecast to make a more realistic value for the current timestep
             self.load_5min[0] = self.historical_data["load_power"][-1] # Inject the current real load power value into the sim (change to 5min avg of the most recent 5min interval if possible)
-
+            
+            # Apply near-term correction to load forecast based on current actual-vs-forecast mismatch.
+            # This scales early intervals by the current ratio and linearly ramps back to 100% forecast.
+            self.load_5min = self.apply_load_mismatch_ramp(self.load_5min)
 
             # Inject the current instantaneous solar and load values into the sim
             #self.solar_5min[0] = self.plant.solar_kw #change to 5min avg of these instantaneous values
@@ -222,6 +230,39 @@ class MPC:
         #self.prices_buy[0:5] = 0.03 #Testing
         #self.prices_sell[0:5] = 0.01
         #self.soc_init = 0.95*self.soc_max
+
+    def apply_load_mismatch_ramp(self, load_forecast):
+        """
+        Scale forecast by current actual-vs-forecast ratio, then ramp back to 100% forecast over
+        load_correction_ramp_hours.
+        """
+        if(load_forecast is None or len(load_forecast) == 0):
+            return load_forecast
+
+        # If we don't have at least one future point to blend against, just return as-is.
+        if(len(load_forecast) == 1):
+            return load_forecast
+
+        actual_now = load_forecast[0]  # index 0 is already replaced with current measured load
+        forecast_now = load_forecast[1]  # next interval is used as baseline for "forecasted now"
+        if(forecast_now <= 0):
+            return load_forecast
+
+        if(abs(actual_now - forecast_now) < self.load_correction_deadband_kw):
+            return load_forecast
+
+        ratio = actual_now / forecast_now
+        ratio = min(max(ratio, self.load_correction_ratio_min), self.load_correction_ratio_max)
+
+        ramp_steps = max(1, int(round(self.load_correction_ramp_hours * self.steps_per_hr)))
+        adjusted_forecast = list(load_forecast)
+
+        for i in range(1, len(adjusted_forecast)):
+            w = min(i / ramp_steps, 1.0)  # 0 -> ratio, 1 -> no correction
+            factor = ratio * (1 - w) + w
+            adjusted_forecast[i] = adjusted_forecast[i] * factor
+
+        return adjusted_forecast
 
     def build_optimisation_template(self):
         n = int(self.N_5min)

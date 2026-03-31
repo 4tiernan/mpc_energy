@@ -22,7 +22,7 @@ class FlowPowerInterface:
         self.demand_tarrif_window_end = None
 
         logger.error("Demand pricing not yet supported in Flow Power mode.")
-        
+
         if(demand_tarrif_price is not None):
             if(demand_tarrif_price == ""):
                 logger.warning("Demand price is blank. Demand tarrif will be disabled.")
@@ -119,6 +119,37 @@ class FlowPowerInterface:
 
         return intervals
 
+    def _build_demand_window_5min(self, intervals_5m, timeline_start):
+        if not self.demand_tarrif or not self.demand_tarrif_window_start or not self.demand_tarrif_window_end:
+            return [False] * intervals_5m
+
+        try:
+            sh, sm = [int(x) for x in str(self.demand_tarrif_window_start).split(":")[:2]]
+            eh, em = [int(x) for x in str(self.demand_tarrif_window_end).split(":")[:2]]
+        except Exception:
+            logger.warning("Invalid demand window format; disabling demand window forecast.")
+            return [False] * intervals_5m
+
+        start_min = sh * 60 + sm
+        end_min = eh * 60 + em
+
+        out = []
+        ts = timeline_start.replace(second=0, microsecond=0)
+
+        for i in range(intervals_5m):
+            t = ts + timedelta(minutes=5 * i)
+            m = t.hour * 60 + t.minute
+
+            if start_min < end_min:
+                in_window = start_min <= m < end_min
+            elif start_min > end_min:
+                in_window = (m >= start_min) or (m < end_min)  # overnight
+            else:
+                in_window = True  # 24h window if equal times
+
+            out.append(in_window)
+
+        return out
 
     def _extend_export_forecast_with_schedule(self, forecast_30min, export_payload, default_price_cents, required_30min_periods):
         """
@@ -265,13 +296,18 @@ class FlowPowerInterface:
             timeline_start=timeline_start,
             current_price=general_price,
         )
+        
         feed_in_extrapolated_forecast = self._forecast_to_5min(
             feed_in_price_forecast_full,
             intervals_5m,
             timeline_start=timeline_start,
             current_price=feed_in_price,
         )
-        demand_window_extrapolated_forecast = [False] * intervals_5m
+
+        demand_window_extrapolated_forecast = self._build_demand_window_5min(
+            intervals_5m=intervals_5m,
+            timeline_start=timeline_start,
+        )
 
         self.data = amber_data(
             demand_tarrif_price=self.demand_tarrif_price,

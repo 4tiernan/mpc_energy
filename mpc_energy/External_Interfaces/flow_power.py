@@ -9,7 +9,7 @@ class FlowPowerInterface:
     Price provider adapter that mimics the AmberAPI interface using HA entities.
     """
 
-    def __init__(self, ha, import_price_entity_id, export_price_entity_id, price_forecast_entity_id):
+    def __init__(self, ha, import_price_entity_id, export_price_entity_id, price_forecast_entity_id, demand_tarrif_price=None, demand_tarrif_window_start=None, demand_tarrif_window_end=None):
         self.ha = ha
         self.import_price_entity_id = import_price_entity_id
         self.export_price_entity_id = export_price_entity_id
@@ -17,9 +17,26 @@ class FlowPowerInterface:
 
         self.happy_hour_off_rate = 0.0  # Default off-peak rate in c/kWh when happy hour metadata is used.
 
-        logger.error("Demand pricing not yet supported in Flow Power mode.")
-        self.demand_tarrif = False
         self.demand_tarrif_price = None
+        self.demand_tarrif_window_start = None
+        self.demand_tarrif_window_end = None
+
+        logger.error("Demand pricing not yet supported in Flow Power mode.")
+        
+        if(demand_tarrif_price is not None):
+            if(demand_tarrif_price == ""):
+                logger.warning("Demand price is blank. Demand tarrif will be disabled.")
+                self.demand_tarrif = False
+            else:
+                try:
+                    self.demand_tarrif_price = float(demand_tarrif_price) # $/kW
+                    self.demand_tarrif_window_start = demand_tarrif_window_start
+                    self.demand_tarrif_window_end = demand_tarrif_window_end
+                    self.demand_tarrif = True
+                    logger.info(f"Demand tarrif enabled at ${self.demand_tarrif_price}/kW from {self.demand_tarrif_window_start} to {self.demand_tarrif_window_end}.")
+                except Exception as e:
+                    logger.error(f"Invalid demand price '{demand_tarrif_price}'. Demand tarrif will be disabled. Error: {e}")
+                    self.demand_tarrif = False
 
         if self.import_price_entity_id == "" or self.export_price_entity_id == "" or self.price_forecast_entity_id == "":
             raise ValueError(

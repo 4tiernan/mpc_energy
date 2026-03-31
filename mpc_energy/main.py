@@ -141,8 +141,11 @@ while(started == False):
             ha=ha,
             import_price_entity_id="sensor.flow_power_qld1_import_price",
             export_price_entity_id="sensor.flow_power_qld1_export_price",
-            price_forecast_entity_id="sensor.flow_power_qld1_price_forecast"
-            )
+            price_forecast_entity_id="sensor.flow_power_qld1_price_forecast",
+            demand_tarrif_price=config_manager.demand_price,
+            demand_tarrif_window_start=config_manager.demand_window_start,
+            demand_tarrif_window_end=config_manager.demand_window_end,
+        )
         
 
         
@@ -150,7 +153,7 @@ while(started == False):
             config_manager.amber_api_key,
             config_manager.amber_site_id,
             local_tz=ha.local_tz,
-            demand_price=config_manager.amber_demand_price,
+            demand_price=config_manager.demand_price,
             errors=True
         )
         

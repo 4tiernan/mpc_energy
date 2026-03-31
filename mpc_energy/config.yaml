@@ -1,6 +1,6 @@
 name: "MPC Energy Dev"
 description: "A profit optimiser for home batteries with wholesale electricity pricing."
-version: "0.5.29"
+version: "0.5.30"
 slug: "mpc_energy"
 url: "https://github.com/4tiernan/mpc_energy"
 init: false
@@ -32,10 +32,12 @@ options:
   ha_mqtt_pass: ""
 
   energy_retailer: "amber"
+  demand_price: ""
+  demand_window_start: "16:00"
+  demand_window_end: "21:00"
 
   amber_api_key: ""
   amber_site_id: ""
-  amber_demand_price: ""
 
   battery_discharge_cost: 7
 

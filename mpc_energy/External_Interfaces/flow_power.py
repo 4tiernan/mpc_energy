@@ -255,14 +255,9 @@ class FlowPowerInterface:
 
         export_points = self._extract_forecast_points(export_payload)
 
-        for i in range(len(import_points)):
-            ts, import_price = import_points[i]
-            tse, export_price = export_points[i] if i < len(export_points) else (None, None)
-            if import_price < export_price:
-                import_points[i] = (ts, export_price + 10) # Inflate export prices above import prices to accurately reflect reality
-
         if forecast_hrs is None:
             forecast_hrs = 24
+            logger.warning("No forecast horizon provided; defaulting to 24 hours.")
 
         if sim_start is not None and sim_end is not None and sim_end > sim_start:
             forecast_minutes = (sim_end - sim_start).total_seconds() / 60.0
@@ -311,6 +306,11 @@ class FlowPowerInterface:
             intervals_5m=intervals_5m,
             timeline_start=timeline_start,
         )
+
+        for i, import_price in enumerate(general_extrapolated_forecast):
+            export_price = feed_in_extrapolated_forecast[i] if i < len(feed_in_extrapolated_forecast) else feed_in_price
+            if(import_price < export_price):
+                general_extrapolated_forecast[i] = export_price + 10
 
         self.data = amber_data(
             demand_tarrif_price=self.demand_tarrif_price,

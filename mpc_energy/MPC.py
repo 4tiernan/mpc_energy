@@ -225,7 +225,7 @@ class MPC:
         self.effective_prices_buy = np.multiply(self.prices_buy, buy_price_uncertainty_factor)
         self.effective_prices_sell = np.multiply(self.prices_sell, sell_price_uncertainty_factor)
 
-        #self.effective_prices_sell = self.effective_prices_sell - 0.0001 # Decrease prices slightly to discorage selling at a zero price
+        self.effective_prices_sell = self.effective_prices_sell + 0.0000000000001 # Increase prices slightly to allow for export at slight benefit
 
         #self.prices_buy[0:5] = 0.03 #Testing
         #self.prices_sell[0:5] = 0.01

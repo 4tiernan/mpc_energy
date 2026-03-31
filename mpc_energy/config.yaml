@@ -1,6 +1,6 @@
 name: "MPC Energy Dev"
 description: "A profit optimiser for home batteries with wholesale electricity pricing."
-version: "0.5.36"
+version: "0.5.37"
 slug: "mpc_energy"
 url: "https://github.com/4tiernan/mpc_energy"
 init: false
@@ -100,7 +100,7 @@ schema:
   ha_mqtt_pass: password
   energy_retailer: list(amber|flow)
 
-  demand_price: int?
+  demand_price: str?
   demand_window_start: str?
   demand_window_end: str?
 

@@ -248,13 +248,18 @@ class FlowPowerInterface:
                 "Confirm the entity units are in c/kWh."
             )
 
-        # Prefer dedicated forecast entities when available. Fall back to the combined
-        # forecast sensor if import/export entities don't include forecast metadata.
-        import_points = self._extract_forecast_points(import_payload)
-        if not import_points:
-            import_points = self._extract_forecast_points(forecast_payload)
+
+        import_points = self._extract_forecast_points(forecast_payload)
+
+        import_points = [(ts, val * 1.5) for ts, val in import_points] # Inflate import forecast by 50% to better reflect PEA affect
 
         export_points = self._extract_forecast_points(export_payload)
+
+        for i in range(len(import_points)):
+            ts, import_price = import_points[i]
+            tse, export_price = export_points[i] if i < len(export_points) else (None, None)
+            if import_price < export_price:
+                import_points[i] = (ts, export_price + 10) # Inflate export prices above import prices to accurately reflect reality
 
         if forecast_hrs is None:
             forecast_hrs = 24

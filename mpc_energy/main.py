@@ -26,7 +26,7 @@ if(not config_manager.accepted_risks):
     exit()
 
 # Check to see if an amber site number has been set and print the available ones if not
-if(config_manager.amber_site_id == ""):
+if(config_manager.energy_retailer == "amber" and config_manager.amber_site_id == ""):
     from amber_api import AmberAPI
     amber = AmberAPI(config_manager.amber_api_key, "")
     sites = amber.get_sites()
@@ -137,25 +137,29 @@ while(started == False):
             token=const.HA_TOKEN,
         )
 
-        flow = FlowPowerInterface(
-            ha=ha,
-            import_price_entity_id="sensor.flow_power_qld1_import_price",
-            export_price_entity_id="sensor.flow_power_qld1_export_price",
-            price_forecast_entity_id="sensor.flow_power_qld1_price_forecast",
-            demand_tarrif_price=config_manager.demand_price,
-            demand_tarrif_window_start=config_manager.demand_window_start,
-            demand_tarrif_window_end=config_manager.demand_window_end,
-        )
-        
+        demand_tariff = None
 
-        
-        amber = AmberAPI(
-            config_manager.amber_api_key,
-            config_manager.amber_site_id,
-            local_tz=ha.local_tz,
-            demand_price=config_manager.demand_price,
-            errors=True
-        )
+        if(config_manager.energy_retailer == "amber"):
+            amber = AmberAPI(
+                config_manager.amber_api_key,
+                config_manager.amber_site_id,
+                local_tz=ha.local_tz,
+                demand_price=config_manager.demand_price,
+                errors=True
+            )
+            demand_tariff = amber.demand_tarrif
+
+        elif(config_manager.energy_retailer == "flow"):
+            flow = FlowPowerInterface(
+                ha=ha,
+                import_price_entity_id="sensor.flow_power_qld1_import_price",
+                export_price_entity_id="sensor.flow_power_qld1_export_price",
+                price_forecast_entity_id="sensor.flow_power_qld1_price_forecast",
+                demand_tarrif_price=config_manager.demand_price,
+                demand_tarrif_window_start=config_manager.demand_window_start,
+                demand_tarrif_window_end=config_manager.demand_window_end,
+            )
+            demand_tariff = flow.demand_tarrif
         
         plant = Plant(ha) 
         
@@ -180,7 +184,7 @@ while(started == False):
             plant=plant,
             EC=EC, 
             local_tz=ha.local_tz,
-            demand_tarrif=amber.demand_tarrif, 
+            demand_tarrif=demand_tariff,
             retailer=config_manager.energy_retailer
         ) 
 
@@ -226,7 +230,6 @@ def update_sensors(price_data):
     set_sensor_if_changed(ha_mqtt.target_discharge_sensor, round(rbc.target_dispatch_price))
     set_sensor_if_changed(ha_mqtt.kwh_required_overnight_sensor, round(rbc.kwh_required_remaining, 2))    
     set_sensor_if_changed(ha_mqtt.kwh_required_till_sundown_sensor, round(rbc.kwh_required_till_sundown, 2))
-    set_sensor_if_changed(ha_mqtt.amber_api_calls_remaining_sensor, amber.rate_limit_remaining)
     set_sensor_if_changed(ha_mqtt.working_mode_sensor, opperating_mode)
 
     set_sensor_if_changed(ha_mqtt.import_cost_sensor, round(plant.daily_import_cost, 2))
@@ -363,29 +366,31 @@ def main_loop_code():
     if(time.time() >= next_amber_update_timestamp):
         start_timer()
         mpc.update_forecast_horizon() # Update forecast horizon to get the start and end times of the plan (to feed into the amber API call)
-        if(partial_update):
-            price_data = amber.get_data(
+        if(config_manager.energy_retailer == "amber"):
+            if(partial_update):
+                price_data = amber.get_data(
+                    partial_update=True,
+                    forecast_hrs=mpc.forecast_hrs,
+                    sim_start=mpc.sim_start,
+                    sim_end=mpc.sim_end,
+                )
+                data = flow.get_data()
+            else:
+                price_data = amber.get_data(
+                    forecast_hrs=mpc.forecast_hrs,
+                    sim_start=mpc.sim_start,
+                    sim_end=mpc.sim_end,
+                )
+        
+        elif(config_manager.energy_retailer == "flow"):
+            price_data = flow.get_data(
                 partial_update=True,
                 forecast_hrs=mpc.forecast_hrs,
                 sim_start=mpc.sim_start,
                 sim_end=mpc.sim_end,
             )
-            data = flow.get_data()
-        else:
-            price_data = amber.get_data(
-                forecast_hrs=mpc.forecast_hrs,
-                sim_start=mpc.sim_start,
-                sim_end=mpc.sim_end,
-            )
-
-        price_data = flow.get_data(
-            partial_update=True,
-            forecast_hrs=mpc.forecast_hrs,
-            sim_start=mpc.sim_start,
-            sim_end=mpc.sim_end,
-        )
         
-        elapsed_time("Amber Data")
+        elapsed_time("Price Data")
 
         set_sensor_if_changed(ha_mqtt.estimated_price_status_sensor, int(price_data.prices_estimated))
 

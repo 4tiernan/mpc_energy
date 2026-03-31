@@ -172,7 +172,7 @@ class MPC:
             
             # Apply near-term correction to load forecast based on current actual-vs-forecast mismatch.
             # This scales early intervals by the current ratio and linearly ramps back to 100% forecast.
-            self.load_5min = self.apply_load_mismatch_ramp(self.load_5min)
+            #self.load_5min = self.apply_load_mismatch_ramp(self.load_5min)
 
             # Inject the current instantaneous solar and load values into the sim
             #self.solar_5min[0] = self.plant.solar_kw #change to 5min avg of these instantaneous values

@@ -21,8 +21,6 @@ class FlowPowerInterface:
         self.demand_tarrif_window_start = None
         self.demand_tarrif_window_end = None
 
-        logger.error("Demand pricing not yet supported in Flow Power mode.")
-
         if(demand_tarrif_price is not None):
             if(demand_tarrif_price == ""):
                 logger.warning("Demand price is blank. Demand tarrif will be disabled.")

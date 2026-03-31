@@ -56,6 +56,7 @@ class FlowPowerInterface:
 
     def _extract_forecast_points(self, state_payload):
         attributes = state_payload.get("attributes", {})
+        logger.debug(f"Extracting forecast points from attributes: {attributes}")
 
         forecast_dict = attributes.get("forecast_dict")
         if isinstance(forecast_dict, dict) and forecast_dict:

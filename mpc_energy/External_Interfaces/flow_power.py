@@ -244,9 +244,9 @@ class FlowPowerInterface:
             current_clock_time = current_time.time()
             if datetime_time(10, 0) <= current_clock_time < datetime_time(14, 0):
                 base_price = 15
-            if datetime_time(7, 0) <= current_clock_time < datetime_time(10, 0):
+            elif datetime_time(7, 0) <= current_clock_time < datetime_time(10, 0):
                 base_price = 25
-            if datetime_time(14, 0) <= current_clock_time < datetime_time(16, 0):
+            elif datetime_time(14, 0) <= current_clock_time < datetime_time(16, 0):
                 base_price = 25
             elif datetime_time(16, 0) <= current_clock_time < datetime_time(21, 0):
                 base_price = 55

@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, time as datetime_time, timezone, timedelta
 from amber_api import PriceForecast, amber_data
 from mpc_logger import logger
 import math
@@ -233,7 +233,36 @@ class FlowPowerInterface:
             values.append(round(price))
         
         return values
+    
+    def create_fake_forecast(self, extrapolated_general_forecast, sim_start, sim_end):
+        '''Create a fake forecast that reflects reality more closely than the provided flow power forecast. The fake forecast is overridden with the flow power forecast when the flow power forecast is higher.'''
+        fake_forecast = []
+        current_time = sim_start
+        forecast_index = 0
 
+        while current_time < sim_end:
+            current_clock_time = current_time.time()
+            if datetime_time(10, 0) <= current_clock_time < datetime_time(14, 0):
+                base_price = 15
+            if datetime_time(7, 0) <= current_clock_time < datetime_time(10, 0):
+                base_price = 25
+            if datetime_time(14, 0) <= current_clock_time < datetime_time(16, 0):
+                base_price = 25
+            elif datetime_time(16, 0) <= current_clock_time < datetime_time(21, 0):
+                base_price = 55
+            else:
+                base_price = 35
+
+            if forecast_index < len(extrapolated_general_forecast) and (current_time - sim_start) < timedelta(hours=12): # Only modify the forecast if its within the known forecast horizon
+                fake_forecast.append(max(base_price, extrapolated_general_forecast[forecast_index]))
+            else:
+                fake_forecast.append(base_price)
+
+            forecast_index += 1
+            current_time += timedelta(minutes=5)
+
+        return fake_forecast
+    
     def get_data(self, partial_update=False, forecast_hrs=None, sim_start=None, sim_end=None):
         import_payload = self._get_state_payload(self.import_price_entity_id)
         export_payload = self._get_state_payload(self.export_price_entity_id)
@@ -307,6 +336,8 @@ class FlowPowerInterface:
             timeline_start=timeline_start,
         )
 
+        fake_general_forecast = self.create_fake_forecast(general_extrapolated_forecast, sim_start, sim_end)
+
         for i, import_price in enumerate(general_extrapolated_forecast):
             export_price = feed_in_extrapolated_forecast[i] if i < len(feed_in_extrapolated_forecast) else feed_in_price
             if(import_price < export_price):
@@ -323,7 +354,7 @@ class FlowPowerInterface:
             feedIn_12hr_forecast=feed_in_price_forecast,
             general_12hr_forecast_sorted=sorted_general_forecast,
             feedIn_12hr_forecast_sorted=sorted_feed_in_forecast,
-            general_extrapolated_forecast=general_extrapolated_forecast,
+            general_extrapolated_forecast=fake_general_forecast,
             feedIn_extrapolated_forecast=feed_in_extrapolated_forecast,
             demand_window_extrapolated_forecast=demand_window_extrapolated_forecast,
         )

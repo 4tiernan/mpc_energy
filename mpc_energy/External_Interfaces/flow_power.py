@@ -252,11 +252,13 @@ class FlowPowerInterface:
                 base_price = 55
             else:
                 base_price = 35
-
+            
+            '''
             if forecast_index < len(extrapolated_general_forecast) and (current_time - sim_start) < timedelta(hours=12): # Only modify the forecast if its within the known forecast horizon
                 fake_forecast.append(max(base_price, extrapolated_general_forecast[forecast_index]))
-            else:
-                fake_forecast.append(base_price)
+            else:'''
+            
+            fake_forecast.append(base_price)
 
             forecast_index += 1
             current_time += timedelta(minutes=5)

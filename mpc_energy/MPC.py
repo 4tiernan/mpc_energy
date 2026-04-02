@@ -71,9 +71,9 @@ class MPC:
         self.max_price_uncertainty_adjustment = 30           # Cap the absolute buy/sell adjustment (+/-30%)
 
         if(self.retailer == "flow"):
-            self.buy_price_uncertainty_premium_per_hour = -0.1      # +%/hr applied to future buy prices (testing a negative number to encourge buying as late as possible to rely less on load forecast)
+            self.buy_price_uncertainty_premium_per_hour = -0.01      # +%/hr applied to future buy prices (testing a negative number to encourge buying as late as possible to rely less on load forecast)
             self.sell_price_uncertainty_discount_per_hour = 0 # Flow sell prices are known with certainty
-            self.max_price_uncertainty_adjustment = -1           # Cap the absolute buy/sell adjustment (+/-30%)
+            self.max_price_uncertainty_adjustment = 1           # Cap the absolute buy/sell adjustment (+/-30%)
             #self.charge_maintain_reward = 0 # Remove the charge maintain reward to prioritise immediate arbitrage with known prices, as there is no uncertainty discount on the sell price to encourage near-term sales.
 
             logger.debug("Flow retailer detected: Disabling sell price uncertainty discount and charge maintain reward to prioritise immediate arbitrage with known prices.")
@@ -210,14 +210,30 @@ class MPC:
         # Build uncertainty-adjusted prices so near-term intervals are valued more than
         # far-future forecast intervals (which are less reliable).
         hours_from_now = np.arange(int(self.N_5min)) * self.dt_5min
-        buy_price_uncertainty_factor = np.minimum(
-            1 + (hours_from_now * (self.buy_price_uncertainty_premium_per_hour/100)),
-            1 + (self.max_price_uncertainty_adjustment/100)
-        )
-        sell_price_uncertainty_factor = np.maximum(
-            1 - (hours_from_now * (self.sell_price_uncertainty_discount_per_hour/100)),
-            1 - (self.max_price_uncertainty_adjustment/100)
-        )
+        max_uncertainty_adjustment = abs(self.max_price_uncertainty_adjustment)
+        buy_price_uncertainty_factor = 1 + (hours_from_now * (self.buy_price_uncertainty_premium_per_hour/100))
+        if(self.buy_price_uncertainty_premium_per_hour >= 0):
+            buy_price_uncertainty_factor = np.minimum(
+                buy_price_uncertainty_factor,
+                1 + (max_uncertainty_adjustment/100),
+            )
+        else:
+            buy_price_uncertainty_factor = np.maximum(
+                buy_price_uncertainty_factor,
+                1 - (max_uncertainty_adjustment/100),
+            )
+
+        sell_price_uncertainty_factor = 1 - (hours_from_now * (self.sell_price_uncertainty_discount_per_hour/100))
+        if(self.sell_price_uncertainty_discount_per_hour >= 0):
+            sell_price_uncertainty_factor = np.maximum(
+                sell_price_uncertainty_factor,
+                1 - (max_uncertainty_adjustment/100),
+            )
+        else:
+            sell_price_uncertainty_factor = np.minimum(
+                sell_price_uncertainty_factor,
+                1 + (max_uncertainty_adjustment/100),
+            )
 
         self.effective_prices_buy = np.multiply(self.prices_buy, buy_price_uncertainty_factor)
         self.effective_prices_sell = np.multiply(self.prices_sell, sell_price_uncertainty_factor)

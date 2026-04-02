@@ -74,7 +74,7 @@ class MPC:
             self.buy_price_uncertainty_premium_per_hour = -0.1      # +%/hr applied to future buy prices (testing a negative number to encourge buying as late as possible to rely less on load forecast)
             self.sell_price_uncertainty_discount_per_hour = 0 # Flow sell prices are known with certainty
             self.max_price_uncertainty_adjustment = -1           # Cap the absolute buy/sell adjustment (+/-30%)
-            self.charge_maintain_reward = 0 # Remove the charge maintain reward to prioritise immediate arbitrage with known prices, as there is no uncertainty discount on the sell price to encourage near-term sales.
+            #self.charge_maintain_reward = 0 # Remove the charge maintain reward to prioritise immediate arbitrage with known prices, as there is no uncertainty discount on the sell price to encourage near-term sales.
 
             logger.debug("Flow retailer detected: Disabling sell price uncertainty discount and charge maintain reward to prioritise immediate arbitrage with known prices.")
 

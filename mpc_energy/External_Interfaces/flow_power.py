@@ -338,8 +338,8 @@ class FlowPowerInterface:
             timeline_start=timeline_start,
         )
 
-        fake_general_forecast = self.create_fake_forecast(general_extrapolated_forecast, sim_start, sim_end)
-        logger.warning("Using fake prices for flow power general forecast to better reflect daily price patterns.")
+        #fake_general_forecast = self.create_fake_forecast(general_extrapolated_forecast, sim_start, sim_end)
+        #logger.warning("Using fake prices for flow power general forecast to better reflect daily price patterns.")
 
         for i, import_price in enumerate(general_extrapolated_forecast):
             export_price = feed_in_extrapolated_forecast[i] if i < len(feed_in_extrapolated_forecast) else feed_in_price
@@ -357,7 +357,7 @@ class FlowPowerInterface:
             feedIn_12hr_forecast=feed_in_price_forecast,
             general_12hr_forecast_sorted=sorted_general_forecast,
             feedIn_12hr_forecast_sorted=sorted_feed_in_forecast,
-            general_extrapolated_forecast=fake_general_forecast,
+            general_extrapolated_forecast=general_extrapolated_forecast,
             feedIn_extrapolated_forecast=feed_in_extrapolated_forecast,
             demand_window_extrapolated_forecast=demand_window_extrapolated_forecast,
         )

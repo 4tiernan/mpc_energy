@@ -617,7 +617,8 @@ class MPC:
         else:
             if(control_active):
                 self.EC.self_consumption()
-                raise Exception("Unable to determine control mode from MPC plan. Selected self consumption for saftey")
+                error_msg = f"Unable to determine control mode from MPC plan at increment {increment}, time: {data['time_index'][increment]}. Defaulting to self consumption mode. Plan values: inverter_power: {inverter_power}, used_solar_power: {used_solar_power}, solar_available: {solar_available}, load_power: {load_power}, grid_net: {grid_net}, battery_power: {battery_power}, self.plant.max_inverter_power: {self.plant.max_inverter_power}"
+                raise Exception(error_msg) from None
             return "Unable to determine"
         
     def determine_plan_modes(self, output): # Determine the control modes for the whole plan

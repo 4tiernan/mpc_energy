@@ -341,6 +341,7 @@ class FlowPowerInterface:
         #fake_general_forecast = self.create_fake_forecast(general_extrapolated_forecast, sim_start, sim_end)
         #logger.warning("Using fake prices for flow power general forecast to better reflect daily price patterns.")
 
+        # Set the import price to be at least 10c higher than the export price to reflect reality
         for i, import_price in enumerate(general_extrapolated_forecast):
             export_price = feed_in_extrapolated_forecast[i] if i < len(feed_in_extrapolated_forecast) else feed_in_price
             if(import_price < export_price):

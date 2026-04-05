@@ -226,7 +226,7 @@ class FlowPowerInterface:
                 interval_index += 1
 
             if t < forecast_30min[0].start_time:
-                price = current_price
+                price = forecast_30min[0].price
             else:
                 price = forecast_30min[interval_index].price
 

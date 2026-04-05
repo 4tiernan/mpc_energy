@@ -80,11 +80,11 @@ class MPC:
 
         logger.debug(f"Forecast uncertainty: Buy premium: {self.buy_price_uncertainty_premium_per_hour} %/hr, Sell discount: {self.sell_price_uncertainty_discount_per_hour} %/hr, Max adjustment: {self.max_price_uncertainty_adjustment} %")
         
-        if(self.buy_price_uncertainty_premium_per_hour < 0 or self.buy_price_uncertainty_premium_per_hour > 100):
+        if(self.buy_price_uncertainty_premium_per_hour < -10 or self.buy_price_uncertainty_premium_per_hour > 100):
             logger.warning(f"Buy price uncertainty premium of {self.buy_price_uncertainty_premium_per_hour} %/hr seems very high or low, please ensure this value is correct to avoid unexpected behaviour.")
-        if(self.sell_price_uncertainty_discount_per_hour < 0 or self.sell_price_uncertainty_discount_per_hour > 100):
+        if(self.sell_price_uncertainty_discount_per_hour < -10 or self.sell_price_uncertainty_discount_per_hour > 100):
             logger.warning(f"Sell price uncertainty discount of {self.sell_price_uncertainty_discount_per_hour} %/hr seems very high or low, please ensure this value is correct to avoid unexpected behaviour.")
-        if(self.max_price_uncertainty_adjustment < 0 or self.max_price_uncertainty_adjustment > 100):
+        if(self.max_price_uncertainty_adjustment < -10 or self.max_price_uncertainty_adjustment > 100):
             logger.warning(f"Max price uncertainty adjustment of {self.max_price_uncertainty_adjustment} % seems very high or low, please ensure this value is correct to avoid unexpected behaviour.")
 
         # Profit Variables

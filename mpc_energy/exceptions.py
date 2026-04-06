@@ -24,3 +24,6 @@ class AmberAPIConnectionError(AmberAPIError):
 
 class AmberAPIRequestError(AmberAPIError):
     """Raised for other Amber API request failures."""
+
+class FlowPowerError(MPCEnergyError):
+    """Base exception for Flow Power forecast failures."""

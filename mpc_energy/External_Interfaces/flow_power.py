@@ -2,6 +2,7 @@ from datetime import datetime, time as datetime_time, timezone, timedelta
 from amber_api import PriceForecast, amber_data
 from mpc_logger import logger
 import math
+from exceptions import FlowPowerError
 
 
 class FlowPowerInterface:
@@ -37,7 +38,7 @@ class FlowPowerInterface:
                     self.demand_tarrif = False
 
         if self.import_price_entity_id == "" or self.export_price_entity_id == "" or self.price_forecast_entity_id == "":
-            raise ValueError(
+            raise FlowPowerError(
                 "Flow Power mode selected but one or more Flow Power entity IDs are blank. "
                 "Please set all required Flow Power entity IDs."
                 f"Provided import price entity ID: '{self.import_price_entity_id}', export price entity ID: '{self.export_price_entity_id}', price forecast entity ID: '{self.price_forecast_entity_id}'."
@@ -55,7 +56,7 @@ class FlowPowerInterface:
         try:
             value = float(state)
         except Exception as e:
-            raise ValueError(
+            raise FlowPowerError(
                 f"Unable to convert state '{state}' for entity '{entity_id}' to float. "
                 "Please check the entity returns a numeric value."
             ) from e

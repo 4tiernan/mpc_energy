@@ -23,7 +23,7 @@ class ControlModeOverrideManager:
             logger.warning(f"Invalid override duration '{selected_duration}'. Falling back to 15 minutes.")
             return "15", 15
 
-        if(duration_minutes not in [5, 15, 30, 60]):
+        if(duration_minutes not in [5, 15, 30, 60, 120, 240, 360]):
             logger.warning(f"Unsupported override duration '{duration_minutes}'. Falling back to 15 minutes.")
             return "15", 15
 

@@ -1,5 +1,6 @@
 ## 0.6.0
 * Adding flow power as retailer option
+* Added 2, 4, 6hr control override options
 
 ## 0.5.0
 * Increased MPC forecast horizon to 72hrs

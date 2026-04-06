@@ -281,7 +281,7 @@ control_mode_override_selector = CreateSelectInput(
 control_mode_override_duration_selector = CreateSelectInput(
     name="Control Mode Override Duration",
     unique_id="control_mode_override_duration",
-    options=["5", "15", "30", "60", "Till Price Change"]
+    options=["5", "15", "30", "60", "120", "240", "360", "Till Price Change"]
 )
 
 def initalise_entities(): # Initalise entities and get them discovered by the ha mqtt service

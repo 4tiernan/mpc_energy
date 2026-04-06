@@ -116,6 +116,8 @@ Start the app without configuring this if you don't know your site id. After sta
 * Enter the import and export price entities that have values in c/kWh.
 * Enter the price forecast entity id with values in c/kWh.
 
+My entites for example are (sensor.flow_power_qld1_import_price, sensor.flow_power_qld1_export_price, sensor.flow_power_qld1_price_forecast)
+
 
 ### Battery Discharge Cost:
 If you desire, you may set the battery discharge cost according to the cost of your battery (not solar, inverter or other included system costs) divided by the total discharge energy the battery is warranted for. This ensures the battery will only be used when it makes financial sense to do so. You can set this value higher or lower to adjust the system behaviour though.

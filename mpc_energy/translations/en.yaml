@@ -14,15 +14,15 @@ configuration:
   
   demand_price:
     name: Demand Price
-    description: If you are on a demand tarrif please enter the price per kW (not kWh) during the demand window.
+    description: If you are on a demand tarrif please enter the price per kW (not kWh) during the demand window. Leave blank if not on a demand tarrif.
   
   demand_window_start:
     name: Demand Window Start Time
-    description: If you are on a demand tarrif please enter the start time of the demand window in 24 hour format, e.g. 16:00 for 4pm.
+    description: If you are on a demand tarrif please enter the start time of the demand window in 24 hour format, e.g. 16:00 for 4pm. Leave blank if not on a demand tarrif.
   
   demand_window_end:
     name: Demand Window End Time
-    description: If you are on a demand tarrif please enter the end time of the demand window in 24 hour format, e.g. 21:00 for 9pm.
+    description: If you are on a demand tarrif please enter the end time of the demand window in 24 hour format, e.g. 21:00 for 9pm. Leave blank if not on a demand tarrif.
   
   amber_api_key:
     name: Amber API Key

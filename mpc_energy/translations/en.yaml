@@ -31,6 +31,18 @@ configuration:
     name: Amber Site ID
     description: If you do not know your site number, simply don't enter anything, start the app and check the logs for your site number.
  
+  flow_import_price_entity_id:
+    name: Flow Import Price Entity ID
+    description: If using Flow as your energy retailer, entrer the import price entity from the flow integration 
+    
+  flow_export_price_entity_id:
+    name: Flow Export Price Entity ID
+    description: If using Flow as your energy retailer, entrer the export price entity from the flow integration 
+
+  flow_price_forecast_entity_id:
+    name: Flow Price Forecast Entity ID
+    description: If using Flow as your energy retailer, entrer the price forecast entity from the flow integration.
+
   battery_discharge_cost:
     name: Battery Discharge Cost (c/kWh)
     description: Effective cost of discharging the battery (Leave at default if unsure).

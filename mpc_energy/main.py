@@ -152,9 +152,9 @@ while(started == False):
         elif(config_manager.energy_retailer == "flow"):
             flow = FlowPowerInterface(
                 ha=ha,
-                import_price_entity_id="sensor.flow_power_qld1_import_price",
-                export_price_entity_id="sensor.flow_power_qld1_export_price",
-                price_forecast_entity_id="sensor.flow_power_qld1_price_forecast",
+                import_price_entity_id=config_manager.flow_import_price_entity_id,
+                export_price_entity_id=config_manager.flow_export_price_entity_id,
+                price_forecast_entity_id=config_manager.flow_price_forecast_entity_id,
                 demand_tarrif_price=config_manager.demand_price,
                 demand_tarrif_window_start=config_manager.demand_window_start,
                 demand_tarrif_window_end=config_manager.demand_window_end,

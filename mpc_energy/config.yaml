@@ -39,6 +39,10 @@ options:
   amber_api_key: ""
   amber_site_id: ""
 
+  flow_import_price_entity_id: ""
+  flow_export_price_entity_id: ""
+  flow_price_forecast_entity_id: ""
+
   battery_discharge_cost: 7
 
   spike_price_warning_level: 25
@@ -106,6 +110,10 @@ schema:
 
   amber_api_key: password?
   amber_site_id: str?
+
+  flow_import_price_entity_id: str?
+  flow_export_price_entity_id: str?
+  flow_price_forecast_entity_id: str?
 
   battery_discharge_cost: int?
 

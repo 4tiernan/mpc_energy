@@ -22,6 +22,11 @@ demand_window_end = get_entity_id("demand_window_end", default="21:00")
 
 amber_api_key = get_entity_id("amber_api_key", default="")
 amber_site_id = get_entity_id("amber_site_id", default="")
+
+flow_import_price_entity_id = get_entity_id("flow_import_price_entity_id", default="")
+flow_export_price_entity_id = get_entity_id("flow_export_price_entity_id", default="")
+flow_price_forecast_entity_id = get_entity_id("flow_price_forecast_entity_id", default="")
+
 battery_discharge_cost = get_entity_id("battery_discharge_cost")
 spike_price_warning_level = get_entity_id("spike_price_warning_level", default=25)
 notification_target = get_entity_id("notification_target", default="")

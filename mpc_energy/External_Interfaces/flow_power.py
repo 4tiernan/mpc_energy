@@ -40,6 +40,7 @@ class FlowPowerInterface:
             raise ValueError(
                 "Flow Power mode selected but one or more Flow Power entity IDs are blank. "
                 "Please set all required Flow Power entity IDs."
+                f"Provided import price entity ID: '{self.import_price_entity_id}', export price entity ID: '{self.export_price_entity_id}', price forecast entity ID: '{self.price_forecast_entity_id}'."
             ) from None
 
     def _get_state_payload(self, entity_id):

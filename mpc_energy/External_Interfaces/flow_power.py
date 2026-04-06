@@ -283,7 +283,7 @@ class FlowPowerInterface:
 
         import_points = self._extract_forecast_points(forecast_payload)
 
-        import_points = [(ts, val * 1.5) for ts, val in import_points] # Inflate import forecast by 50% to better reflect PEA affect
+        #import_points = [(ts, val * 1.5) for ts, val in import_points] # Inflate import forecast by 50% to better reflect PEA affect
 
         export_points = self._extract_forecast_points(export_payload)
 

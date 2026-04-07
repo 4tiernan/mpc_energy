@@ -3,9 +3,9 @@
 Welcome to **MPC Energy**, a Home Assistant app that optimizes home battery control based on [Amber](https://www.amber.com.au/) wholesale electricity pricing. This guide will walk you through installation, configuration, and first-time setup.
 
 ## Prerequisites
-You must use Amber Electric as your electricity retailer to use this app.<br>
+You must use Amber Electric or Flow Power as your electricity retailer to use this app.<br>
 To utilise this Home Assistant App you will need the following accounts:
-* [Amber Electric](https://www.amber.com.au/)
+* [Amber Electric](https://www.amber.com.au/)  or [Flow Power (Happy Hour plan only)](https://flowpower.com.au/residential/battery-happy-hour-45)
 * [Solcast Home User](https://toolkit.solcast.com.au/register)
 
 Please create these accounts before continuing with the onboarding process.<br><br>
@@ -16,7 +16,7 @@ You will also need [HACS](https://www.hacs.xyz/) setup to install the required i
 <br>
 
 
-## 1️⃣ Amber API
+## 1️⃣ Amber API (If using Amber)
 Amber Wholesale Prices: Open the [Amber Developer](https://app.amber.com.au/developers/?_gl=1*1szghuy*_gcl_au*ODg1NzE4MjA5LjE3NzEzMTY0NTc.*_ga*MTE1ODI1NDY2Ny4xNzcxMzE2NDU3*_ga_YRCQDZ4F7P*czE3NzEzMTY0NTckbzEkZzEkdDE3NzEzMTY0NTkkajU4JGwwJGgw&_ga=2.115523334.1611969294.1771316457-1158254667.1771316457) tab, you will need to enable developer mode in settings if you haven't already.
 
 Click the 'Generate a new Token' button, give it a name and take note of the API key. (In some cicumstances it can take up to 4 business days for the api key to begin to funciton and return your site ID)
@@ -27,8 +27,14 @@ Click the 'Generate a new Token' button, give it a name and take note of the API
 #### Solcast Solar Forecasting (HACS):
 * Follow Instructions Provided [here](https://github.com/BJReplay/ha-solcast-solar?tab=readme-ov-file#solcast-requirements).
 
-### You will need to enable the following entities in the Solcast Integration:
+##### You will need to enable the following entities in the Solcast Integration:
 * Forecast Day 3
+* Forecast Day 4
+
+#### Flow-Power-HA Integration (HACS)(If using flow power):
+* Follow Instructions Provided [here](https://github.com/bolagnaise/Flow-Power-HA).
+* You will likely need to add this as a custom repo to HACS to allow HACS to view and download the integration.
+* Please setup using AEMO pricing and enter your exact tariff information otherwise behaviour may be incorrect.
 
 #### Home Assistant MQTT Integration and Mosquitto Broker App: <br>
 * Setup the [MQTT](https://www.home-assistant.io/integrations/mqtt) integration and the **required mosquito broker app**. Keep the MQTT login details handy to enter into the app config.
@@ -40,7 +46,7 @@ Click the 'Generate a new Token' button, give it a name and take note of the API
 <br>
 <br>
 
-### You will need to enable the following entities in the Sigenergy Integration:
+#### You will need to enable the following entities in the Sigenergy Integration:
 Controls:
 * Remote EMS (Controlled by Home Assistant)
 * Remote EMS Control Mode
@@ -90,20 +96,39 @@ Click the button above or follow the instructions below:
 ### In the App's Configuration Tab you will find the following settings:<br><br>
 ### Risk Acknowledgement:
 After reading the risks associated with use of this app in the [readme](https://github.com/4tiernan/mpc_energy?tab=readme-ov-file#%EF%B8%8F-important-safety-notice), confirm you accept and understand them by switching on the accept terms switch in the configuration tab.
-<br><br>
+<br>
+
 ### Credentials:
 Enter your Amber API key, MQTT username and password as setup before.
-<br><br>
+<br>
+
+### Demand Price: 
+If you are on a demand tarrif, please enter the price per kW (not kWh) for peak consumption for the month. Also ensure to enter the start and end times (24hr format, ie '16:00' and '21:00') These values can usually be found through your network opperator, ie, [Energex Tarrif Information](https://www.energex.com.au/manage-your-energy/ways-to-save-for-businesses-and-farms/tariffs/residential-tariffs#:~:text=Residential%20TOU%20Demand%20%26%20Energy%20(NTC3900)2)<br>
+
+## If using Amber:
+
 ### Amber Site ID: 
 Start the app without configuring this if you don't know your site id. After starting the app check the logs and select your site id from the list returned by amber and enter it in the configuration.
-<br><br>
+<br>
 
-### Amber Demand Price: 
-If you are on a demand tarrif with Amber, please enter the price per kW (not kWh) for peak consumption for the month. This value can usually be found through your network opperator, ie, [Energex Tarrif Information](https://www.energex.com.au/manage-your-energy/ways-to-save-for-businesses-and-farms/tariffs/residential-tariffs#:~:text=Residential%20TOU%20Demand%20%26%20Energy%20(NTC3900)2)<br><br>
+## If using Flow Power:
+
+* Enter the import and export price entities that have values in c/kWh.
+* Enter the price forecast entity id with values in c/kWh.
+
+My entites for example are (sensor.flow_power_qld1_import_price, sensor.flow_power_qld1_export_price, sensor.flow_power_qld1_price_forecast)
+
 
 ### Battery Discharge Cost:
 If you desire, you may set the battery discharge cost according to the cost of your battery (not solar, inverter or other included system costs) divided by the total discharge energy the battery is warranted for. This ensures the battery will only be used when it makes financial sense to do so. You can set this value higher or lower to adjust the system behaviour though.
-<br><br>
+<br>
+
+### Notification Settings:
+* Spike Price Warning Level: Set this to the value of a spike you would like to be notified about that is forecast within the next hour.
+
+* Notification Target: If desired, enter the notification entity ID of your mobile app and MPC will send a notification based on your settings if something occours. 
+
+* Notification Target Option: Use this setting to determine what MPC notifications you would like to be alearted for. Select None or remove your mobile notification entity ID to disable. 
 
 ### System Limits:
 Some of the system limits are exposed by the Sigenergy Integration but a few are not.

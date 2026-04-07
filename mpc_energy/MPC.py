@@ -21,11 +21,12 @@ mqtt_client.connect(const.MQTT_HOST, const.MQTT_PORT)
 mqtt_client.loop_start()
 
 class MPC:
-    def __init__(self, ha, plant, EC, local_tz, demand_tarrif):
+    def __init__(self, ha, plant, EC, local_tz, demand_tarrif, retailer):
         self.plant = plant
         self.ha = ha
         self.EC = EC
         self.local_tz = local_tz
+        self.retailer = retailer
 
         self.power_threshold = 0.2 # Threshold when comparing power values
 
@@ -39,14 +40,19 @@ class MPC:
         #self.N_5min = self.forecast_hrs * (60 // 5)
 
         self.load_inflation_percentage = 20 # Percentage to inflate the load forecast by to ensure we don't run out in the morning.
-
+        self.load_correction_ramp_hours = 2 # Hours for actual-vs-forecast correction to fade back to 100% forecast
+        self.load_correction_ratio_min = 0.25 # Minimum multiplier allowed when current load is below forecast
+        self.load_correction_ratio_max = 2.0 # Maximum multiplier allowed when current load is above forecast
+        self.load_correction_deadband_kw = 0.5 # Ignore tiny differences between current actual and forecast load
+        
+        
         self.dt_5min = 5/60      # 5 minutes in hours
 
         # Reward and penalty settings
         self.discharge_efficiency = 0.95
         self.grid_import_penalty_cost = 0.03 # $/kWh penalty for using grid power
         self.full_battery_reward = 0.03  # $/kWh — use this value to encourage the battery to be full by the end of the solar day
-        self.charge_maintain_reward = 0.01 / (self.steps_per_hr*self.battery_capacity) # $/kWh / interval reward for maintaining higher SOC throughout the day, currently equates to 1c total over the whole day
+        self.charge_maintain_reward = 0.01 / (self.forecast_hrs*self.steps_per_hr*self.battery_capacity) # $/kWh / interval reward for maintaining higher SOC throughout the day, currently equates to 1c total over the whole day
         self.demand_tarrif = demand_tarrif # True if the selected site has a demand tarrif applied
         self.current_effective_price = 0 # Set to zero until we run an optimisation and determine the current effective price based on the MPC plan and current conditions
         
@@ -64,13 +70,21 @@ class MPC:
         self.sell_price_uncertainty_discount_per_hour = 1    # -%/hr applied to future sell prices
         self.max_price_uncertainty_adjustment = 30           # Cap the absolute buy/sell adjustment (+/-30%)
 
+        if(self.retailer == "flow"):
+            self.buy_price_uncertainty_premium_per_hour = -0.01      # +%/hr applied to future buy prices (testing a negative number to encourge buying as late as possible to rely less on load forecast)
+            self.sell_price_uncertainty_discount_per_hour = 0 # Flow sell prices are known with certainty
+            self.max_price_uncertainty_adjustment = 1           # Cap the absolute buy/sell adjustment (+/-30%)
+            #self.charge_maintain_reward = 0 # Remove the charge maintain reward to prioritise immediate arbitrage with known prices, as there is no uncertainty discount on the sell price to encourage near-term sales.
+
+            logger.debug("Flow retailer detected: Disabling sell price uncertainty discount and charge maintain reward to prioritise immediate arbitrage with known prices.")
+
         logger.debug(f"Forecast uncertainty: Buy premium: {self.buy_price_uncertainty_premium_per_hour} %/hr, Sell discount: {self.sell_price_uncertainty_discount_per_hour} %/hr, Max adjustment: {self.max_price_uncertainty_adjustment} %")
         
-        if(self.buy_price_uncertainty_premium_per_hour < 0 or self.buy_price_uncertainty_premium_per_hour > 100):
+        if(self.buy_price_uncertainty_premium_per_hour < -10 or self.buy_price_uncertainty_premium_per_hour > 100):
             logger.warning(f"Buy price uncertainty premium of {self.buy_price_uncertainty_premium_per_hour} %/hr seems very high or low, please ensure this value is correct to avoid unexpected behaviour.")
-        if(self.sell_price_uncertainty_discount_per_hour < 0 or self.sell_price_uncertainty_discount_per_hour > 100):
+        if(self.sell_price_uncertainty_discount_per_hour < -10 or self.sell_price_uncertainty_discount_per_hour > 100):
             logger.warning(f"Sell price uncertainty discount of {self.sell_price_uncertainty_discount_per_hour} %/hr seems very high or low, please ensure this value is correct to avoid unexpected behaviour.")
-        if(self.max_price_uncertainty_adjustment < 0 or self.max_price_uncertainty_adjustment > 100):
+        if(self.max_price_uncertainty_adjustment < -10 or self.max_price_uncertainty_adjustment > 100):
             logger.warning(f"Max price uncertainty adjustment of {self.max_price_uncertainty_adjustment} % seems very high or low, please ensure this value is correct to avoid unexpected behaviour.")
 
         # Profit Variables
@@ -156,7 +170,10 @@ class MPC:
             # Inject the avg of the last 5 minutes of solar and load power
             self.solar_5min[0] = (self.solar_5min[0] + self.historical_data["solar_power"][-1]) / 2 # Avgerage the last 5 minutes of solar with the forecast to make a more realistic value for the current timestep
             self.load_5min[0] = self.historical_data["load_power"][-1] # Inject the current real load power value into the sim (change to 5min avg of the most recent 5min interval if possible)
-
+            
+            # Apply near-term correction to load forecast based on current actual-vs-forecast mismatch.
+            # This scales early intervals by the current ratio and linearly ramps back to 100% forecast.
+            #self.load_5min = self.apply_load_mismatch_ramp(self.load_5min)
 
             # Inject the current instantaneous solar and load values into the sim
             #self.solar_5min[0] = self.plant.solar_kw #change to 5min avg of these instantaneous values
@@ -168,8 +185,6 @@ class MPC:
         self.load_5min = [min(max(load, 0.0), self.grid_import_limit)  for load in self.load_5min] # Don't allow negative load or solar or load greater than import limit
         self.solar_5min = [max(solar, 0.0) for solar in self.solar_5min]
 
-        
-
         # Amber Forecast (forecast hrs is set in main.py in the get_data call)
         self.demand_tarrif_price = amber_data.demand_tarrif_price if amber_data.demand_tarrif_price is not None else 0.0
         general_price_forecast = amber_data.general_extrapolated_forecast[:int(self.N_5min)]
@@ -180,26 +195,87 @@ class MPC:
         self.prices_buy = np.array(general_price_forecast) / 100      # buy price in $ from cents
         self.prices_sell  = np.array(feed_in_price_forecast) / 100      # sell price in $ from cents
 
+        buy_prices_adjusted = 0
+        for i in range(len(self.prices_buy)):
+            if self.prices_buy[i] < self.prices_sell[i]:
+                if(buy_prices_adjusted == 0): # Only log the first time this happens to avoid spamming the logs
+                    logger.warning(f"Buy price is below sell price at index {i}, time: {(self.sim_start + timedelta(minutes=5*i)).isoformat()}. Buy price: {self.prices_buy[i]:.4f} $/kWh, Sell price: {self.prices_sell[i]:.4f} $/kWh. This may indicate an issue with the price forecast data. Increasing buy price to be 10c above sell price.")
+                    buy_prices_adjusted = 1
+                elif(buy_prices_adjusted == 1):
+                    logger.warning("More prices found where buy price is below sell price, adjusting without logging to avoid spamming the logs.")
+                    buy_prices_adjusted = 2
+                
+                self.prices_buy[i] = self.prices_sell[i] + 0.10 # Add a small premium to ensure buy price is above sell price to avoid weird solver behaviour.
+
         # Build uncertainty-adjusted prices so near-term intervals are valued more than
         # far-future forecast intervals (which are less reliable).
         hours_from_now = np.arange(int(self.N_5min)) * self.dt_5min
-        buy_price_uncertainty_factor = np.minimum(
-            1 + (hours_from_now * (self.buy_price_uncertainty_premium_per_hour/100)),
-            1 + (self.max_price_uncertainty_adjustment/100)
-        )
-        sell_price_uncertainty_factor = np.maximum(
-            1 - (hours_from_now * (self.sell_price_uncertainty_discount_per_hour/100)),
-            1 - (self.max_price_uncertainty_adjustment/100)
-        )
+        max_uncertainty_adjustment = abs(self.max_price_uncertainty_adjustment)
+        buy_price_uncertainty_factor = 1 + (hours_from_now * (self.buy_price_uncertainty_premium_per_hour/100))
+        if(self.buy_price_uncertainty_premium_per_hour >= 0):
+            buy_price_uncertainty_factor = np.minimum(
+                buy_price_uncertainty_factor,
+                1 + (max_uncertainty_adjustment/100),
+            )
+        else:
+            buy_price_uncertainty_factor = np.maximum(
+                buy_price_uncertainty_factor,
+                1 - (max_uncertainty_adjustment/100),
+            )
+
+        sell_price_uncertainty_factor = 1 - (hours_from_now * (self.sell_price_uncertainty_discount_per_hour/100))
+        if(self.sell_price_uncertainty_discount_per_hour >= 0):
+            sell_price_uncertainty_factor = np.maximum(
+                sell_price_uncertainty_factor,
+                1 - (max_uncertainty_adjustment/100),
+            )
+        else:
+            sell_price_uncertainty_factor = np.minimum(
+                sell_price_uncertainty_factor,
+                1 + (max_uncertainty_adjustment/100),
+            )
 
         self.effective_prices_buy = np.multiply(self.prices_buy, buy_price_uncertainty_factor)
         self.effective_prices_sell = np.multiply(self.prices_sell, sell_price_uncertainty_factor)
 
-        self.effective_prices_sell = self.effective_prices_sell - 0.0001 # Decrease prices slightly to discorage selling at a zero price
+        self.effective_prices_sell = self.effective_prices_sell + 0.00001 # Increase prices slightly to allow for export at slight benefit
 
         #self.prices_buy[0:5] = 0.03 #Testing
         #self.prices_sell[0:5] = 0.01
         #self.soc_init = 0.95*self.soc_max
+
+    def apply_load_mismatch_ramp(self, load_forecast):
+        """
+        Scale forecast by current actual-vs-forecast ratio, then ramp back to 100% forecast over
+        load_correction_ramp_hours.
+        """
+        if(load_forecast is None or len(load_forecast) == 0):
+            return load_forecast
+
+        # If we don't have at least one future point to blend against, just return as-is.
+        if(len(load_forecast) == 1):
+            return load_forecast
+
+        actual_now = load_forecast[0]  # index 0 is already replaced with current measured load
+        forecast_now = load_forecast[1]  # next interval is used as baseline for "forecasted now"
+        if(forecast_now <= 0):
+            return load_forecast
+
+        if(abs(actual_now - forecast_now) < self.load_correction_deadband_kw):
+            return load_forecast
+
+        ratio = actual_now / forecast_now
+        ratio = min(max(ratio, self.load_correction_ratio_min), self.load_correction_ratio_max)
+
+        ramp_steps = max(1, int(round(self.load_correction_ramp_hours * self.steps_per_hr)))
+        adjusted_forecast = list(load_forecast)
+
+        for i in range(1, len(adjusted_forecast)):
+            w = min(i / ramp_steps, 1.0)  # 0 -> ratio, 1 -> no correction
+            factor = ratio * (1 - w) + w
+            adjusted_forecast[i] = adjusted_forecast[i] * factor
+
+        return adjusted_forecast
 
     def build_optimisation_template(self):
         n = int(self.N_5min)
@@ -376,6 +452,13 @@ class MPC:
         else: # Sim successfull 
             # ---------- Results ----------
             battery_power = (self.p_discharge.value - self.p_charge.value).tolist()
+
+            grid_import = self.grid_import.value.tolist()
+            grid_export = self.grid_export.value.tolist()
+            for i in range(len(grid_import)):
+                if grid_import[i] > self.power_threshold and grid_export[i] > self.power_threshold:
+                    logger.error(f"Simultaneous import and export detected at index {i}, time: {time_index[i].isoformat()} (import: {grid_import[i]:.2f} kW, export: {grid_export[i]:.2f} kW). This may indicate a problem with the solver or model formulation or buy price is below sell price.")
+
             grid_net = (self.grid_import.value - self.grid_export.value).tolist()
             #hours = np.arange(int(self.N_5min)) * self.dt_5min
 
@@ -534,7 +617,8 @@ class MPC:
         else:
             if(control_active):
                 self.EC.self_consumption()
-                raise Exception("Unable to determine control mode from MPC plan. Selected self consumption for saftey")
+                error_msg = f"Unable to determine control mode from MPC plan at increment {increment}, time: {data['time_index'][increment]}. Defaulting to self consumption mode. Plan values: inverter_power: {inverter_power}, used_solar_power: {used_solar_power}, solar_available: {solar_available}, load_power: {load_power}, grid_net: {grid_net}, battery_power: {battery_power}, self.plant.max_inverter_power: {self.plant.max_inverter_power}"
+                raise Exception(error_msg) from None
             return "Unable to determine"
         
     def determine_plan_modes(self, output): # Determine the control modes for the whole plan

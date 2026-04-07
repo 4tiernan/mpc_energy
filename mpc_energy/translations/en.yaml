@@ -7,6 +7,22 @@ configuration:
 
   ha_mqtt_pass:
     name: MQTT Brocker Password
+
+  energy_retailer:
+    name: Energy Retailer
+    description: Select your energy retailer to use their price data.
+  
+  demand_price:
+    name: Demand Price
+    description: If you are on a demand tarrif please enter the price per kW (not kWh) during the demand window. Leave blank if not on a demand tarrif.
+  
+  demand_window_start:
+    name: Demand Window Start Time
+    description: If you are on a demand tarrif please enter the start time of the demand window in 24 hour format, e.g. 16:00 for 4pm. Leave blank if not on a demand tarrif.
+  
+  demand_window_end:
+    name: Demand Window End Time
+    description: If you are on a demand tarrif please enter the end time of the demand window in 24 hour format, e.g. 21:00 for 9pm. Leave blank if not on a demand tarrif.
   
   amber_api_key:
     name: Amber API Key
@@ -15,9 +31,17 @@ configuration:
     name: Amber Site ID
     description: If you do not know your site number, simply don't enter anything, start the app and check the logs for your site number.
  
-  amber_demand_price:
-    name: Amber Demand Price ($/kW)
-    description: If you are on a demand tarrif please enter the price per kW (not kWh) during the demand window.
+  flow_import_price_entity_id:
+    name: Flow Import Price Entity ID
+    description: If using Flow as your energy retailer, entrer the import price entity from the flow integration 
+    
+  flow_export_price_entity_id:
+    name: Flow Export Price Entity ID
+    description: If using Flow as your energy retailer, entrer the export price entity from the flow integration 
+
+  flow_price_forecast_entity_id:
+    name: Flow Price Forecast Entity ID
+    description: If using Flow as your energy retailer, entrer the price forecast entity from the flow integration.
 
   battery_discharge_cost:
     name: Battery Discharge Cost (c/kWh)

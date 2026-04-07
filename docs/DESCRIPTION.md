@@ -41,7 +41,7 @@ This document lists:
 | Average Daily Load | `kWh` | Average daily load estimate (no inflation). |
 | Estimated Price | — | 0/1 style status indicating if Amber failed to provide a real price after it was expected (Their API occasionally fails to get the prices from AEMO). |
 | Curtailment Status | — | 0/1 status if system is curtailing. |
-| Curtailment Limit | — | Curtailment reason and solar kW limit. |
+| Curtailment Limit | — | Curtailment reason and solar kW limit. (This will often be slightly below your inverter limit due to the inverter derating) |
 
 ---
 

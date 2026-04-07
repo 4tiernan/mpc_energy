@@ -1,6 +1,6 @@
 name: "MPC Energy"
 description: "A profit optimiser for home batteries with wholesale electricity pricing."
-version: "0.5.0"
+version: "0.6.0"
 slug: "mpc_energy"
 url: "https://github.com/4tiernan/mpc_energy"
 init: false
@@ -30,9 +30,18 @@ options:
   accepted_risks: False
   ha_mqtt_user: ""
   ha_mqtt_pass: ""
+
+  energy_retailer: "amber"
+  demand_price: ""
+  demand_window_start: "16:00"
+  demand_window_end: "21:00"
+
   amber_api_key: ""
   amber_site_id: ""
-  amber_demand_price: ""
+
+  flow_import_price_entity_id: ""
+  flow_export_price_entity_id: ""
+  flow_price_forecast_entity_id: ""
 
   battery_discharge_cost: 7
 
@@ -93,9 +102,19 @@ schema:
 
   ha_mqtt_user: str
   ha_mqtt_pass: password
-  amber_api_key: password
+  energy_retailer: list(amber|flow)
+
+  demand_price: str?
+  demand_window_start: str?
+  demand_window_end: str?
+
+  amber_api_key: password?
   amber_site_id: str?
-  amber_demand_price: str?
+
+  flow_import_price_entity_id: str?
+  flow_export_price_entity_id: str?
+  flow_price_forecast_entity_id: str?
+
   battery_discharge_cost: int?
 
   spike_price_warning_level: int  

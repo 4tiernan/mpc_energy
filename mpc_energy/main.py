@@ -24,6 +24,10 @@ def elapsed_time(code_block_name="Code Block"):
 if(not config_manager.accepted_risks):
     logger.error("You must toggle the accept risks switch to acknowledge the risks associated with use of this software before being able to use the app.")
     exit()
+    
+if(config_manager.energy_retailer != "amber" and config_manager.energy_retailer != "flow"):
+    logger.error("Invalid energy retailer selected. Please select either amber or flow as the energy retailer in the app configuration page.")
+    exit()
 
 # Check to see if an amber site number has been set and print the available ones if not
 if(config_manager.energy_retailer == "amber" and config_manager.amber_site_id == ""):
@@ -374,7 +378,6 @@ def main_loop_code():
                     sim_start=mpc.sim_start,
                     sim_end=mpc.sim_end,
                 )
-                data = flow.get_data()
             else:
                 price_data = amber.get_data(
                     forecast_hrs=mpc.forecast_hrs,

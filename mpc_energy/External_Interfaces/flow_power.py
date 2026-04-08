@@ -228,7 +228,7 @@ class FlowPowerInterface:
                 interval_index += 1
 
             if t < forecast_30min[0].start_time:
-                price = forecast_30min[0].price
+                price = current_price
             else:
                 price = forecast_30min[interval_index].price
 
@@ -325,7 +325,7 @@ class FlowPowerInterface:
             general_price_forecast_full,
             intervals_5m,
             timeline_start=timeline_start,
-            current_price=general_price,
+            current_price=general_price_forecast_full[0].price if general_price_forecast_full else general_price,
         )
 
         feed_in_extrapolated_forecast = self._forecast_to_5min(

@@ -1,3 +1,6 @@
+## 0.6.1
+* Bug fix for flow power happy hour timining incorrect
+
 ## 0.6.0
 * Adding flow power as retailer option
 * Added 2, 4, 6hr control override options

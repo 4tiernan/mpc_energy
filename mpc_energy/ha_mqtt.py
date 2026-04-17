@@ -239,6 +239,12 @@ kwh_required_till_sundown_sensor = CreateSensor(
     unit_of_measurement="kWh"
 )
 
+next_grid_interaction_kwh_sensor = CreateSensor(
+    name = "Next Grid Interaction",
+    unique_id="next_grid_interaction_kwh_python",
+    unit_of_measurement="kWh"
+)
+
 avg_daily_load_sensor = CreateSensor(
     name = "Average Daily Load",
     unique_id="avg_daily_load_python",
@@ -300,6 +306,7 @@ def initalise_entities(): # Initalise entities and get them discovered by the ha
     kwh_remaining_sensor.set_state(0)
     effective_price_sensor.set_state(0)
     base_load_sensor.set_state(0)
+    next_grid_interaction_kwh_sensor.set_state(0)
     avg_daily_load_sensor.set_state(0)
     kwh_required_till_sundown_sensor.set_state(0)
     estimated_price_status_sensor.set_state(0)

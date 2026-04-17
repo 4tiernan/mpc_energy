@@ -234,6 +234,7 @@ def update_sensors(price_data):
     set_sensor_if_changed(ha_mqtt.target_discharge_sensor, round(rbc.target_dispatch_price))
     set_sensor_if_changed(ha_mqtt.kwh_required_overnight_sensor, round(rbc.kwh_required_remaining, 2))    
     set_sensor_if_changed(ha_mqtt.kwh_required_till_sundown_sensor, round(rbc.kwh_required_till_sundown, 2))
+    set_sensor_if_changed(ha_mqtt.next_grid_interaction_kwh_sensor, round(mpc.next_grid_interaction_kwh, 2))
     set_sensor_if_changed(ha_mqtt.working_mode_sensor, opperating_mode)
 
     set_sensor_if_changed(ha_mqtt.import_cost_sensor, round(plant.daily_import_cost, 2))

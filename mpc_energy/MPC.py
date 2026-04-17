@@ -90,6 +90,7 @@ class MPC:
         # Profit Variables
         self.profit_remaining_today = 0
         self.profit_tomorrow = 0
+        self.next_grid_interaction_kwh = 0.0
 
         self.update_forecast_horizon()
 
@@ -460,6 +461,7 @@ class MPC:
                     logger.error(f"Simultaneous import and export detected at index {i}, time: {time_index[i].isoformat()} (import: {grid_import[i]:.2f} kW, export: {grid_export[i]:.2f} kW). This may indicate a problem with the solver or model formulation or buy price is below sell price.")
 
             grid_net = (self.grid_import.value - self.grid_export.value).tolist()
+            self.next_grid_interaction_kwh = self.calculate_next_grid_interaction_kwh(grid_net)
             #hours = np.arange(int(self.N_5min)) * self.dt_5min
 
             grid_kwh_import_per_interval = self.grid_import.value / self.steps_per_hr 
@@ -627,6 +629,32 @@ class MPC:
             mode = self.determine_control_mode(output, increment=i, control_active=False)
             plan_modes.append(mode)
         return plan_modes
+    
+    def calculate_next_grid_interaction_kwh(self, grid_net):
+        """Return the upcoming contiguous import/export interaction energy in kWh."""
+        start_index = None
+        interaction_direction_import = None
+
+        for index, net_power in enumerate(grid_net):
+            if abs(net_power) > self.power_threshold:
+                start_index = index
+                interaction_direction_import = net_power > 0
+                break
+
+        if start_index is None:
+            return 0.0
+
+        interaction_kwh = 0.0
+        for net_power in grid_net[start_index:]:
+            if abs(net_power) <= self.power_threshold:
+                break
+
+            if (net_power > 0) != interaction_direction_import:
+                break
+
+            interaction_kwh += abs(net_power) * self.dt_5min
+
+        return round(float(interaction_kwh), 2)
 
     def run(self, amber_data):
         [output, plotted_output] = self.run_optimisation(amber_data)

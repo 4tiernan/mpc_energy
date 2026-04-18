@@ -1,4 +1,6 @@
 ## 0.7.0
+* Added net grid interaction kWh sensor to aid automations.
+* Added EV charging
 
 ## 0.6.0
 * Adding flow power as retailer option

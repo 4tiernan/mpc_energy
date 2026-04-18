@@ -63,19 +63,46 @@ configuration:
     name: Estimated Daily Load Energy Consumption (kWh)
     description: Enter your approximate daily energy consumption. (This is used until the system has enough historical data to build a model of your usage which takes 3 days)
 
-  battery_power_sign_convention:
-    name: Battery Power Sign Convention
-    description: Select which sign convention your battery uses. Sigenergy uses - Charge, + Discharge by default.
+  ev_plugged_in_entity_id:
+    name: EV Plugged-In Binary Sensor
+    description: Optional binary sensor for EV availability (on/true/home = plugged in).
 
-  battery_max_discharge_power_limit_entity_id:
-    name: Max Battery Discharge Power (kW, Set to a value or an entity)
-  
-  battery_max_charge_power_limit_entity_id:
-    name: Max Battery Charge Power (kW, Set to a value or an entity)
+  ev_charging_power_entity_id:
+    name: EV Charging Power Entity (kW)
+    description: Optional EV charging power used for load de-biasing and real-time base-load calculation.
 
-  inverter_max_power_limit_entity_id:
-    name: Max Inverter AC Power (kW, Set to a value or an entity)
-  
+  ev_soc_entity_id:
+    name: EV SOC Entity (Percentage)
+    description: Optional EV SOC sensor used for staged EV charging rewards.
+
+  ev_battery_capacity_kwh:
+    name: EV Battery Capacity (kWh, value or entity)
+    description: Optional EV battery capacity used with EV SOC to determine staged charging rewards.
+
+  ev_max_charge_power_entity_id:
+    name: EV Max Charge Power (kW, value or entity)
+    description: Optional EV charge-rate upper limit used by MPC when EV is plugged in.
+
+  ev_min_charge_power_kw:
+    name: EV Min Charge Power (kW, value or entity)
+    description: Optional minimum charging rate while EV is plugged in and below target SOC.
+
+  ev_min_soc:
+    name: EV Minimum SOC Target (%)
+    description: Stage 1 EV charging target. MPC applies the higher reward up to this SOC.
+
+  ev_max_soc:
+    name: EV Maximum SOC Target (%)
+    description: Stage 2 EV charging target. MPC applies the lower reward up to this SOC.
+
+  ev_stage1_charge_reward_cents_per_kwh:
+    name: EV Stage 1 Reward (c/kWh)
+    description: Reward applied to EV charging energy from current SOC to EV minimum SOC target.
+
+  ev_stage2_charge_reward_cents_per_kwh:
+    name: EV Stage 2 Reward (c/kWh)
+    description: Reward applied to EV charging energy from EV minimum SOC target to EV maximum SOC target.
+
   pv_max_power_limit_entity_id:
     name: Max PV DC Power (kW, Set to a value or an entity)
     description: Please see the onboarding docs for how to set this value.
@@ -87,6 +114,19 @@ configuration:
   export_max_power_limit_entity_id:
     name: Max Export Power (kW, Set to a value or an entity)
     description: Lower this value if you are tripping breakers, see onboarding docs for more info on how to set this.
+
+  battery_max_discharge_power_limit_entity_id:
+    name: Max Battery Discharge Power (kW, Set to a value or an entity)
+  
+  battery_max_charge_power_limit_entity_id:
+    name: Max Battery Charge Power (kW, Set to a value or an entity)
+
+  inverter_max_power_limit_entity_id:
+    name: Max Inverter AC Power (kW, Set to a value or an entity)
+
+  battery_power_sign_convention:
+    name: Battery Power Sign Convention
+    description: Select which sign convention your battery uses. Sigenergy uses - Charge, + Discharge by default. 
 
   solcast_forecast_today_entity_id:
     name: Solcast Forecast Today Entity (kWh with attributes for whole day)

@@ -50,6 +50,8 @@ class Plant:
 
         self.last_base_load_estimate_timestamp = 0
         self.base_load_estimate = None
+        self.last_ev_load_profile_retrival_timestamp = 0
+        self.ev_avg_power_day = None
 
         self.history_since_midnight = None
 
@@ -99,6 +101,36 @@ class Plant:
             except Exception as e:
                 logger.error(f"Unable to get entity id or float from config entry '{entry_id}'. Please check the entity id or ensure it is a float. Exception: {e}")
 
+    def get_optional_config_entry_value(self, entry_id, default_value=0.0):
+        if(entry_id is None or entry_id == ""):
+            return float(default_value)
+        try:
+            val = self.get_config_entry_value(entry_id)
+            if(val is None):
+                return float(default_value)
+            return float(val)
+        except Exception:
+            logger.warning(f"Unable to read optional config value '{entry_id}', defaulting to {default_value}.")
+            return float(default_value)
+
+    def parse_boolean_state(self, entity_id, default=False):
+        if(entity_id is None or entity_id == ""):
+            return bool(default)
+        state_payload = self.ha.get_state(entity_id)
+        if(not isinstance(state_payload, dict)):
+            return bool(default)
+        state = str(state_payload.get("state", "")).strip().lower()
+        true_states = {"on", "true", "home", "connected", "plugged", "plugged_in", "yes"}
+        false_states = {"off", "false", "not_home", "disconnected", "unplugged", "no"}
+        if(state in true_states):
+            return True
+        if(state in false_states):
+            return False
+        try:
+            return float(state) > 0
+        except (TypeError, ValueError):
+            return bool(default)
+
     def get_plant_mode(self):
         return self.get_sigenergy_state(config_manager.ems_control_mode_entity_id)["state"]
 
@@ -124,6 +156,18 @@ class Plant:
         self.grid_power = self.get_sigenergy_numeric_state(config_manager.grid_power_entity_id)
         self.load_power = self.get_sigenergy_numeric_state(config_manager.load_power_entity_id)
         self.avg_daily_load = self.get_load_avg(days_ago=self.load_avg_days)[-1].avg_state
+        
+        self.ev_plugged_in = self.parse_boolean_state(config_manager.ev_plugged_in_entity_id, default=False)
+        self.ev_power_kw = 0.0
+        if(config_manager.ev_charging_power_entity_id != ""):
+            self.ev_power_kw = max(0.0, self.get_sigenergy_numeric_state(config_manager.ev_charging_power_entity_id))
+        self.base_load_power = max(self.load_power - self.ev_power_kw, 0.0)
+        self.ev_soc = None
+        if(config_manager.ev_soc_entity_id != ""):
+            self.ev_soc = min(max(self.get_sigenergy_numeric_state(config_manager.ev_soc_entity_id), 0.0), 100.0)
+        self.ev_battery_capacity_kwh = self.get_optional_config_entry_value(config_manager.ev_battery_capacity_kwh, default_value=0.0)
+        self.ev_max_charge_power = self.get_optional_config_entry_value(config_manager.ev_max_charge_power_entity_id, default_value=0.0)
+        self.ev_min_charge_power = max(self.get_optional_config_entry_value(config_manager.ev_min_charge_power_kw, default_value=0.0), 0.0)
 
         self.calculate_today_profit_cost()
         
@@ -245,6 +289,10 @@ class Plant:
         inverter_power_state_history = self.ha.get_history(config_manager.inverter_power_entity_id, start_time=start_datetime, end_time=end_datetime)
         solar_power_state_history = self.ha.get_history(config_manager.solar_power_entity_id, start_time=start_datetime, end_time=end_datetime)
         load_power_state_history = self.ha.get_history(config_manager.load_power_entity_id, start_time=start_datetime, end_time=end_datetime)
+        ev_power_state_history = []
+        if(config_manager.ev_charging_power_entity_id != ""):
+            ev_power_state_history = self.ha.get_history(config_manager.ev_charging_power_entity_id, start_time=start_datetime, end_time=end_datetime)
+        
         grid_power_state_history = self.ha.get_history(config_manager.grid_power_entity_id, start_time=start_datetime, end_time=end_datetime)
         grid_import_kwh_state_history = self.ha.get_history(config_manager.plant_daily_import_kwh_entity_id, start_time=start_datetime, end_time=end_datetime)
         grid_export_kwh_state_history = self.ha.get_history(config_manager.plant_daily_export_kwh_entity_id, start_time=start_datetime, end_time=end_datetime)
@@ -259,6 +307,9 @@ class Plant:
         binned_battery_soc_state_history = self.bin_data(battery_soc_state_history, bin_period=bin_period, start_bin_datetime=start_datetime, end_bin_datetime=end_datetime)
         binned_battery_power_state_history = self.bin_data(battery_power_state_history, bin_period=bin_period, start_bin_datetime=start_datetime, end_bin_datetime=end_datetime)
         binned_inverter_power_state_history = self.bin_data(inverter_power_state_history, bin_period=bin_period, start_bin_datetime=start_datetime, end_bin_datetime=end_datetime)
+        binned_ev_power_state_history = [BinnedStateClass(states=[], avg_state=0.0, time=state.time) for state in binned_load_power_state_history]
+        if(len(ev_power_state_history) > 0):
+            binned_ev_power_state_history = self.bin_data(ev_power_state_history, bin_period=bin_period, start_bin_datetime=start_datetime, end_bin_datetime=end_datetime)
         binned_solar_power_state_history = self.bin_data(solar_power_state_history, bin_period=bin_period, start_bin_datetime=start_datetime, end_bin_datetime=end_datetime)
         binned_load_power_state_history = self.bin_data(load_power_state_history, bin_period=bin_period, start_bin_datetime=start_datetime, end_bin_datetime=end_datetime)
         binned_grid_power_state_history = self.bin_data(grid_power_state_history, bin_period=bin_period, start_bin_datetime=start_datetime, end_bin_datetime=end_datetime)
@@ -284,6 +335,7 @@ class Plant:
             "inverter_power": [state.avg_state for state in binned_inverter_power_state_history],
             "solar_power": [state.avg_state for state in binned_solar_power_state_history],
             "load_power": [state.avg_state for state in binned_load_power_state_history],
+            "ev_power": [max(0.0, state.avg_state) for state in binned_ev_power_state_history],
             "grid_power": [state.avg_state for state in binned_grid_power_state_history],
             "prices_sell": [state.avg_state/100.0 for state in binned_feed_in_state_history], # Converted to dollars from cents
             "prices_buy": [state.avg_state/100.0 for state in binned_general_price_state_history],
@@ -688,6 +740,44 @@ class Plant:
         start = datetime.datetime.combine(start_date, datetime.time.min, tzinfo=self.local_tz)
         end = datetime.datetime.combine(end_date, datetime.time.min, tzinfo=self.local_tz)
 
+        if(config_manager.ev_charging_power_entity_id != ""):
+            load_power_history = self.ha.get_history(config_manager.load_power_entity_id, start_time=start, end_time=end)
+            ev_power_history = self.ha.get_history(config_manager.ev_charging_power_entity_id, start_time=start, end_time=end)
+            if(
+                self.validate_returned_data_timedelta(data=load_power_history, requested_start=start, requested_end=end) and
+                self.validate_returned_data_timedelta(data=ev_power_history, requested_start=start, requested_end=end)
+            ):
+                binned_load_power = self.bin_data(load_power_history, bin_period=time_bucket_size, start_bin_datetime=start, end_bin_datetime=end)
+                binned_ev_power = self.bin_data(ev_power_history, bin_period=time_bucket_size, start_bin_datetime=start, end_bin_datetime=end)
+
+                per_day_cumulative_kwh = defaultdict(dict)
+                dt_hours = time_bucket_size / 60.0
+                running_kwh_by_day = defaultdict(float)
+
+                for load_state, ev_state in zip(binned_load_power, binned_ev_power):
+                    state_date = load_state.time.date()
+                    base_power = max(load_state.avg_state - max(ev_state.avg_state, 0.0), 0.0)
+                    running_kwh_by_day[state_date] += base_power * dt_hours
+                    per_day_cumulative_kwh[state_date][load_state.time.time()] = running_kwh_by_day[state_date]
+
+                for day_bins in per_day_cumulative_kwh.values():
+                    for i, avg_bin in enumerate(avg_day):
+                        if avg_bin.time in day_bins:
+                            avg_day[i].states.append(day_bins[avg_bin.time])
+
+                configured_avg_load = config_manager.estimated_daily_load_energy_consumption
+                for i, avg_bin in enumerate(avg_day):
+                    if(len(avg_bin.states) > 0):
+                        avg_bin.avg_state = round(sum(avg_bin.states) / len(avg_bin.states), 2)
+                    else:
+                        configured_interval_avg = round((i / len(avg_day)) * configured_avg_load, 2)
+                        avg_bin.avg_state = configured_interval_avg
+
+                logger.debug("Using EV-debiased load profile for load forecast generation.")
+                return avg_day
+            else:
+                logger.warning("EV power history unavailable for full requested span. Falling back to site-load daily energy history for load forecasting.")
+
 
         history = self.ha.get_history(config_manager.plant_daily_load_kwh_entity_id, start_time=start, end_time=end)
         
@@ -866,6 +956,62 @@ class Plant:
             self.avg_load_day = self.update_load_avg(days_ago)
             self.last_load_data_retrival_timestamp = time.time()
         return self.avg_load_day
+    
+    def update_ev_avg_power(self, days_ago=7):
+        avg_day = []
+        dt = datetime.datetime.combine(datetime.date.today(), datetime.time.min)
+        time_bucket_size = 5
+        for _ in range(int((24*60)/time_bucket_size)):
+            avg_day.append(BinnedStateClass(avg_state=0.0, states=[], time=dt.time()))
+            dt = dt + datetime.timedelta(minutes=time_bucket_size)
+
+        if(config_manager.ev_charging_power_entity_id == ""):
+            return avg_day
+
+        today = datetime.datetime.now(self.local_tz).date()
+        end_date = today - datetime.timedelta(days=1)
+        start_date = end_date - datetime.timedelta(days=days_ago)
+        start = datetime.datetime.combine(start_date, datetime.time.min, tzinfo=self.local_tz)
+        end = datetime.datetime.combine(end_date, datetime.time.min, tzinfo=self.local_tz)
+        history = self.ha.get_history(config_manager.ev_charging_power_entity_id, start_time=start, end_time=end)
+
+        if(not self.validate_returned_data_timedelta(data=history, requested_start=start, requested_end=end)):
+            return avg_day
+
+        binned = self.bin_data(history, bin_period=5, start_bin_datetime=start, end_bin_datetime=end)
+        time_buckets = defaultdict(list)
+        for state in binned:
+            val = max(0.0, state.avg_state)
+            time_buckets[state.time.time()].append(val)
+
+        for item in avg_day:
+            vals = time_buckets.get(item.time, [])
+            if(len(vals) > 0):
+                item.avg_state = float(sum(vals) / len(vals))
+        return avg_day
+
+    def get_ev_avg_power(self, days_ago, hours_update_interval=24):
+        if(time.time() - self.last_ev_load_profile_retrival_timestamp > hours_update_interval*60*60 or self.ev_avg_power_day == None):
+            self.ev_avg_power_day = self.update_ev_avg_power(days_ago)
+            self.last_ev_load_profile_retrival_timestamp = time.time()
+        return self.ev_avg_power_day
+
+    def forecast_ev_power_baseline(self, forecast_hours_from_now=None, forecast_till_time=None, forecast_start_time=None, forecast_end_time=None):
+        avg_day = self.get_ev_avg_power(days_ago=self.load_avg_days)
+        [rounded_current_time, rounded_forecast_time] = self.round_forecast_times(
+            forecast_hours_from_now,
+            forecast_till_time,
+            forecast_start_time=forecast_start_time,
+            forecast_end_time=forecast_end_time,
+        )
+        avg_day_kw_lookup = {bin.time: bin.avg_state for bin in avg_day}
+        forecast_power = []
+        forecast_steps = int((rounded_forecast_time - rounded_current_time).total_seconds() // (5 * 60))
+        for i in range(forecast_steps):
+            point_time = rounded_current_time + datetime.timedelta(minutes=5 * i)
+            power = max(avg_day_kw_lookup[point_time.time()], 0.0)
+            forecast_power.append(BinnedStateClass(avg_state=power, states=[], time=point_time))
+        return forecast_power
     
     def forecast_load_power(self, forecast_hours_from_now=None, forecast_till_time=None, forecast_start_time=None, forecast_end_time=None):
         avg_day = self.get_load_avg(days_ago=self.load_avg_days)

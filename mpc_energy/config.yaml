@@ -51,12 +51,24 @@ options:
 
   estimated_daily_load_energy_consumption: 24
 
-  battery_max_discharge_power_limit_entity_id: "sensor.sigen_plant_ess_rated_discharging_power"
-  battery_max_charge_power_limit_entity_id: "sensor.sigen_plant_ess_rated_charging_power"
-  inverter_max_power_limit_entity_id: "sensor.sigen_plant_max_active_power"
+  ev_plugged_in_entity_id: ""
+  ev_charging_power_entity_id: ""
+  ev_soc_entity_id: ""
+  ev_battery_capacity_kwh: ""
+  ev_max_charge_power_entity_id: ""
+  ev_min_charge_power_kw: ""
+  ev_min_soc: 20
+  ev_max_soc: 80
+  ev_stage1_charge_reward_cents_per_kwh: 20
+  ev_stage2_charge_reward_cents_per_kwh: 5
+
   pv_max_power_limit_entity_id: ""
   import_max_power_limit_entity_id: ""
   export_max_power_limit_entity_id: ""
+  battery_max_discharge_power_limit_entity_id: "sensor.sigen_plant_ess_rated_discharging_power"
+  battery_max_charge_power_limit_entity_id: "sensor.sigen_plant_ess_rated_charging_power"
+  inverter_max_power_limit_entity_id: "sensor.sigen_plant_max_active_power"
+  
 
   battery_power_sign_convention: "- Charge, + Discharge"
 
@@ -123,14 +135,25 @@ schema:
 
   estimated_daily_load_energy_consumption: int
 
-  battery_power_sign_convention: list(+ Charge, - Discharge|- Charge, + Discharge)
+  ev_plugged_in_entity_id: str?
+  ev_charging_power_entity_id: str?
+  ev_soc_entity_id: str?
+  ev_battery_capacity_kwh: str?
+  ev_max_charge_power_entity_id: str?
+  ev_min_charge_power_kw: str?
+  ev_min_soc: int?
+  ev_max_soc: int?
+  ev_stage1_charge_reward_cents_per_kwh: int?
+  ev_stage2_charge_reward_cents_per_kwh: int?
 
-  battery_max_discharge_power_limit_entity_id: str
-  battery_max_charge_power_limit_entity_id: str
-  inverter_max_power_limit_entity_id: str
   pv_max_power_limit_entity_id: str
   import_max_power_limit_entity_id: str
   export_max_power_limit_entity_id: str
+  battery_max_discharge_power_limit_entity_id: str
+  battery_max_charge_power_limit_entity_id: str
+  inverter_max_power_limit_entity_id: str
+  
+  battery_power_sign_convention: list(+ Charge, - Discharge|- Charge, + Discharge)
 
   solcast_forecast_today_entity_id: str
   solcast_forecast_tomorrow_entity_id: str

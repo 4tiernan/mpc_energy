@@ -307,9 +307,16 @@ class Plant:
         binned_battery_soc_state_history = self.bin_data(battery_soc_state_history, bin_period=bin_period, start_bin_datetime=start_datetime, end_bin_datetime=end_datetime)
         binned_battery_power_state_history = self.bin_data(battery_power_state_history, bin_period=bin_period, start_bin_datetime=start_datetime, end_bin_datetime=end_datetime)
         binned_inverter_power_state_history = self.bin_data(inverter_power_state_history, bin_period=bin_period, start_bin_datetime=start_datetime, end_bin_datetime=end_datetime)
-        binned_ev_power_state_history = [BinnedStateClass(states=[], avg_state=0.0, time=state.time) for state in binned_load_power_state_history]
+        
+        binned_ev_power_state_history = []
         if(len(ev_power_state_history) > 0):
-            binned_ev_power_state_history = self.bin_data(ev_power_state_history, bin_period=bin_period, start_bin_datetime=start_datetime, end_bin_datetime=end_datetime)
+            try:
+                binned_ev_power_state_history = self.bin_data(ev_power_state_history, bin_period=bin_period, start_bin_datetime=start_datetime, end_bin_datetime=end_datetime)
+            except Exception as e:
+                logger.warning(f"Unable to bin EV power history, defaulting EV history to 0 kW for this window. Exception: {e}")
+        if(len(binned_ev_power_state_history) == 0):
+            binned_ev_power_state_history = [BinnedStateClass(states=[], avg_state=0.0, time=state.time) for state in binned_load_power_state_history]
+        
         binned_solar_power_state_history = self.bin_data(solar_power_state_history, bin_period=bin_period, start_bin_datetime=start_datetime, end_bin_datetime=end_datetime)
         binned_load_power_state_history = self.bin_data(load_power_state_history, bin_period=bin_period, start_bin_datetime=start_datetime, end_bin_datetime=end_datetime)
         binned_grid_power_state_history = self.bin_data(grid_power_state_history, bin_period=bin_period, start_bin_datetime=start_datetime, end_bin_datetime=end_datetime)

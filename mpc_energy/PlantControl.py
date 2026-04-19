@@ -1015,12 +1015,36 @@ class Plant:
         end = datetime.datetime.combine(end_date, datetime.time.min, tzinfo=self.local_tz)
         history = self.ha.get_history(config_manager.ev_charging_power_entity_id, start_time=start, end_time=end)
 
-        if(not self.validate_returned_data_timedelta(data=history, requested_start=start, requested_end=end)):
+        # Allow partial EV history coverage so a recently-added EV sensor can still
+        # contribute a useful baseline instead of collapsing to 0 kW everywhere.
+        if(len(history) == 0):
+            logger.warning("No EV power history returned. EV baseline forecast defaults to 0 kW.")
             return avg_day
+
+        requested_seconds = max((end - start).total_seconds(), 1.0)
+        ev_span_seconds = max((history[-1].time - history[0].time).total_seconds(), 0.0)
+        ev_coverage_ratio = ev_span_seconds / requested_seconds
+        ev_min_coverage_ratio = 0.5
+
+        if(ev_coverage_ratio < ev_min_coverage_ratio):
+            logger.warning(
+                f"EV power history coverage is too low for EV baseline forecasting "
+                f"({round(ev_coverage_ratio*100.0, 1)}% < {round(ev_min_coverage_ratio*100.0, 1)}%). "
+                "Using 0 kW EV baseline."
+            )
+            return avg_day
+
+        if(ev_coverage_ratio < 0.99):
+            logger.warning(
+                f"EV power history is partial ({round(ev_coverage_ratio*100.0, 1)}% coverage). "
+                "Computing EV baseline from available history."
+            )
 
         binned = self.bin_data(history, bin_period=5, start_bin_datetime=start, end_bin_datetime=end)
         time_buckets = defaultdict(list)
         for state in binned:
+            if(len(state.states) == 0):
+                continue
             val = max(0.0, state.avg_state)
             time_buckets[state.time.time()].append(val)
 

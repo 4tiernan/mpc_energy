@@ -321,6 +321,16 @@ def plot_mpc_results(st, output):
         line=dict(color="orange", shape="hv")
     ), row=1, col=1, secondary_y=False)
 
+    ev_charging_power = output.get("ev_charging_power")
+    if ev_charging_power is None:
+        ev_charging_power = [0.0] * len(time_index)
+    fig.add_trace(go.Scatter(
+        x=time_index,
+        y=round_list(ev_charging_power),
+        name="EV Charger (kW)",
+        line=dict(color="#8e44ad", width=2, shape="hv")
+    ), row=1, col=1, secondary_y=False)
+
     fig.add_trace(go.Scatter(
         x=time_index,
         y=round_list(output["solar_forecast"]),

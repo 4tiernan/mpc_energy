@@ -376,8 +376,8 @@ class MPC:
             + cp.multiply(self.battery_min_export_cost, self.p_discharge) * self.dt_5min
             - cp.multiply(self.charge_maintain_reward, self.soc[0:-1])
             - cp.multiply(self.full_battery_reward, cp.multiply(self.solar_eod_reward_mask_param, self.soc[0:-1]))
-            - cp.multiply(self.p_ev_stage1 * float(self.ev_stage1_reward)) * self.dt_5min
-            - cp.multiply(self.p_ev_stage2 * float(self.ev_stage2_reward)) * self.dt_5min
+            - cp.multiply(self.p_ev_stage1, float(self.ev_stage1_reward)) * self.dt_5min
+            - cp.multiply(self.p_ev_stage2, float(self.ev_stage2_reward)) * self.dt_5min
         )
 
         self.objective_expression = (

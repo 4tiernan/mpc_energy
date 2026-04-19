@@ -723,7 +723,12 @@ class Plant:
 
             # If 30 mintues less data than expected was returned, use the estimated load energy configured.
             if actual_span < expected_span - datetime.timedelta(minutes=tollerance_minutes):
-                logger.warning(f"{expected_span.days} days of load data was requested but only {actual_span.days} were returned")
+                expected_hours = expected_span.total_seconds() / 3600.0
+                actual_hours = max(actual_span.total_seconds(), 0.0) / 3600.0
+                logger.warning(
+                    f"Requested {round(expected_hours, 1)} hours of history but received "
+                    f"{round(actual_hours, 1)} hours."
+                )
                 return False
         return True
 
@@ -750,12 +755,37 @@ class Plant:
         if(config_manager.ev_charging_power_entity_id != ""):
             load_power_history = self.ha.get_history(config_manager.load_power_entity_id, start_time=start, end_time=end)
             ev_power_history = self.ha.get_history(config_manager.ev_charging_power_entity_id, start_time=start, end_time=end)
-            if(
-                self.validate_returned_data_timedelta(data=load_power_history, requested_start=start, requested_end=end) and
-                self.validate_returned_data_timedelta(data=ev_power_history, requested_start=start, requested_end=end)
-            ):
+
+            # Load history must cover the requested span for this forecasting path.
+            load_history_valid = self.validate_returned_data_timedelta(data=load_power_history, requested_start=start, requested_end=end)
+
+            # EV history is allowed to be partial; missing bins are treated as 0 kW EV charging
+            # so recently-enabled EV sensors can still contribute without forcing full fallback.
+            ev_coverage_ratio = 0.0
+            ev_has_data = len(ev_power_history) > 0
+            if(ev_has_data):
+                requested_seconds = max((end - start).total_seconds(), 1.0)
+                ev_span_seconds = max((ev_power_history[-1].time - ev_power_history[0].time).total_seconds(), 0.0)
+                ev_coverage_ratio = ev_span_seconds / requested_seconds
+
+            ev_min_coverage_ratio = 0.5
+
+            if(load_history_valid and ev_has_data and ev_coverage_ratio >= ev_min_coverage_ratio):
                 binned_load_power = self.bin_data(load_power_history, bin_period=time_bucket_size, start_bin_datetime=start, end_bin_datetime=end)
                 binned_ev_power = self.bin_data(ev_power_history, bin_period=time_bucket_size, start_bin_datetime=start, end_bin_datetime=end)
+
+                # Avoid interpolation artifacts when EV history is partial by forcing no-data bins to 0 kW.
+                for ev_state in binned_ev_power:
+                    if(len(ev_state.states) == 0):
+                        ev_state.avg_state = 0.0
+                    else:
+                        ev_state.avg_state = max(ev_state.avg_state, 0.0)
+
+                if(ev_coverage_ratio < 0.99):
+                    logger.warning(
+                        f"EV power history is partial ({round(ev_coverage_ratio*100.0, 1)}% coverage). "
+                        "Using available EV history and assuming 0 kW when unavailable."
+                    )
 
                 per_day_cumulative_kwh = defaultdict(dict)
                 dt_hours = time_bucket_size / 60.0
@@ -783,7 +813,10 @@ class Plant:
                 logger.debug("Using EV-debiased load profile for load forecast generation.")
                 return avg_day
             else:
-                logger.warning("EV power history unavailable for full requested span. Falling back to site-load daily energy history for load forecasting.")
+                logger.warning(
+                    "EV power history coverage is insufficient for EV-debiased load forecasting. "
+                    "Falling back to site-load daily energy history for load forecasting."
+                )
 
 
         history = self.ha.get_history(config_manager.plant_daily_load_kwh_entity_id, start_time=start, end_time=end)

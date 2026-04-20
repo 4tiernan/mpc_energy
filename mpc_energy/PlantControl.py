@@ -689,6 +689,8 @@ class Plant:
                     ev_state.avg_state = 0.0
                 else:
                     ev_state.avg_state = max(ev_state.avg_state, 0.0)
+            
+            logger.debug(f"binned_ev_power de artifacted:{[bin.avg_state for bin in binned_ev_power]}")
 
             if(ev_coverage_ratio < 0.99):
                 logger.warning(

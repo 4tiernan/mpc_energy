@@ -679,9 +679,11 @@ class Plant:
         ev_min_coverage_ratio = 0.5
 
         if(ev_has_data and ev_coverage_ratio >= ev_min_coverage_ratio):
+            logger.debug(f"ev_power_history:{[bin.state for bin in ev_power_history]}")
             binned_ev_power = self.bin_data(ev_power_history, bin_period=time_bucket_size, start_bin_datetime=start, end_bin_datetime=end, interpolation_method="step")
 
             # Avoid interpolation artifacts when EV history is partial by forcing no-data bins to 0 kW.
+            logger.debug(f"binned_ev_power:{[bin.avg_state for bin in binned_ev_power]}")
             for ev_state in binned_ev_power:
                 if(len(ev_state.states) == 0):
                     ev_state.avg_state = 0.0
@@ -731,7 +733,7 @@ class Plant:
                         for ev in ev_binned_history:
                             ev_by_day[ev.time.date()].append(ev)
                     
-                        logger.debug(f"EV History:{[bin.avg_state for bin in ev_binned_history]}")
+                        
             
                 
         # Check to see if the requested amount of data was recieved, use the configured default if not

@@ -836,6 +836,8 @@ class Plant:
                     time=per_day_binned[0][i].time.time()
                 )
             )
+        
+        logger.debug(f"avg day: {[bin.avg_state for bin in avg_day]}")
 
         return avg_day
 

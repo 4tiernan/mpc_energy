@@ -119,7 +119,7 @@ automatic_control_switch = CreateSwitchInput(
 energy_controller_selector = CreateSelectInput(
     name="Energy Controller",
     unique_id="energy_controller",
-    options=["MPC", "RBC", "Safe Mode"]
+    options=["MPC", "Safe Mode"]
 )
 
 
@@ -205,13 +205,6 @@ profit_tomorrow_sensor = CreateSensor(
     name = "Profit Tomorrow",
     unique_id="profit_tomorrow",
     unit_of_measurement="$"
-)
-
-
-target_discharge_sensor = CreateSensor(
-    name = "Target Discharge Price",
-    unique_id="target_discharge_price_python",
-    unit_of_measurement="c/kWh"
 )
 
 kwh_discharged_sensor = CreateSensor(
@@ -301,7 +294,6 @@ def initalise_entities(): # Initalise entities and get them discovered by the ha
     current_feedIn_sensor.set_state(0)
     current_general_price_sensor.set_state(0)
     max_feedIn_sensor.set_state(0)
-    target_discharge_sensor.set_state(0)
     kwh_discharged_sensor.set_state(0)
     kwh_remaining_sensor.set_state(0)
     effective_price_sensor.set_state(0)

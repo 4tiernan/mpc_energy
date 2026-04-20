@@ -762,7 +762,6 @@ import ha_mqtt
 from energy_controller import EnergyController
 import PlantControl
 from api_token_secrets import HA_URL, HA_TOKEN, AMBER_API_TOKEN, SITE_ID
-from RBC import RBC
 
 
 amber = AmberAPI(AMBER_API_TOKEN, SITE_ID, errors=True)
@@ -777,14 +776,6 @@ EC = EnergyController(
     ha=ha,
     ha_mqtt=ha_mqtt, 
     plant=plant,
-)
-
-rbc = RBC(
-    ha=ha, 
-    ha_mqtt=ha_mqtt,
-    plant=plant, 
-    EC=EC,
-    buffer_percentage_remaining=35, # percentage to inflate predicted load consumption
 )
 
 mpc = MPC(ha, plant, EC)

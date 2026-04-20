@@ -125,7 +125,6 @@ def FailSafe(e):
 
 while(started == False):
     try:
-        from RBC import RBC
         from MPC import MPC
         from energy_controller import EnergyController
         from ha_api import HomeAssistantAPI
@@ -175,14 +174,6 @@ while(started == False):
 
         control_mode_override_manager = ControlModeOverrideManager(ha_mqtt=ha_mqtt, energy_controller=EC, plant=plant)
 
-        rbc = RBC(
-            ha=ha, 
-            ha_mqtt=ha_mqtt,
-            plant=plant, 
-            EC=EC,
-            buffer_percentage_remaining=35, # percentage to inflate predicted load consumption
-        )
-
         mpc = MPC(
             ha=ha,
             plant=plant,
@@ -221,8 +212,6 @@ def set_sensor_if_changed(sensor, value):
 
 # Update HA MQTT sensors
 def update_sensors(price_data):
-    rbc.update_values(amber_data=price_data)
-
     override_status = control_mode_override_manager.state['active']
     override_mode = control_mode_override_manager.state['mode']
     opperating_mode = override_mode if override_status else EC.working_mode
@@ -231,9 +220,8 @@ def update_sensors(price_data):
     set_sensor_if_changed(ha_mqtt.current_general_price_sensor, round(price_data.general_price))
     set_sensor_if_changed(ha_mqtt.kwh_discharged_sensor, round(plant.kwh_till_full, 2))
     set_sensor_if_changed(ha_mqtt.kwh_remaining_sensor, round(plant.kwh_stored_available, 2))
-    set_sensor_if_changed(ha_mqtt.target_discharge_sensor, round(rbc.target_dispatch_price))
-    set_sensor_if_changed(ha_mqtt.kwh_required_overnight_sensor, round(rbc.kwh_required_remaining, 2))    
-    set_sensor_if_changed(ha_mqtt.kwh_required_till_sundown_sensor, round(rbc.kwh_required_till_sundown, 2))
+    set_sensor_if_changed(ha_mqtt.kwh_required_overnight_sensor, round(plant.kwh_required_remaining(buffer_percentage=0), 2))    
+    set_sensor_if_changed(ha_mqtt.kwh_required_till_sundown_sensor, round(plant.kwh_required_till_sundown(buffer_percentage=0), 2))
     set_sensor_if_changed(ha_mqtt.next_grid_interaction_kwh_sensor, round(mpc.next_grid_interaction_kwh, 2))
     set_sensor_if_changed(ha_mqtt.working_mode_sensor, opperating_mode)
 
@@ -315,8 +303,6 @@ def run_controller(price_update=False):
 
             if(selected_controller == "MPC"):
                 mpc.run(price_data)
-            elif(selected_controller == "RBC"):
-                rbc.run(price_data)
             else:
                 EC.self_consumption()
 
@@ -336,9 +322,6 @@ def run_controller(price_update=False):
         if(selected_controller == "MPC"):
             if(last_control_mode != selected_controller or price_update == True):
                 mpc.run(price_data) # Run the MPC Controller if the price updates (every 5 min) or if it was just selected as the new controller
-
-        elif(selected_controller == "RBC"):
-            rbc.run(price_data) # RBC needs to run every loop
 
         else: # Selected Controller must be safe mode
             EC.self_consumption()

@@ -759,8 +759,6 @@ class Plant:
             except (ValueError, TypeError):
                 pass  # drop unknown/unavailable/etc
         
-        logger.debug(f"clean history: {[hist.state for hist in clean_history]}")
-
         # --- Split history into days ---
         history_by_day = defaultdict(list)
         for h in clean_history:
@@ -788,7 +786,9 @@ class Plant:
 
                         for i in range(min(len(binned), len(ev_day_bins))):
                             ev_kw = ev_day_bins[i].avg_state or 0.0
+                            logger.debug(f"Day {day} Bin {binned[i].time}: Load {binned[i].avg_state} kW - EV {ev_kw} kW = {binned[i].avg_state - ev_kw} kW")
                             binned[i].avg_state = max(binned[i].avg_state - ev_kw, 0.0)
+                               
                     else:
                         logger.debug("EV history is unavailable, skipping EV-debiasing for load forecast generation.")
 
@@ -827,8 +827,6 @@ class Plant:
                 )
             )
         
-        logger.debug(f"avg day: {[bin.avg_state for bin in avg_day]}")
-
         return avg_day
 
     def round_forecast_times(self, forecast_hours_from_now=None, forecast_till_time=None, forecast_start_time=None, forecast_end_time=None):

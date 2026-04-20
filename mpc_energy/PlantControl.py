@@ -730,6 +730,8 @@ class Plant:
                         ev_by_day = defaultdict(list)
                         for ev in ev_binned_history:
                             ev_by_day[ev.time.date()].append(ev)
+                    
+                        logger.debug(f"EV History:{[bin.avg_state for bin in ev_binned_history]}")
             
                 
         # Check to see if the requested amount of data was recieved, use the configured default if not
@@ -786,7 +788,7 @@ class Plant:
 
                         for i in range(min(len(binned), len(ev_day_bins))):
                             ev_kw = ev_day_bins[i].avg_state or 0.0
-                            logger.debug(f"Day {day} Bin {binned[i].time}: Load {binned[i].avg_state} kW - EV {ev_day_bins[i].avg_state} kW = {binned[i].avg_state - ev_kw} kW")
+                            #logger.debug(f"Day {day} Bin {binned[i].time}: Load {binned[i].avg_state} kW - EV {ev_day_bins[i].avg_state} kW = {binned[i].avg_state - ev_kw} kW")
                             binned[i].avg_state = max(binned[i].avg_state - ev_kw, 0.0)
                                
                     else:

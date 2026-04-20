@@ -766,6 +766,8 @@ class Plant:
                     clean_history.append(hist)
             except (ValueError, TypeError):
                 pass  # drop unknown/unavailable/etc
+        
+        logger.debug(f"clean history: {[hist.state for hist in clean_history]}")
 
         # ---Convert cumulative kWh to incremental kWh for each bin---
         for i in range(len(clean_history)-1, 0, -1):

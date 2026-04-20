@@ -679,19 +679,12 @@ class Plant:
         ev_min_coverage_ratio = 0.5
 
         if(ev_has_data and ev_coverage_ratio >= ev_min_coverage_ratio):
-            logger.debug(f"ev_power_history:{[bin.state for bin in ev_power_history]}")
             binned_ev_power = self.bin_data(ev_power_history, bin_period=time_bucket_size, start_bin_datetime=start, end_bin_datetime=end, interpolation_method="step")
 
             # Avoid interpolation artifacts when EV history is partial by forcing no-data bins to 0 kW.
-            logger.debug(f"binned_ev_power:{[bin.avg_state for bin in binned_ev_power]}")
             for ev_state in binned_ev_power:
-                if(len(ev_state.states) == 0):
-                    ev_state.avg_state = 0.0
-                else:
-                    ev_state.avg_state = max(ev_state.avg_state, 0.0)
+                ev_state.avg_state = max(ev_state.avg_state, 0.0)
             
-            logger.debug(f"binned_ev_power de artifacted:{[bin.avg_state for bin in binned_ev_power]}")
-
             if(ev_coverage_ratio < 0.99):
                 logger.warning(
                     f"EV power history is partial ({round(ev_coverage_ratio*100.0, 1)}% coverage). "
@@ -792,7 +785,7 @@ class Plant:
 
                         for i in range(min(len(binned), len(ev_day_bins))):
                             ev_kw = ev_day_bins[i].avg_state or 0.0
-                            #logger.debug(f"Day {day} Bin {binned[i].time}: Load {binned[i].avg_state} kW - EV {ev_day_bins[i].avg_state} kW = {binned[i].avg_state - ev_kw} kW")
+                            logger.debug(f"Day {day} Bin {binned[i].time}: Load {binned[i].avg_state} kW - EV {ev_day_bins[i].avg_state} kW = {binned[i].avg_state - ev_kw} kW")
                             binned[i].avg_state = max(binned[i].avg_state - ev_kw, 0.0)
                                
                     else:

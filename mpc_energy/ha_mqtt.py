@@ -122,13 +122,6 @@ energy_controller_selector = CreateSelectInput(
     options=["MPC", "Safe Mode"]
 )
 
-
-base_load_sensor = CreateSensor(
-    name = "Base Load",
-    unique_id="base_load_python",
-    unit_of_measurement="w"
-)
-
 alive_time_sensor = CreateSensor(
     name = "Alive Time",
     unique_id="alive-time-python",
@@ -297,7 +290,6 @@ def initalise_entities(): # Initalise entities and get them discovered by the ha
     kwh_discharged_sensor.set_state(0)
     kwh_remaining_sensor.set_state(0)
     effective_price_sensor.set_state(0)
-    base_load_sensor.set_state(0)
     next_grid_interaction_kwh_sensor.set_state(0)
     avg_daily_load_sensor.set_state(0)
     kwh_required_till_sundown_sensor.set_state(0)

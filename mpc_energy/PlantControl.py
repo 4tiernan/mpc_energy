@@ -151,7 +151,6 @@ class Plant:
         self.solar_kw = self.get_sigenergy_numeric_state(config_manager.solar_power_entity_id)
         self.solar_kwh_today = self.get_sigenergy_numeric_state(config_manager.plant_solar_kwh_today_entity_id)
         self.solar_kw_remaining_today = self.get_sigenergy_numeric_state(config_manager.solcast_solar_kwh_remaining_today_entity_id)
-        self.solar_daytime = self.get_sigenergy_numeric_state(config_manager.solcast_solar_power_this_hour_entity_id) > self.get_base_load_estimate() # If producing more power than base load consider it during the solar day
         self.inverter_power = self.get_sigenergy_numeric_state(config_manager.inverter_power_entity_id)
         self.grid_power = self.get_sigenergy_numeric_state(config_manager.grid_power_entity_id)
         self.load_power = self.get_sigenergy_numeric_state(config_manager.load_power_entity_id)

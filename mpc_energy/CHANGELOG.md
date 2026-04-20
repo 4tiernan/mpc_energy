@@ -2,6 +2,7 @@
 * Added net grid interaction kWh sensor to aid automations.
 * Added EV charging
 * Removed support for RBC controller due to lack of development.
+* Removed base load and target dispatch price sensors (RBC dependancies).
 
 ## 0.6.0
 * Adding flow power as retailer option

@@ -786,7 +786,7 @@ class Plant:
 
                         for i in range(min(len(binned), len(ev_day_bins))):
                             ev_kw = ev_day_bins[i].avg_state or 0.0
-                            logger.debug(f"Day {day} Bin {binned[i].time}: Load {binned[i].avg_state} kW - EV {ev_kw} kW = {binned[i].avg_state - ev_kw} kW")
+                            logger.debug(f"Day {day} Bin {binned[i].time}: Load {binned[i].avg_state} kW - EV {ev_day_bins[i].avg_state} kW = {binned[i].avg_state - ev_kw} kW")
                             binned[i].avg_state = max(binned[i].avg_state - ev_kw, 0.0)
                                
                     else:

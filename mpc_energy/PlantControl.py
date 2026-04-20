@@ -154,7 +154,7 @@ class Plant:
         self.inverter_power = self.get_sigenergy_numeric_state(config_manager.inverter_power_entity_id)
         self.grid_power = self.get_sigenergy_numeric_state(config_manager.grid_power_entity_id)
         self.load_power = self.get_sigenergy_numeric_state(config_manager.load_power_entity_id)
-        self.avg_daily_load = sum(bin.avg_state for bin in self.get_load_avg(days_ago=self.load_avg_days))
+        self.avg_daily_load = sum(bin.avg_state*(self.time_step_minutes/60) for bin in self.get_load_avg(days_ago=self.load_avg_days))
         
         self.ev_plugged_in = self.parse_boolean_state(config_manager.ev_plugged_in_entity_id, default=False)
         self.ev_power_kw = 0.0
@@ -662,17 +662,10 @@ class Plant:
         return True
     
     def get_ev_binned_history(self, start, end, time_bucket_size=5):
-        '''Gets the EV charging power history, bins it into time buckets andconverts it to kWh per time bucket.'''
+        '''Gets the EV charging power history, bins it into time buckets.'''
         ev_power_history = self.ha.get_history(config_manager.ev_charging_power_entity_id, start_time=start, end_time=end)
 
         time_bucket_hours = time_bucket_size / 60.0
-
-        # Convert the EV power history from kW to kWh for the time bucket and set invailid states to None.
-        for hist in ev_power_history:
-            try:
-                hist.state = float(hist.state) * time_bucket_hours # Convert from kW to kWh for the time bucket
-            except (ValueError, TypeError):
-                hist.state = None  # drop unknown/unavailable/etc
 
         # EV history is allowed to be partial; missing bins are treated as 0 kW EV charging
         # so recently-enabled EV sensors can still contribute without forcing full fallback.
@@ -709,7 +702,7 @@ class Plant:
 
     def update_load_avg(self, days_ago=7):
         '''
-        Calculate the average load energy profile for a day based on the past load history.
+        Calculate the average load power profile for a day based on the past load history.
         '''
 
         # Determine the start and end datetimes for the requested history based on the number of days ago to look back from
@@ -720,7 +713,7 @@ class Plant:
         start = datetime.datetime.combine(start_date, datetime.time.min, tzinfo=self.local_tz)
         end = datetime.datetime.combine(end_date, datetime.time.min, tzinfo=self.local_tz)
 
-        load_history = self.ha.get_history(config_manager.plant_daily_load_kwh_entity_id, start_time=start, end_time=end)
+        load_power_history = self.ha.get_history(config_manager.load_power_entity_id, start_time=start, end_time=end)
 
         ev_by_day = None
         if(self.ev_enabled):
@@ -731,7 +724,6 @@ class Plant:
                         logger.debug(
                             f"EV history available for load debiasing with {len(ev_binned_history)} bins "
                             f"spanning from {ev_binned_history[0].time} to {ev_binned_history[-1].time}, "
-                            f"with a total EV energy of {round(sum([bin.avg_state for bin in ev_binned_history]), 2)} kWh across the period."
                         )
 
                         # Split EV load history into days
@@ -741,7 +733,7 @@ class Plant:
             
                 
         # Check to see if the requested amount of data was recieved, use the configured default if not
-        if(not self.validate_returned_data_timedelta(data=load_history, requested_start=start, requested_end=end)):
+        if(not self.validate_returned_data_timedelta(data=load_power_history, requested_start=start, requested_end=end)):
             configured_avg_load = config_manager.estimated_daily_load_energy_consumption 
             logger.warning(f"Using default load energy of {configured_avg_load} kWh per day.")
 
@@ -759,7 +751,7 @@ class Plant:
 
         # Remove any invalid states from the history list (Unavailable, None, etc)
         clean_history = []
-        for hist in load_history:
+        for hist in load_power_history:
             try:
                 if hist.state is not None:
                     hist.state = float(hist.state)
@@ -769,10 +761,6 @@ class Plant:
         
         logger.debug(f"clean history: {[hist.state for hist in clean_history]}")
 
-        # ---Convert cumulative kWh to incremental kWh for each bin---
-        for i in range(len(clean_history)-1, 0, -1):
-            clean_history[i].state = max(clean_history[i].state - clean_history[i-1].state, 0.0) # Subtract the previous cumulative value from the current to get the incremental kWh for the bin. Also remove any negative values which could be caused by resets or errors in the cumulative reading.
-        
         # --- Split history into days ---
         history_by_day = defaultdict(list)
         for h in clean_history:
@@ -799,8 +787,8 @@ class Plant:
                         ev_day_bins = ev_by_day.get(day, [])
 
                         for i in range(min(len(binned), len(ev_day_bins))):
-                            ev_kwh = ev_day_bins[i].avg_state or 0.0
-                            binned[i].avg_state = max(binned[i].avg_state - ev_kwh, 0.0)
+                            ev_kw = ev_day_bins[i].avg_state or 0.0
+                            binned[i].avg_state = max(binned[i].avg_state - ev_kw, 0.0)
                     else:
                         logger.debug("EV history is unavailable, skipping EV-debiasing for load forecast generation.")
 
@@ -880,26 +868,22 @@ class Plant:
         )
 
         # Create a lookup dict for each time bin: time-of-day → kWh per bin
-        avg_day_kwh_lookup = {bin.time: bin.avg_state for bin in avg_day}
+        avg_day_kw_lookup = {bin.time: bin.avg_state for bin in avg_day}
 
         forecast_power = []
-        timestep_hours = self.time_step_minutes / 60.0
         forecast_steps = int((rounded_forecast_time - rounded_current_time).total_seconds() // (self.time_step_minutes * 60))
 
-        avg_kwh_per_bin = sum(b.avg_state for b in avg_day) / len(avg_day) # Used below to fallback if no data for specific bin
+        avg_kw_per_bin = sum(b.avg_state for b in avg_day) / len(avg_day) # Used below to fallback if no data for specific bin
 
         for i in range(forecast_steps):
             point_time = rounded_current_time + datetime.timedelta(minutes=self.time_step_minutes * i)
 
-            # Get kWh for this time-of-day bin
-            kwh = avg_day_kwh_lookup.get(point_time.time())
+            # Get kW for this time-of-day bin
+            power = avg_day_kw_lookup.get(point_time.time())
 
             # Fallback if missing
-            if kwh is None or math.isnan(kwh) or kwh <= 0:
-                kwh = avg_kwh_per_bin
-
-            # Convert kWh per bin → kW
-            power = kwh / timestep_hours
+            if power is None or math.isnan(power) or power <= 0:
+                power = avg_kw_per_bin
 
             forecast_power.append(
                 BinnedStateClass(
@@ -916,8 +900,8 @@ class Plant:
 
         [rounded_current_time, rounded_forecast_time] = self.round_forecast_times(forecast_hours_from_now, forecast_till_time)
 
-        # Lookup: time-of-day → kWh per bin
-        avg_day_kwh_lookup = {bin.time: bin.avg_state for bin in avg_day}
+        # Lookup: time-of-day → kW per bin
+        avg_day_kw_lookup = {bin.time: bin.avg_state for bin in avg_day}
 
         step_minutes = self.time_step_minutes
         forecast_steps = int(
@@ -927,18 +911,18 @@ class Plant:
             
         total_kwh = 0.0
 
-        avg_kwh_per_bin = sum(b.avg_state for b in avg_day) / len(avg_day) # Used below to fallback if no data for specific bin
+        avg_kw_per_bin = sum(b.avg_state for b in avg_day) / len(avg_day) # Used below to fallback if no data for specific bin
 
         for i in range(forecast_steps):
             point_time = rounded_current_time + datetime.timedelta(minutes=step_minutes * i)
 
-            kwh = avg_day_kwh_lookup.get(point_time.time())
+            kw = avg_day_kw_lookup.get(point_time.time())
 
             # Fallback if missing
-            if kwh is None or math.isnan(kwh):
-                kwh = avg_kwh_per_bin
+            if kw is None or math.isnan(kw):
+                kw = avg_kw_per_bin
 
-            total_kwh += kwh
+            total_kwh += kw * (step_minutes / 60)  # Convert kW to kWh for the time step
 
         return total_kwh
     

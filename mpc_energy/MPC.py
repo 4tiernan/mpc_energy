@@ -161,16 +161,8 @@ class MPC:
             forecast_start_time=self.sim_start,
             forecast_end_time=self.sim_end,
         )
-
-        ev_baseline_states = self.plant.forecast_ev_power_baseline(
-            forecast_hours_from_now=self.forecast_hrs,
-            forecast_start_time=self.sim_start,
-            forecast_end_time=self.sim_end,
-        )
         
-        self.load_5min_total = [powerstate.avg_state*(1+self.load_inflation_percentage/100.0) for powerstate in load_power_states]
-        self.ev_load_baseline_5min = [max(0.0, powerstate.avg_state) for powerstate in ev_baseline_states]
-        self.load_5min = [max(total - ev_baseline, 0.0) for total, ev_baseline in zip(self.load_5min_total, self.ev_load_baseline_5min)]
+        self.load_5min = [powerstate.avg_state*(1+self.load_inflation_percentage/100.0) for powerstate in load_power_states]
         
         # Solar Forecast
         self.solar_5min = self.plant.forecast_solar_power(

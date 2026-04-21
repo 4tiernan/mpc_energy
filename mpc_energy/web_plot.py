@@ -442,13 +442,13 @@ def plot_mpc_results(st, output):
         title_text="SOC (kWh)",
         range=[0, 40],
         autorange=True,
-        row=2, col=1
+        row=2, col=1, secondary_y=False
     )
 
     fig.update_yaxes(
         title_text="EV SOC (%)",
         range=[0, 100],
-        autorange=True,
+        autorange=False,
         row=2, col=1, secondary_y=True
     )
 

@@ -63,7 +63,7 @@ class MPC:
         self.ev_stage1_remaining_kwh = 0.0
         self.ev_stage2_remaining_kwh = 0.0
         self.ev_battery_capacity_kwh = max(float(getattr(self.plant, "ev_battery_capacity_kwh", 0.0)), 0.0)
-        self.ev_reward_uncertainty_discount_per_hour = 10 # -%/hr applied to EV rewards to encourage near-term charging when rewards are more certain (currently set the same as the sell price uncertainty discount)
+        self.ev_charge_maintain_reward = 0.02 / (self.forecast_hrs*self.steps_per_hr*self.ev_battery_capacity_kwh) # $/kWh / interval reward for maintaining higher SOC throughout the day, currently equates to 2c total over the whole day
 
         # User configured values
         self.battery_min_export_cost = config_manager.battery_discharge_cost/100  # $/kWh (Export will only occour ABOVE this value)
@@ -100,7 +100,6 @@ class MPC:
         self.next_grid_interaction_kwh = 0.0
 
         self.update_forecast_horizon()
-        self.ev_uncertainty_factor = 1 - (np.arange(int(self.N_5min)) * self.dt_5min * (self.ev_reward_uncertainty_discount_per_hour/100)) # Use the same uncertainty discount as the sell price to encourage near-term EV charging when EV is plugged in
 
         # Build the CVXPY optimisation template once and reuse it on each run.
         # This avoids repeated canonicalization overhead at every control interval.
@@ -374,8 +373,9 @@ class MPC:
             + cp.multiply(self.battery_min_export_cost, self.p_discharge) * self.dt_5min
             - cp.multiply(self.charge_maintain_reward, self.soc[0:-1])
             - cp.multiply(self.full_battery_reward, cp.multiply(self.solar_eod_reward_mask_param, self.soc[0:-1]))
-            - cp.multiply(self.p_ev_stage1, float(self.ev_stage1_reward)*self.ev_uncertainty_factor) * self.dt_5min
-            - cp.multiply(self.p_ev_stage2, float(self.ev_stage2_reward)*self.ev_uncertainty_factor) * self.dt_5min
+            - cp.multiply(self.p_ev_stage1, float(self.ev_stage1_reward)) * self.dt_5min
+            - cp.multiply(self.p_ev_stage2, float(self.ev_stage2_reward)) * self.dt_5min
+            - cp.multiply(self.ev_charge_maintain_reward, self.ev_soc[0:-1]) * self.dt_5min
         )
 
         self.objective_expression = (

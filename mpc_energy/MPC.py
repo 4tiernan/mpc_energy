@@ -198,7 +198,7 @@ class MPC:
         self.ev_stage1_remaining_kwh = 0.0
         self.ev_stage2_remaining_kwh = 0.0
         if(self.ev_plugged_in and self.ev_soc is not None and self.ev_battery_capacity_kwh > 0 and self.ev_max_charge_power > 0):
-            self.ev_stage1_remaining_kwh = max((self.ev_min_soc_target - self.ev_soc) / 100.0 * self.ev_battery_capacity_kwh, 0.0)
+            self.ev_stage1_remaining_kwh = max((self.ev_min_soc_target - self.ev_soc_init) / 100.0 * self.ev_battery_capacity_kwh, 0.0)
             stage2_start_soc = max(self.ev_soc, self.ev_min_soc_target)
             self.ev_stage2_remaining_kwh = max((self.ev_max_soc_target - stage2_start_soc) / 100.0 * self.ev_battery_capacity_kwh, 0.0)
         elif(self.ev_plugged_in and self.ev_max_charge_power <= 0):

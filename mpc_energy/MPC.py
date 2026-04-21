@@ -193,7 +193,7 @@ class MPC:
         self.ev_plugged_in = bool(getattr(self.plant, "ev_plugged_in", False))
         self.ev_max_charge_power = max(float(getattr(self.plant, "ev_max_charge_power", 0.0)), 0.0)
         self.ev_min_charge_power = max(float(getattr(self.plant, "ev_min_charge_power", 0.0)), 0.0)
-        self.ev_soc = getattr(self.plant, "ev_soc", None)
+        self.ev_soc_init = (getattr(self.plant, "ev_soc", 0.0) / 100.0) * self.ev_battery_capacity_kwh # Set the EV SOC in kWh based on the percentage SOC and battery capacity, default to 0 if not available or invalid
         self.ev_battery_capacity_kwh = max(float(getattr(self.plant, "ev_battery_capacity_kwh", 0.0)), 0.0)
         self.ev_stage1_remaining_kwh = 0.0
         self.ev_stage2_remaining_kwh = 0.0
@@ -308,6 +308,7 @@ class MPC:
         self.solar_curtail = cp.Variable(n, nonneg=True)
         self.grid_import = cp.Variable(n, nonneg=True)
         self.grid_export = cp.Variable(n, nonneg=True)
+        self.ev_soc = cp.Variable(n + 1)
         self.p_ev = cp.Variable(n, nonneg=True)
         self.p_ev_stage1 = cp.Variable(n, nonneg=True)
         self.p_ev_stage2 = cp.Variable(n, nonneg=True)
@@ -322,11 +323,10 @@ class MPC:
         self.price_sell_param = cp.Parameter(n, name="price_sell")
         self.demand_mask_param = cp.Parameter(n, nonneg=True, name="demand_mask")
         self.solar_eod_reward_mask_param = cp.Parameter(n, nonneg=True, name="solar_eod_reward_mask")
-        self.ev_p_min_param = cp.Parameter(n, nonneg=True, name="ev_p_min")
         self.ev_p_max_param = cp.Parameter(n, nonneg=True, name="ev_p_max")
         self.ev_stage1_remaining_kwh_param = cp.Parameter(nonneg=True, name="ev_stage1_remaining_kwh")
         self.ev_stage2_remaining_kwh_param = cp.Parameter(nonneg=True, name="ev_stage2_remaining_kwh")
-
+        self.ev_soc_init_param = cp.Parameter(nonneg=True, name="ev_soc_init")
         self.grid_import_limit_param = cp.Parameter(nonneg=True, name="grid_import_limit")
         self.grid_export_limit_param = cp.Parameter(nonneg=True, name="grid_export_limit")
         self.p_max_charge_param = cp.Parameter(nonneg=True, name="p_max_charge")
@@ -355,7 +355,12 @@ class MPC:
             self.inverter_power <= self.inverter_p_max_param,
             self.inverter_power >= -self.inverter_p_max_param,
             self.peak_demand >= cp.multiply(self.demand_mask_param, self.grid_import),
-            self.p_ev >= self.ev_p_min_param,
+            self.ev_soc[0] == self.ev_soc_init_param,
+            self.ev_soc[1:] == self.ev_soc[:-1] + (self.dt_5min * self.p_ev), # EV SOC in kWh, p_ev in kW, dt in hours.
+            self.ev_soc[1:] >= 0, # Don't allow negative SOC
+            self.ev_soc[1:] <= self.ev_max_soc_target / 100.0 * self.ev_battery_capacity_kwh,
+
+            self.p_ev >= 0, # EV charge power must be positive (no discharging the EV)
             self.p_ev <= self.ev_p_max_param,
             self.p_ev == self.p_ev_stage1 + self.p_ev_stage2,
             cp.sum(self.p_ev_stage1) * self.dt_5min <= self.ev_stage1_remaining_kwh_param,
@@ -448,18 +453,18 @@ class MPC:
         self.solar_dc_max_param.value = float(self.solar_dc_max)
         self.soc_min_param.value = float(self.soc_min)
         self.soc_max_param.value = float(self.soc_max)
+        self.ev_soc_init_param.value = float(self.ev_soc_init) if self.ev_soc is not None else 0.0
         ev_p_max = 0.0
         if(self.ev_plugged_in and (self.ev_stage1_remaining_kwh > 0 or self.ev_stage2_remaining_kwh > 0)):
             ev_p_max = min(self.ev_max_charge_power, self.grid_import_limit)
         ev_p_max_arr = np.full(int(self.N_5min), ev_p_max, dtype=float)
-        ev_p_min_arr = np.zeros(int(self.N_5min), dtype=float)
         # NOTE:
         # A strict per-interval "p_ev == 0 OR p_ev >= min" rule is non-convex and would
         # require mixed-integer optimisation for every 5-minute step.
         # Keep optimisation convex here by allowing [0, max] in-model, then snap tiny
         # sub-min plans to 0 in post-processing for actuator-facing output.
         self.ev_p_max_param.value = ev_p_max_arr
-        self.ev_p_min_param.value = ev_p_min_arr
+
         self.ev_stage1_remaining_kwh_param.value = float(self.ev_stage1_remaining_kwh)
         self.ev_stage2_remaining_kwh_param.value = float(self.ev_stage2_remaining_kwh)
 
@@ -541,6 +546,7 @@ class MPC:
             solar_forecast_power = [round(x, 2) for x in self.solar_5min]
             solar_used_power = [round(x, 2) for x in self.solar_used.value.tolist()]
             ev_power = [round(x, 2) for x in self.p_ev.value.tolist()]
+            ev_soc_percent = [round((x / self.ev_battery_capacity_kwh)*100, 2) for x in self.ev_soc.value.tolist()]
             load_power = [round(load+ev_power, 2) for load, ev_power in zip(self.load_5min, ev_power)] # Add the EV power back into the load for reporting and plotting purposes
             if(self.ev_min_charge_power > 0):
                 clipped_count = 0
@@ -578,6 +584,7 @@ class MPC:
                 "solar_used": solar_used_power,
                 "load_power": load_power,
                 "ev_charging_power": ev_power,
+                "ev_soc_percent": ev_soc_percent,
                 "soc_min": self.soc_min,
                 "soc_max": self.soc_max,
             }

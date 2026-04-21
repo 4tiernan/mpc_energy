@@ -139,7 +139,7 @@ def plot_mpc_results(st, output):
         row_heights=[0.6, 0.25, 0.25],  # Row height proportions
         specs=[
             [{'secondary_y': True}],   # Row 1 (power + prices)
-            [{'secondary_y': False}],  # Row 2 (SOC)
+            [{'secondary_y': True}],  # Row 2 (SOC)
             [{'secondary_y': True}]   # Row 3 (control mode)
         ]
     )
@@ -410,6 +410,18 @@ def plot_mpc_results(st, output):
     if soc_max is not None:
         fig.add_hline(y=soc_max, row=2, col=1, line_dash="dash", line_color="red")
 
+
+    # ===============================
+    # BOTTOM: EV SOC (if present)
+    # ===============================
+    
+    fig.add_trace(go.Scatter(
+        x=time_index,
+        y=round_list(output["ev_soc_percent"][:-1]),
+        name="EV SOC (%)",
+        line=dict(color="blue")
+    ), row=2, col=1, secondary_y=True)
+
     # ===============================
     # AXES LIMITS (soft defaults)
     # ===============================
@@ -431,6 +443,13 @@ def plot_mpc_results(st, output):
         range=[0, 40],
         autorange=True,
         row=2, col=1
+    )
+
+    fig.update_yaxes(
+        title_text="EV SOC (%)",
+        range=[0, 100],
+        autorange=True,
+        row=2, col=1, secondary_y=True
     )
 
     # ===============================

@@ -276,6 +276,12 @@ control_mode_override_duration_selector = CreateSelectInput(
     options=["5", "15", "30", "60", "120", "240", "360", "Till Price Change"]
 )
 
+target_ev_charge_rate_sensor = CreateSensor(
+    name = "Target EV Charge Rate",
+    unique_id="target_ev_charge_rate",
+    unit_of_measurement="kW"
+)
+
 def initalise_entities(): # Initalise entities and get them discovered by the ha mqtt service
     automatic_control_switch.set_state(False)
     energy_controller_selector.set_state("MPC")
@@ -303,6 +309,7 @@ def initalise_entities(): # Initalise entities and get them discovered by the ha
     control_mode_override_duration_selector.set_state("15")
     curtailment_status_sensor.set_state(0)
     curtailment_reason_sensor.set_state("None")
+    target_ev_charge_rate_sensor.set_state(0)
 
     time.sleep(10)
 

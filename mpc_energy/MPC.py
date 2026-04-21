@@ -56,6 +56,7 @@ class MPC:
         self.demand_tarrif = demand_tarrif # True if the selected site has a demand tarrif applied
         self.current_effective_price = 0 # Set to zero until we run an optimisation and determine the current effective price based on the MPC plan and current conditions
         
+        self.target_ev_charge_rate = 0 # Target EV charge rate in kW, updated based on the MPC plan and current conditions
         self.ev_stage1_reward = max(float(config_manager.ev_stage1_charge_reward_cents_per_kwh), 0.0) / 100.0
         self.ev_stage2_reward = max(float(config_manager.ev_stage2_charge_reward_cents_per_kwh), 0.0) / 100.0
         self.ev_min_soc_target = min(max(float(config_manager.ev_min_soc), 0.0), 100.0)
@@ -560,7 +561,9 @@ class MPC:
                         f"EV plan post-processing snapped {clipped_count} intervals below EV min charge power "
                         f"({self.ev_min_charge_power} kW) to 0 kW."
                     )
-            ev_power = [round(x, 2) for x in ev_power]
+            ev_power_constrained = [round(x, 2) for x in ev_power]
+
+            self.target_ev_charge_rate = ev_power_constrained[1] if ev_power_constrained else 0 # The first interval is the current charge rate, select the second interval as the target for the next 5 minutes
 
             self.profit_remaining_today = round(float(forecast_profit_today), 2)
             self.profit_tomorrow = round(float(forecast_profit_tomorrow), 2)
@@ -584,7 +587,7 @@ class MPC:
                 "solar_forecast": solar_forecast_power,
                 "solar_used": solar_used_power,
                 "load_power": load_power,
-                "ev_charging_power": ev_power,
+                "ev_charging_power": ev_power_constrained,
                 "ev_soc_percent": ev_soc_percent,
                 "soc_min": self.soc_min,
                 "soc_max": self.soc_max,

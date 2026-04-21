@@ -684,12 +684,6 @@ class Plant:
             # Avoid interpolation artifacts when EV history is partial by forcing no-data bins to 0 kW.
             for ev_state in binned_ev_power:
                 ev_state.avg_state = max(ev_state.avg_state, 0.0)
-            
-            if(ev_coverage_ratio < 0.99):
-                logger.warning(
-                    f"EV power history is partial ({round(ev_coverage_ratio*100.0, 1)}% coverage). "
-                    "Using available EV history and assuming 0 kW when unavailable."
-                )
 
             logger.debug("Using EV-debiased load profile for load forecast generation.")
             return binned_ev_power

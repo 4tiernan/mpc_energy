@@ -84,7 +84,7 @@ class MPC:
 
             logger.debug("Flow retailer detected: Disabling sell price uncertainty discount and charge maintain reward to prioritise immediate arbitrage with known prices.")
 
-        logger.debug(f"Forecast uncertainty: Buy premium: {self.buy_price_uncertainty_premium_per_hour} %/hr, Sell discount: {self.sell_price_uncertainty_discount_per_hour} %/hr, Max adjustment: {self.max_price_uncertainty_adjustment} %")
+        logger.debug(f"Forecast uncertainty: Buy premium: {self.buy_price_uncertainty_premium_per_hour} %/hr, Sell discount: {self.sell_price_uncertainty_discount_per_hour} %/hr, Max adjustment: {self.max_price_uncertainty_adjustment} %, EV reward discount: {self.ev_reward_uncertainty_discount_per_hour} %/hr")
         
         if(self.buy_price_uncertainty_premium_per_hour < -10 or self.buy_price_uncertainty_premium_per_hour > 100):
             logger.warning(f"Buy price uncertainty premium of {self.buy_price_uncertainty_premium_per_hour} %/hr seems very high or low, please ensure this value is correct to avoid unexpected behaviour.")
@@ -540,8 +540,8 @@ class MPC:
             inverter_power = [round(x, 2) for x in self.inverter_power.value.tolist()]
             solar_forecast_power = [round(x, 2) for x in self.solar_5min]
             solar_used_power = [round(x, 2) for x in self.solar_used.value.tolist()]
-            load_power = [round(x, 2) for x in self.load_5min]
-            ev_power = self.p_ev.value.tolist()
+            ev_power = [round(x, 2) for x in self.p_ev.value.tolist()]
+            load_power = [round(load+ev_power, 2) for load, ev_power in zip(self.load_5min, ev_power)] # Add the EV power back into the load for reporting and plotting purposes
             if(self.ev_min_charge_power > 0):
                 clipped_count = 0
                 for i, p in enumerate(ev_power):

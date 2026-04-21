@@ -197,9 +197,9 @@ class MPC:
         self.ev_soc_init = (getattr(self.plant, "ev_soc", 0.0) / 100.0) * self.ev_battery_capacity_kwh # Set the EV SOC in kWh based on the percentage SOC and battery capacity, default to 0 if not available or invalid
         self.ev_stage1_remaining_kwh = 0.0
         self.ev_stage2_remaining_kwh = 0.0
-        if(self.ev_plugged_in and self.ev_soc is not None and self.ev_battery_capacity_kwh > 0 and self.ev_max_charge_power > 0):
+        if(self.ev_plugged_in and self.ev_soc_init is not None and self.ev_battery_capacity_kwh > 0 and self.ev_max_charge_power > 0):
             self.ev_stage1_remaining_kwh = max((self.ev_min_soc_target - self.ev_soc_init) / 100.0 * self.ev_battery_capacity_kwh, 0.0)
-            stage2_start_soc = max(self.ev_soc, self.ev_min_soc_target)
+            stage2_start_soc = max(self.ev_soc_init, self.ev_min_soc_target)
             self.ev_stage2_remaining_kwh = max((self.ev_max_soc_target - stage2_start_soc) / 100.0 * self.ev_battery_capacity_kwh, 0.0)
         elif(self.ev_plugged_in and self.ev_max_charge_power <= 0):
             logger.warning("EV is marked as plugged in but EV max charge power is 0. EV charging optimisation will be disabled.")
@@ -453,7 +453,7 @@ class MPC:
         self.solar_dc_max_param.value = float(self.solar_dc_max)
         self.soc_min_param.value = float(self.soc_min)
         self.soc_max_param.value = float(self.soc_max)
-        self.ev_soc_init_param.value = float(self.ev_soc_init) if self.ev_soc is not None else 0.0
+        self.ev_soc_init_param.value = float(self.ev_soc_init) if self.ev_soc_init is not None else 0.0
         ev_p_max = 0.0
         if(self.ev_plugged_in and (self.ev_stage1_remaining_kwh > 0 or self.ev_stage2_remaining_kwh > 0)):
             ev_p_max = min(self.ev_max_charge_power, self.grid_import_limit)

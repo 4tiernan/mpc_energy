@@ -62,7 +62,7 @@ class MPC:
         self.ev_max_soc_target = min(max(float(config_manager.ev_max_soc), self.ev_min_soc_target), 100.0)
         self.ev_stage1_remaining_kwh = 0.0
         self.ev_stage2_remaining_kwh = 0.0
-        self.ev_reward_uncertainty_discount_per_hour = 10 # -%/hr applied to EV rewards to encourage near-term charging when rewards are more certain (currently set the same as the sell price uncertainty discount)
+        self.ev_reward_uncertainty_discount_per_hour = 50 # -%/hr applied to EV rewards to encourage near-term charging when rewards are more certain (currently set the same as the sell price uncertainty discount)
         self.ev_uncertainty_factor = 1 # Initialized to 1, will be adjusted in update_values based on the EV reward uncertainty discount and time from now to encourage near-term charging when rewards are more certain
 
         # User configured values

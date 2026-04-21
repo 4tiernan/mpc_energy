@@ -62,6 +62,7 @@ class MPC:
         self.ev_max_soc_target = min(max(float(config_manager.ev_max_soc), self.ev_min_soc_target), 100.0)
         self.ev_stage1_remaining_kwh = 0.0
         self.ev_stage2_remaining_kwh = 0.0
+        self.ev_reward_uncertainty_discount_per_hour = 1 # -%/hr applied to EV rewards to encourage near-term charging when rewards are more certain (currently set the same as the sell price uncertainty discount)
 
 
         # User configured values
@@ -259,6 +260,8 @@ class MPC:
 
         self.effective_prices_sell = self.effective_prices_sell + 0.00001 # Increase prices slightly to allow for export at slight benefit
 
+        self.ev_uncertainty_factor = 1 - (hours_from_now * (self.ev_reward_uncertainty_discount_per_hour/100)) # Use the same uncertainty discount as the sell price to encourage near-term EV charging when EV is plugged in
+
         #self.prices_buy[0:5] = 0.03 #Testing
         #self.prices_sell[0:5] = 0.01
         #self.soc_init = 0.95*self.soc_max
@@ -368,8 +371,8 @@ class MPC:
             + cp.multiply(self.battery_min_export_cost, self.p_discharge) * self.dt_5min
             - cp.multiply(self.charge_maintain_reward, self.soc[0:-1])
             - cp.multiply(self.full_battery_reward, cp.multiply(self.solar_eod_reward_mask_param, self.soc[0:-1]))
-            - cp.multiply(self.p_ev_stage1, float(self.ev_stage1_reward)) * self.dt_5min
-            - cp.multiply(self.p_ev_stage2, float(self.ev_stage2_reward)) * self.dt_5min
+            - cp.multiply(self.p_ev_stage1, float(self.ev_stage1_reward)*self.ev_uncertainty_factor) * self.dt_5min
+            - cp.multiply(self.p_ev_stage2, float(self.ev_stage2_reward)*self.ev_uncertainty_factor) * self.dt_5min
         )
 
         self.objective_expression = (

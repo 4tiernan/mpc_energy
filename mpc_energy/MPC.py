@@ -62,7 +62,8 @@ class MPC:
         self.ev_max_soc_target = min(max(float(config_manager.ev_max_soc), self.ev_min_soc_target), 100.0)
         self.ev_stage1_remaining_kwh = 0.0
         self.ev_stage2_remaining_kwh = 0.0
-        self.ev_reward_uncertainty_discount_per_hour = 50 # -%/hr applied to EV rewards to encourage near-term charging when rewards are more certain (currently set the same as the sell price uncertainty discount)
+        self.ev_reward_uncertainty_discount_per_hour = 10 # -%/hr applied to EV rewards to encourage near-term charging when rewards are more certain (currently set the same as the sell price uncertainty discount)
+        self.ev_uncertainty_factor = 1 - (np.arange(int(self.N_5min)) * self.dt_5min * (self.ev_reward_uncertainty_discount_per_hour/100)) # Use the same uncertainty discount as the sell price to encourage near-term EV charging when EV is plugged in
 
         # User configured values
         self.battery_min_export_cost = config_manager.battery_discharge_cost/100  # $/kWh (Export will only occour ABOVE this value)
@@ -259,8 +260,6 @@ class MPC:
 
         self.effective_prices_sell = self.effective_prices_sell + 0.00001 # Increase prices slightly to allow for export at slight benefit
 
-        self.ev_uncertainty_factor = 1 - (hours_from_now * (self.ev_reward_uncertainty_discount_per_hour/100)) # Use the same uncertainty discount as the sell price to encourage near-term EV charging when EV is plugged in
-
         #self.prices_buy[0:5] = 0.03 #Testing
         #self.prices_sell[0:5] = 0.01
         #self.soc_init = 0.95*self.soc_max
@@ -299,7 +298,6 @@ class MPC:
         return adjusted_forecast
 
     def build_optimisation_template(self):
-        self.update_values()
         n = int(self.N_5min)
 
         # Variables

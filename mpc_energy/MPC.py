@@ -563,7 +563,19 @@ class MPC:
                     )
             ev_power_constrained = [round(x, 2) for x in ev_power]
 
-            self.target_ev_charge_rate = ev_power_constrained[1] if ev_power_constrained else 0 # The first interval is the current charge rate, select the second interval as the target for the next 5 minutes
+
+            if ev_power_constrained: # Only set the EV charge rate if the EV power plan exists and the battery is partially charged.
+                if battery_soc[0] > self.soc_min + 2:
+                    self.target_ev_charge_rate = ev_power_constrained[0]
+                else:
+                    logger.debug(f"Battery SOC is too low ({battery_soc[0]:.2f} kWh), not charging EV to preserve backup buffer. Adjusting first interval EV charge power from {ev_power_constrained[0]:.2f} kW to 0 kW.")
+                    self.target_ev_charge_rate = 0.0
+                    ev_power_constrained[0] = 0.0
+
+            else:
+                self.target_ev_charge_rate = 0.0
+
+            
 
             self.profit_remaining_today = round(float(forecast_profit_today), 2)
             self.profit_tomorrow = round(float(forecast_profit_tomorrow), 2)
@@ -632,7 +644,7 @@ class MPC:
             logger.info(f"Solver took {round(time.time()-start_optimisation,2)} seconds to get data, build and solve. The selected mode is: {output['plan_modes'][0]}")
 
             return [output, plotted_output]
-        
+
     def convert_to_python(self, obj): # Convert all np objects to python objects
         if isinstance(obj, np.ndarray):
             return obj.tolist()

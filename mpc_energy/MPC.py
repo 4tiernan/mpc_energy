@@ -85,7 +85,7 @@ class MPC:
 
             logger.debug("Flow retailer detected: Disabling sell price uncertainty discount and charge maintain reward to prioritise immediate arbitrage with known prices.")
 
-        logger.debug(f"Forecast uncertainty: Buy premium: {self.buy_price_uncertainty_premium_per_hour} %/hr, Sell discount: {self.sell_price_uncertainty_discount_per_hour} %/hr, Max adjustment: {self.max_price_uncertainty_adjustment} %, EV reward discount: {self.ev_reward_uncertainty_discount_per_hour} %/hr")
+        logger.debug(f"Forecast uncertainty: Buy premium: {self.buy_price_uncertainty_premium_per_hour} %/hr, Sell discount: {self.sell_price_uncertainty_discount_per_hour} %/hr, Max adjustment: {self.max_price_uncertainty_adjustment} %")
         
         if(self.buy_price_uncertainty_premium_per_hour < -10 or self.buy_price_uncertainty_premium_per_hour > 100):
             logger.warning(f"Buy price uncertainty premium of {self.buy_price_uncertainty_premium_per_hour} %/hr seems very high or low, please ensure this value is correct to avoid unexpected behaviour.")

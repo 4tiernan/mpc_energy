@@ -63,7 +63,6 @@ class MPC:
         self.ev_stage1_remaining_kwh = 0.0
         self.ev_stage2_remaining_kwh = 0.0
         self.ev_reward_uncertainty_discount_per_hour = 10 # -%/hr applied to EV rewards to encourage near-term charging when rewards are more certain (currently set the same as the sell price uncertainty discount)
-        self.ev_uncertainty_factor = 1 - (np.arange(int(self.N_5min)) * self.dt_5min * (self.ev_reward_uncertainty_discount_per_hour/100)) # Use the same uncertainty discount as the sell price to encourage near-term EV charging when EV is plugged in
 
         # User configured values
         self.battery_min_export_cost = config_manager.battery_discharge_cost/100  # $/kWh (Export will only occour ABOVE this value)
@@ -100,6 +99,7 @@ class MPC:
         self.next_grid_interaction_kwh = 0.0
 
         self.update_forecast_horizon()
+        self.ev_uncertainty_factor = 1 - (np.arange(int(self.N_5min)) * self.dt_5min * (self.ev_reward_uncertainty_discount_per_hour/100)) # Use the same uncertainty discount as the sell price to encourage near-term EV charging when EV is plugged in
 
         # Build the CVXPY optimisation template once and reuse it on each run.
         # This avoids repeated canonicalization overhead at every control interval.

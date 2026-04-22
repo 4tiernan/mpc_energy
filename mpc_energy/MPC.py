@@ -67,8 +67,8 @@ class MPC:
         self.ev_stage2_reward = max(float(config_manager.ev_stage2_charge_reward_cents_per_kwh), 0.0) / 100.0
         self.ev_grid_priority_stage1_reward = 0.30
         self.ev_grid_priority_stage2_reward = 0.20
-        self.ev_min_soc_target = min(max(float(config_manager.ev_min_soc), 0.0), 100.0)
-        self.ev_max_soc_target = min(max(float(config_manager.ev_max_soc), self.ev_min_soc_target), 100.0)
+        self.ev_min_soc_target = (min(max(float(config_manager.ev_min_soc), 0.0), 100.0) / 100.0) * self.ev_battery_capacity_kwh
+        self.ev_max_soc_target = (min(max(float(config_manager.ev_max_soc), 0.0), 100.0) / 100.0) * self.ev_battery_capacity_kwh  
         self.ev_charging_mode = str(getattr(config_manager, "ev_charging_mode", self.EV_MODE_SOLAR_SMART))
         self.ev_full_by_time = self.ha_mqtt.ready_by_time_selector.state if (self.ha_mqtt is not None and hasattr(self.ha_mqtt, "ready_by_time_selector")) else self.ev_full_by_time
         self.ev_stage1_remaining_kwh = 0.0
@@ -454,9 +454,9 @@ class MPC:
         self.ev_stage1_remaining_kwh = 0.0
         self.ev_stage2_remaining_kwh = 0.0
         if(self.ev_plugged_in and self.ev_soc_init is not None and self.ev_battery_capacity_kwh > 0 and self.ev_max_charge_power > 0):
-            self.ev_stage1_remaining_kwh = max((self.ev_min_soc_target - ev_soc_percent) / 100.0 * self.ev_battery_capacity_kwh, 0.0)
-            stage2_start_soc = max(ev_soc_percent, self.ev_min_soc_target)
-            self.ev_stage2_remaining_kwh = max((self.ev_max_soc_target - stage2_start_soc) / 100.0 * self.ev_battery_capacity_kwh, 0.0)
+            self.ev_stage1_remaining_kwh = max(self.ev_min_soc_target - self.ev_soc_init, 0.0)
+            stage2_start_soc = max(self.ev_soc_init, self.ev_min_soc_target)
+            self.ev_stage2_remaining_kwh = max(self.ev_max_soc_target - stage2_start_soc, 0.0)
         elif(self.ev_plugged_in and self.ev_max_charge_power <= 0):
             logger.warning("EV is marked as plugged in but EV max charge power is 0. EV charging optimisation will be disabled.")
 
@@ -464,7 +464,7 @@ class MPC:
         self.ev_soc_init_param.value = float(self.ev_soc_init) if self.ev_soc_init is not None else 0.0
 
         ev_charge_mode = self._normalise_ev_mode()
-        ev_soc_upper_limit = self.ev_max_soc_target / 100.0 * self.ev_battery_capacity_kwh
+        
         ev_soc_min_required_arr = np.zeros(int(self.N_5min), dtype=float)
 
         ev_p_max = 0.0
@@ -477,12 +477,10 @@ class MPC:
             if(not (self.ev_stage1_remaining_kwh > 0 or self.ev_stage2_remaining_kwh > 0)):
                 ev_p_max = 0.0
         elif(ev_charge_mode == self.EV_MODE_READY_BY_TIME):
-            ev_soc_upper_limit = self.ev_battery_capacity_kwh
             ev_soc_min_required_arr = self._build_ev_ready_by_time_min_soc_mask(time_index)
             ev_stage1_remaining_limit = float(self.ev_battery_capacity_kwh)
             ev_stage2_remaining_limit = float(self.ev_battery_capacity_kwh)
         elif(ev_charge_mode == self.EV_MODE_FORCE_ON):
-            ev_soc_upper_limit = self.ev_battery_capacity_kwh
             ev_stage1_remaining_limit = float(self.ev_battery_capacity_kwh)
             ev_stage2_remaining_limit = float(self.ev_battery_capacity_kwh)
             ev_soc_min_required_arr = [max(self.ev_soc_init + i*self.ev_max_charge_power * self.dt_5min, self.ev_battery_capacity_kwh) for i in range(int(self.N_5min))] *np.ones(int(self.N_5min), dtype=float) # Force the minimum required SOC to be the full battery capacity to ensure the EV is charged as soon as possible and stays charged.
@@ -500,7 +498,7 @@ class MPC:
 
         self.ev_stage1_remaining_kwh_param.value = max(ev_stage1_remaining_limit, 0.0)
         self.ev_stage2_remaining_kwh_param.value = max(ev_stage2_remaining_limit, 0.0)
-        self.ev_soc_upper_limit_param.value = max(float(ev_soc_upper_limit), 0.0)
+        self.ev_soc_upper_limit_param.value = max(float(self.ev_max_soc_target), 0.0)
         self.ev_soc_min_required_param.value = ev_soc_min_required_arr
 
 

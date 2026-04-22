@@ -484,7 +484,7 @@ class MPC:
             ev_soc_upper_limit = self.ev_battery_capacity_kwh
             ev_stage1_remaining_limit = float(self.ev_battery_capacity_kwh)
             ev_stage2_remaining_limit = float(self.ev_battery_capacity_kwh)
-            ev_soc_min_required_arr = [max(self.ev_soc_init + self.ev_max_charge_power * self.dt_5min, self.ev_battery_capacity_kwh) for i in range(int(self.N_5min))] *np.ones(int(self.N_5min), dtype=float) # Force the minimum required SOC to be the full battery capacity to ensure the EV is charged as soon as possible and stays charged.
+            ev_soc_min_required_arr = [max(self.ev_soc_init + i*self.ev_max_charge_power * self.dt_5min, self.ev_battery_capacity_kwh) for i in range(int(self.N_5min))] *np.ones(int(self.N_5min), dtype=float) # Force the minimum required SOC to be the full battery capacity to ensure the EV is charged as soon as possible and stays charged.
         else:  # Charging Disabled
             ev_p_max = 0.0
 

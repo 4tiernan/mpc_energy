@@ -1,6 +1,7 @@
 ## 0.7.0
 * Added net grid interaction kWh sensor to aid automations.
 * Added EV charging with target charge rate sensor. (Currently requires HA automation to control EV charger) 
+* Added EV charging control modes. 
 * Removed support for RBC controller due to lack of development.
 * Removed base load and target dispatch price sensors (RBC dependancies).
 

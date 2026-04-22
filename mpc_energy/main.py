@@ -180,7 +180,8 @@ while(started == False):
             EC=EC, 
             local_tz=ha.local_tz,
             demand_tarrif=demand_tariff,
-            retailer=config_manager.energy_retailer
+            retailer=config_manager.energy_retailer,
+            ha_mqtt=ha_mqtt
         ) 
 
         # Start Streamlit dashboard

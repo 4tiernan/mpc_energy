@@ -276,6 +276,49 @@ control_mode_override_duration_selector = CreateSelectInput(
     options=["5", "15", "30", "60", "120", "240", "360", "Till Price Change"]
 )
 
+ev_charging_mode_selector = CreateSelectInput(
+    name="EV Charging Mode",
+    unique_id="ev_charging_mode",
+    options=[
+        "Charging Disabled",
+        "Solar Smart",
+        "Grid Priority",
+        "Ready by Time",
+        "Force On",
+    ]
+)
+
+ready_by_time_selector = CreateSelectInput(
+    name="EV Ready By Time",
+    unique_id="ev_ready_by_time",
+    options=[
+        "00:00", "00:30",
+        "01:00", "01:30",
+        "02:00", "02:30",
+        "03:00", "03:30",
+        "04:00", "04:30",
+        "05:00", "05:30",
+        "06:00", "06:30",
+        "07:00", "07:30",
+        "08:00", "08:30",
+        "09:00", "09:30",
+        "10:00", "10:30",
+        "11:00", "11:30",
+        "12:00", "12:30",
+        "13:00", "13:30",
+        "14:00", "14:30",
+        "15:00", "15:30",
+        "16:00", "16:30",
+        "17:00", "17:30",
+        "18:00", "18:30",
+        "19:00", "19:30",
+        "20:00", "20:30",
+        "21:00", "21:30",
+        "22:00", "22:30",
+        "23:00", "23:30"
+    ]
+)
+
 target_ev_charge_rate_sensor = CreateSensor(
     name = "Target EV Charge Rate",
     unique_id="target_ev_charge_rate",
@@ -310,6 +353,8 @@ def initalise_entities(): # Initalise entities and get them discovered by the ha
     curtailment_status_sensor.set_state(0)
     curtailment_reason_sensor.set_state("None")
     target_ev_charge_rate_sensor.set_state(0)
+    ev_charging_mode_selector.set_state("Solar Smart")
+    ready_by_time_selector.set_state("07:00")
 
     time.sleep(10)
 

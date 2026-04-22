@@ -386,7 +386,6 @@ class MPC:
         self.solar_eod_reward_mask_param = cp.Parameter(n, nonneg=True, name="solar_eod_reward_mask")
         
         self.ev_p_max_param = cp.Parameter(n, nonneg=True, name="ev_p_max")
-        self.ev_force_on_mask_param = cp.Parameter(n, nonneg=True, name="ev_force_on_mask")
         self.ev_stage1_remaining_kwh_param = cp.Parameter(nonneg=True, name="ev_stage1_remaining_kwh")
         self.ev_stage2_remaining_kwh_param = cp.Parameter(nonneg=True, name="ev_stage2_remaining_kwh")
         self.ev_soc_init_param = cp.Parameter(nonneg=True, name="ev_soc_init")
@@ -425,6 +424,7 @@ class MPC:
             self.ev_soc[1:] == self.ev_soc[:-1] + (self.dt_5min * self.p_ev), # EV SOC in kWh, p_ev in kW, dt in hours.
             self.ev_soc[1:] >= 0, # Don't allow negative SOC
             self.ev_soc[1:] <= self.ev_soc_upper_limit_param,
+            self.ev_soc[1:] >= self.ev_soc_min_required_param, # Ensure that minimum soc is met for time based charging. 
 
             self.p_ev >= 0, # EV charge power must be positive (no discharging the EV)
             self.p_ev <= self.ev_p_max_param,
@@ -525,7 +525,6 @@ class MPC:
         ev_charge_mode = self._normalise_ev_mode()
         ev_soc_upper_limit = self.ev_max_soc_target / 100.0 * self.ev_battery_capacity_kwh
         ev_soc_min_required_arr = np.zeros(int(self.N_5min), dtype=float)
-        ev_force_on_mask = np.zeros(int(self.N_5min), dtype=float)
 
         ev_p_max = 0.0
         if(self.ev_plugged_in and self.ev_max_charge_power > 0):
@@ -543,9 +542,9 @@ class MPC:
             ev_stage2_remaining_limit = float(self.ev_battery_capacity_kwh)
         elif(ev_charge_mode == self.EV_MODE_FORCE_ON):
             ev_soc_upper_limit = self.ev_battery_capacity_kwh
-            ev_force_on_mask = np.ones(int(self.N_5min), dtype=float)
             ev_stage1_remaining_limit = float(self.ev_battery_capacity_kwh)
             ev_stage2_remaining_limit = float(self.ev_battery_capacity_kwh)
+            ev_soc_min_required_arr = self.ev_battery_capacity_kwh*np.ones(int(self.N_5min), dtype=float) # Force the minimum required SOC to be the full battery capacity to ensure the EV is charged as soon as possible and stays charged.
         else:  # Charging Disabled
             ev_p_max = 0.0
 
@@ -657,16 +656,19 @@ class MPC:
             ev_power_constrained = [round(x, 2) for x in ev_power]
 
 
-            if ev_power_constrained: # Only set the EV charge rate if the EV power plan exists and the battery is partially charged.
-                if battery_soc[0] > self.soc_min + 2:
-                    self.target_ev_charge_rate = ev_power_constrained[0]
-                else:
-                    logger.debug(f"Battery SOC is too low ({battery_soc[0]:.2f} kWh), not charging EV to preserve backup buffer. Adjusting first interval EV charge power from {ev_power_constrained[0]:.2f} kW to 0 kW.")
-                    self.target_ev_charge_rate = 0.0
-                    ev_power_constrained[0] = 0.0
-
+            if(self._normalise_ev_mode() == self.EV_MODE_FORCE_ON):
+                self.target_ev_charge_rate = self.ev_max_charge_power if self.ev_plugged_in else 0.0 # In force on mode, set the target charge rate to the max if the EV is plugged in, otherwise 0.
             else:
-                self.target_ev_charge_rate = 0.0
+                if ev_power_constrained: # Only set the EV charge rate if the EV power plan exists and the battery is partially charged.
+                    if battery_soc[0] > self.soc_min + 2:
+                        self.target_ev_charge_rate = ev_power_constrained[0]
+                    else:
+                        logger.debug(f"Battery SOC is too low ({battery_soc[0]:.2f} kWh), not charging EV to preserve backup buffer. Adjusting first interval EV charge power from {ev_power_constrained[0]:.2f} kW to 0 kW.")
+                        self.target_ev_charge_rate = 0.0
+                        ev_power_constrained[0] = 0.0
+
+                else:
+                    self.target_ev_charge_rate = 0.0
 
             
 

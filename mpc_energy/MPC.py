@@ -394,8 +394,8 @@ class MPC:
         self.ev_soc_init_param = cp.Parameter(nonneg=True, name="ev_soc_init")
         self.ev_soc_upper_limit_param = cp.Parameter(nonneg=True, name="ev_soc_upper_limit")
         self.ev_soc_min_required_param = cp.Parameter(n, nonneg=True, name="ev_soc_min_required")
-        self.ev_stage1_reward_param = cp.Parameter(nonneg=True, name="ev_stage1_reward")
-        self.ev_stage2_reward_param = cp.Parameter(nonneg=True, name="ev_stage2_reward")
+        self.ev_stage1_reward_param = cp.Parameter(n, nonneg=True, name="ev_stage1_reward")
+        self.ev_stage2_reward_param = cp.Parameter(n, nonneg=True, name="ev_stage2_reward")
 
         self.grid_import_limit_param = cp.Parameter(nonneg=True, name="grid_import_limit")
         self.grid_export_limit_param = cp.Parameter(nonneg=True, name="grid_export_limit")
@@ -575,8 +575,8 @@ class MPC:
         self.ev_stage2_remaining_kwh_param.value = max(ev_stage2_remaining_limit, 0.0)
         self.ev_soc_upper_limit_param.value = max(float(ev_soc_upper_limit), 0.0)
         self.ev_soc_min_required_param.value = ev_soc_min_required_arr
-        self.ev_stage1_reward_param.value = float(ev_stage1_reward)
-        self.ev_stage2_reward_param.value = float(ev_stage2_reward)
+        self.ev_stage1_reward_param.value = np.full(int(self.N_5min), float(ev_stage1_reward))
+        self.ev_stage2_reward_param.value = np.full(int(self.N_5min), float(ev_stage2_reward))
 
         demand_mask = np.array((self.demand_window_forecast > 0).astype(float), dtype=float)
         if len(demand_mask) != int(self.N_5min):

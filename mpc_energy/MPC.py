@@ -336,17 +336,16 @@ class MPC:
             target_clock = target_clock + timedelta(days=1)
 
         hours_until_target = (target_clock - self.sim_start).total_seconds() / 3600
-        energy_needed = full_soc_kwh - self.ev_current_soc_kwh
+        energy_needed = self.ev_battery_capacity_kwh - self.ev_current_soc_kwh
         charge_duration_at_max_rate = energy_needed / self.p_max_charge if self.p_max_charge > 0 else float('inf')
         if(hours_until_target < charge_duration_at_max_rate):
             logger.warning(f"Target ready-by time of {target_clock.strftime('%H:%M')} is only {hours_until_target:.2f} hours away, which is less than the {charge_duration_at_max_rate:.2f} hours required to fully charge the EV at max rate. The MPC will attempt to charge as much as possible by the target time, but may not reach full charge.")
             target_clock = target_clock + timedelta(hours=charge_duration_at_max_rate - hours_until_target) # Adjust the target clock to account for the time needed to charge
 
         hold_end = target_clock + timedelta(hours=1)
-        full_soc_kwh = float(self.ev_battery_capacity_kwh)
         for idx, step_time in enumerate(time_index):
             if(target_clock <= step_time <= hold_end):
-                required_mask[idx] = full_soc_kwh
+                required_mask[idx] = self.ev_battery_capacity_kwh
 
         return required_mask
     
@@ -485,7 +484,7 @@ class MPC:
             ev_soc_upper_limit = self.ev_battery_capacity_kwh
             ev_stage1_remaining_limit = float(self.ev_battery_capacity_kwh)
             ev_stage2_remaining_limit = float(self.ev_battery_capacity_kwh)
-            ev_soc_min_required_arr = self.ev_battery_capacity_kwh*np.ones(int(self.N_5min), dtype=float) # Force the minimum required SOC to be the full battery capacity to ensure the EV is charged as soon as possible and stays charged.
+            ev_soc_min_required_arr = [max(self.ev_soc_init + self.ev_max_charge_power * self.dt_5min, self.ev_battery_capacity_kwh) for i in range(int(self.N_5min))] *np.ones(int(self.N_5min), dtype=float) # Force the minimum required SOC to be the full battery capacity to ensure the EV is charged as soon as possible and stays charged.
         else:  # Charging Disabled
             ev_p_max = 0.0
 

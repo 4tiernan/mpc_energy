@@ -282,11 +282,11 @@ ev_charging_mode_selector = CreateSelectInput(
     options=[
         "Charging Disabled",
         "Solar Smart",
-        "Grid Priority",
         "Ready by Time",
         "Force On",
     ]
 )
+
 
 ready_by_time_selector = CreateSelectInput(
     name="EV Ready By Time",

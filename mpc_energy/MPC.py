@@ -23,7 +23,6 @@ mqtt_client.loop_start()
 class MPC:
     EV_MODE_DISABLED = "Charging Disabled"
     EV_MODE_SOLAR_SMART = "Solar Smart"
-    EV_MODE_GRID_PRIORITY = "Grid Priority"
     EV_MODE_READY_BY_TIME = "Ready by Time"
     EV_MODE_FORCE_ON = "Force On"
 
@@ -320,7 +319,6 @@ class MPC:
         allowed_modes = {
             self.EV_MODE_DISABLED,
             self.EV_MODE_SOLAR_SMART,
-            self.EV_MODE_GRID_PRIORITY,
             self.EV_MODE_READY_BY_TIME,
             self.EV_MODE_FORCE_ON,
         }
@@ -394,8 +392,6 @@ class MPC:
         self.ev_soc_init_param = cp.Parameter(nonneg=True, name="ev_soc_init")
         self.ev_soc_upper_limit_param = cp.Parameter(nonneg=True, name="ev_soc_upper_limit")
         self.ev_soc_min_required_param = cp.Parameter(n, nonneg=True, name="ev_soc_min_required")
-        self.ev_stage1_reward_param = cp.Parameter(n, nonneg=True, name="ev_stage1_reward")
-        self.ev_stage2_reward_param = cp.Parameter(n, nonneg=True, name="ev_stage2_reward")
 
         self.grid_import_limit_param = cp.Parameter(nonneg=True, name="grid_import_limit")
         self.grid_export_limit_param = cp.Parameter(nonneg=True, name="grid_export_limit")
@@ -444,8 +440,8 @@ class MPC:
             + cp.multiply(self.battery_min_export_cost, self.p_discharge) * self.dt_5min
             - cp.multiply(self.charge_maintain_reward, self.soc[0:-1])
             - cp.multiply(self.full_battery_reward, cp.multiply(self.solar_eod_reward_mask_param, self.soc[0:-1]))
-            - cp.multiply(self.ev_stage1_reward_param, self.p_ev_stage1) * self.dt_5min
-            - cp.multiply(self.ev_stage2_reward_param, self.p_ev_stage2) * self.dt_5min
+            - cp.multiply(self.ev_stage1_reward, self.p_ev_stage1) * self.dt_5min
+            - cp.multiply(self.ev_stage2_reward, self.p_ev_stage2) * self.dt_5min
             - cp.multiply(self.ev_charge_maintain_reward, self.ev_soc[0:-1]) * self.dt_5min
         )
 
@@ -527,8 +523,6 @@ class MPC:
         self.ev_soc_init_param.value = float(self.ev_soc_init) if self.ev_soc_init is not None else 0.0
 
         ev_charge_mode = self._normalise_ev_mode()
-        ev_stage1_reward = 0.0
-        ev_stage2_reward = 0.0
         ev_soc_upper_limit = self.ev_max_soc_target / 100.0 * self.ev_battery_capacity_kwh
         ev_soc_min_required_arr = np.zeros(int(self.N_5min), dtype=float)
         ev_force_on_mask = np.zeros(int(self.N_5min), dtype=float)
@@ -540,13 +534,6 @@ class MPC:
         ev_stage1_remaining_limit = float(self.ev_stage1_remaining_kwh)
         ev_stage2_remaining_limit = float(self.ev_stage2_remaining_kwh)
         if(ev_charge_mode == self.EV_MODE_SOLAR_SMART):
-            ev_stage1_reward = float(self.ev_stage1_reward)
-            ev_stage2_reward = float(self.ev_stage2_reward)
-            if(not (self.ev_stage1_remaining_kwh > 0 or self.ev_stage2_remaining_kwh > 0)):
-                ev_p_max = 0.0
-        elif(ev_charge_mode == self.EV_MODE_GRID_PRIORITY):
-            ev_stage1_reward = self.ev_grid_priority_stage1_reward
-            ev_stage2_reward = self.ev_grid_priority_stage2_reward
             if(not (self.ev_stage1_remaining_kwh > 0 or self.ev_stage2_remaining_kwh > 0)):
                 ev_p_max = 0.0
         elif(ev_charge_mode == self.EV_MODE_READY_BY_TIME):
@@ -575,8 +562,6 @@ class MPC:
         self.ev_stage2_remaining_kwh_param.value = max(ev_stage2_remaining_limit, 0.0)
         self.ev_soc_upper_limit_param.value = max(float(ev_soc_upper_limit), 0.0)
         self.ev_soc_min_required_param.value = ev_soc_min_required_arr
-        self.ev_stage1_reward_param.value = np.full(int(self.N_5min), float(ev_stage1_reward))
-        self.ev_stage2_reward_param.value = np.full(int(self.N_5min), float(ev_stage2_reward))
 
         demand_mask = np.array((self.demand_window_forecast > 0).astype(float), dtype=float)
         if len(demand_mask) != int(self.N_5min):

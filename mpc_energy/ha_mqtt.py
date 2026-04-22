@@ -292,6 +292,7 @@ ready_by_time_selector = CreateSelectInput(
     name="EV Ready By Time",
     unique_id="ev_ready_by_time",
     options=[
+        "None",
         "00:00", "00:30",
         "01:00", "01:30",
         "02:00", "02:30",

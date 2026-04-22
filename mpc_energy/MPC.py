@@ -156,8 +156,9 @@ class MPC:
         self.grid_export_limit = self.plant.max_export_power    # kW (Grid export limit)      
 
     # Update any values or forecasts required to run the sim
-    def update_values(self, amber_data, inject_real_values = True):
+    def update_values(self, amber_data, time_index, inject_real_values = True):
         self.update_limits() # Update the limits in case the user has changed any config values that affect the limits since the last update
+        self.update_ev_values(time_index)
         
         current_soc = (self.plant.battery_soc / 100)*self.soc_max
         self.soc_init = min(max(current_soc, self.soc_min), self.soc_max) #constrain the soc to within limits to stop solver from doing weird stuff
@@ -202,21 +203,6 @@ class MPC:
         self.load_5min = [min(max(load, 0.0), self.grid_import_limit)  for load in self.load_5min] # Don't allow negative load or solar or load greater than import limit
         self.solar_5min = [max(solar, 0.0) for solar in self.solar_5min]
         
-        self.ev_plugged_in = bool(getattr(self.plant, "ev_plugged_in", False))
-        self.ev_max_charge_power = max(float(getattr(self.plant, "ev_max_charge_power", 0.0)), 0.0)
-        self.ev_min_charge_power = max(float(getattr(self.plant, "ev_min_charge_power", 0.0)), 0.0)
-        ev_soc_percent = min(max(float(getattr(self.plant, "ev_soc", 0.0) or 0.0), 0.0), 100.0)
-        self.ev_soc_init = (ev_soc_percent / 100.0) * self.ev_battery_capacity_kwh # Set the EV SOC in kWh based on the percentage SOC and battery capacity, default to 0 if not available or invalid
-        self.ev_stage1_remaining_kwh = 0.0
-        self.ev_stage2_remaining_kwh = 0.0
-        if(self.ev_plugged_in and self.ev_soc_init is not None and self.ev_battery_capacity_kwh > 0 and self.ev_max_charge_power > 0):
-            self.ev_stage1_remaining_kwh = max((self.ev_min_soc_target - ev_soc_percent) / 100.0 * self.ev_battery_capacity_kwh, 0.0)
-            stage2_start_soc = max(ev_soc_percent, self.ev_min_soc_target)
-            self.ev_stage2_remaining_kwh = max((self.ev_max_soc_target - stage2_start_soc) / 100.0 * self.ev_battery_capacity_kwh, 0.0)
-        elif(self.ev_plugged_in and self.ev_max_charge_power <= 0):
-            logger.warning("EV is marked as plugged in but EV max charge power is 0. EV charging optimisation will be disabled.")
-
-
         # Amber Forecast (forecast hrs is set in main.py in the get_data call)
         self.demand_tarrif_price = amber_data.demand_tarrif_price if amber_data.demand_tarrif_price is not None else 0.0
         general_price_forecast = amber_data.general_extrapolated_forecast[:int(self.N_5min)]
@@ -349,6 +335,13 @@ class MPC:
         if(target_clock < self.sim_start):
             target_clock = target_clock + timedelta(days=1)
 
+        hours_until_target = (target_clock - self.sim_start).total_seconds() / 3600
+        energy_needed = full_soc_kwh - self.ev_current_soc_kwh
+        charge_duration_at_max_rate = energy_needed / self.p_max_charge if self.p_max_charge > 0 else float('inf')
+        if(hours_until_target < charge_duration_at_max_rate):
+            logger.warning(f"Target ready-by time of {target_clock.strftime('%H:%M')} is only {hours_until_target:.2f} hours away, which is less than the {charge_duration_at_max_rate:.2f} hours required to fully charge the EV at max rate. The MPC will attempt to charge as much as possible by the target time, but may not reach full charge.")
+            target_clock = target_clock + timedelta(hours=charge_duration_at_max_rate - hours_until_target) # Adjust the target clock to account for the time needed to charge
+
         hold_end = target_clock + timedelta(hours=1)
         full_soc_kwh = float(self.ev_battery_capacity_kwh)
         for idx, step_time in enumerate(time_index):
@@ -452,15 +445,74 @@ class MPC:
 
         self.prob = cp.Problem(cp.Minimize(self.objective_expression), constraints)
 
+    def update_ev_values(self, time_index):
+        self.ev_plugged_in = bool(getattr(self.plant, "ev_plugged_in", False))
+        self.ev_max_charge_power = max(float(getattr(self.plant, "ev_max_charge_power", 0.0)), 0.0)
+        self.ev_min_charge_power = max(float(getattr(self.plant, "ev_min_charge_power", 0.0)), 0.0)
+        ev_soc_percent = min(max(float(getattr(self.plant, "ev_soc", 0.0) or 0.0), 0.0), 100.0)
+        self.ev_soc_init = (ev_soc_percent / 100.0) * self.ev_battery_capacity_kwh # Set the EV SOC in kWh based on the percentage SOC and battery capacity, default to 0 if not available or invalid
+        self.ev_stage1_remaining_kwh = 0.0
+        self.ev_stage2_remaining_kwh = 0.0
+        if(self.ev_plugged_in and self.ev_soc_init is not None and self.ev_battery_capacity_kwh > 0 and self.ev_max_charge_power > 0):
+            self.ev_stage1_remaining_kwh = max((self.ev_min_soc_target - ev_soc_percent) / 100.0 * self.ev_battery_capacity_kwh, 0.0)
+            stage2_start_soc = max(ev_soc_percent, self.ev_min_soc_target)
+            self.ev_stage2_remaining_kwh = max((self.ev_max_soc_target - stage2_start_soc) / 100.0 * self.ev_battery_capacity_kwh, 0.0)
+        elif(self.ev_plugged_in and self.ev_max_charge_power <= 0):
+            logger.warning("EV is marked as plugged in but EV max charge power is 0. EV charging optimisation will be disabled.")
+
+
+        self.ev_soc_init_param.value = float(self.ev_soc_init) if self.ev_soc_init is not None else 0.0
+
+        ev_charge_mode = self._normalise_ev_mode()
+        ev_soc_upper_limit = self.ev_max_soc_target / 100.0 * self.ev_battery_capacity_kwh
+        ev_soc_min_required_arr = np.zeros(int(self.N_5min), dtype=float)
+
+        ev_p_max = 0.0
+        if(self.ev_plugged_in and self.ev_max_charge_power > 0):
+            ev_p_max = min(self.ev_max_charge_power, self.grid_import_limit)
+
+        ev_stage1_remaining_limit = float(self.ev_stage1_remaining_kwh)
+        ev_stage2_remaining_limit = float(self.ev_stage2_remaining_kwh)
+        if(ev_charge_mode == self.EV_MODE_SOLAR_SMART):
+            if(not (self.ev_stage1_remaining_kwh > 0 or self.ev_stage2_remaining_kwh > 0)):
+                ev_p_max = 0.0
+        elif(ev_charge_mode == self.EV_MODE_READY_BY_TIME):
+            ev_soc_upper_limit = self.ev_battery_capacity_kwh
+            ev_soc_min_required_arr = self._build_ev_ready_by_time_min_soc_mask(time_index)
+            ev_stage1_remaining_limit = float(self.ev_battery_capacity_kwh)
+            ev_stage2_remaining_limit = float(self.ev_battery_capacity_kwh)
+        elif(ev_charge_mode == self.EV_MODE_FORCE_ON):
+            ev_soc_upper_limit = self.ev_battery_capacity_kwh
+            ev_stage1_remaining_limit = float(self.ev_battery_capacity_kwh)
+            ev_stage2_remaining_limit = float(self.ev_battery_capacity_kwh)
+            ev_soc_min_required_arr = self.ev_battery_capacity_kwh*np.ones(int(self.N_5min), dtype=float) # Force the minimum required SOC to be the full battery capacity to ensure the EV is charged as soon as possible and stays charged.
+        else:  # Charging Disabled
+            ev_p_max = 0.0
+
+        ev_p_max_arr = np.full(int(self.N_5min), ev_p_max, dtype=float)
+        # NOTE:
+        # A strict per-interval "p_ev == 0 OR p_ev >= min" rule is non-convex and would
+        # require mixed-integer optimisation for every 5-minute step.
+        # Keep optimisation convex by using [0, max] in normal modes and an explicit
+        # force-on mask for modes that should pin EV charging to maximum.
+
+        self.ev_p_max_param.value = ev_p_max_arr
+
+        self.ev_stage1_remaining_kwh_param.value = max(ev_stage1_remaining_limit, 0.0)
+        self.ev_stage2_remaining_kwh_param.value = max(ev_stage2_remaining_limit, 0.0)
+        self.ev_soc_upper_limit_param.value = max(float(ev_soc_upper_limit), 0.0)
+        self.ev_soc_min_required_param.value = ev_soc_min_required_arr
+
+
     def run_optimisation(self, amber_data):
         start_optimisation = time.time()
-
-        self.update_values(amber_data)
 
         now = datetime.now(self.local_tz).replace(second=0, microsecond=0)
         minute = (now.minute // 5) * 5
         now = now.replace(minute=minute)
         time_index = [now + timedelta(minutes=5 * i) for i in range(int(self.N_5min))]
+
+        self.update_values(amber_data, time_index)
 
         #logger.error("Messing with prices!!")
         #self.prices_sell[180:] = 0.02 # Allow testing of various pricings
@@ -519,48 +571,7 @@ class MPC:
         self.inverter_p_max_param.value = float(self.inverter_p_max)
         self.solar_dc_max_param.value = float(self.solar_dc_max)
         self.soc_min_param.value = float(self.soc_min)
-        self.soc_max_param.value = float(self.soc_max)
-        self.ev_soc_init_param.value = float(self.ev_soc_init) if self.ev_soc_init is not None else 0.0
-
-        ev_charge_mode = self._normalise_ev_mode()
-        ev_soc_upper_limit = self.ev_max_soc_target / 100.0 * self.ev_battery_capacity_kwh
-        ev_soc_min_required_arr = np.zeros(int(self.N_5min), dtype=float)
-
-        ev_p_max = 0.0
-        if(self.ev_plugged_in and self.ev_max_charge_power > 0):
-            ev_p_max = min(self.ev_max_charge_power, self.grid_import_limit)
-
-        ev_stage1_remaining_limit = float(self.ev_stage1_remaining_kwh)
-        ev_stage2_remaining_limit = float(self.ev_stage2_remaining_kwh)
-        if(ev_charge_mode == self.EV_MODE_SOLAR_SMART):
-            if(not (self.ev_stage1_remaining_kwh > 0 or self.ev_stage2_remaining_kwh > 0)):
-                ev_p_max = 0.0
-        elif(ev_charge_mode == self.EV_MODE_READY_BY_TIME):
-            ev_soc_upper_limit = self.ev_battery_capacity_kwh
-            ev_soc_min_required_arr = self._build_ev_ready_by_time_min_soc_mask(time_index)
-            ev_stage1_remaining_limit = float(self.ev_battery_capacity_kwh)
-            ev_stage2_remaining_limit = float(self.ev_battery_capacity_kwh)
-        elif(ev_charge_mode == self.EV_MODE_FORCE_ON):
-            ev_soc_upper_limit = self.ev_battery_capacity_kwh
-            ev_stage1_remaining_limit = float(self.ev_battery_capacity_kwh)
-            ev_stage2_remaining_limit = float(self.ev_battery_capacity_kwh)
-            ev_soc_min_required_arr = self.ev_battery_capacity_kwh*np.ones(int(self.N_5min), dtype=float) # Force the minimum required SOC to be the full battery capacity to ensure the EV is charged as soon as possible and stays charged.
-        else:  # Charging Disabled
-            ev_p_max = 0.0
-
-        ev_p_max_arr = np.full(int(self.N_5min), ev_p_max, dtype=float)
-        # NOTE:
-        # A strict per-interval "p_ev == 0 OR p_ev >= min" rule is non-convex and would
-        # require mixed-integer optimisation for every 5-minute step.
-        # Keep optimisation convex by using [0, max] in normal modes and an explicit
-        # force-on mask for modes that should pin EV charging to maximum.
-
-        self.ev_p_max_param.value = ev_p_max_arr
-
-        self.ev_stage1_remaining_kwh_param.value = max(ev_stage1_remaining_limit, 0.0)
-        self.ev_stage2_remaining_kwh_param.value = max(ev_stage2_remaining_limit, 0.0)
-        self.ev_soc_upper_limit_param.value = max(float(ev_soc_upper_limit), 0.0)
-        self.ev_soc_min_required_param.value = ev_soc_min_required_arr
+        self.soc_max_param.value = float(self.soc_max)      
 
         demand_mask = np.array((self.demand_window_forecast > 0).astype(float), dtype=float)
         if len(demand_mask) != int(self.N_5min):

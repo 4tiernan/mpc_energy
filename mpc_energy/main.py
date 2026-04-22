@@ -303,6 +303,10 @@ def run_controller(price_update=False):
     if(ha_mqtt.ev_charging_mode_selector.state != last_ev_charging_mode or ha_mqtt.ready_by_time_selector.state != last_ev_charged_by_time):
         last_ev_charging_mode = ha_mqtt.ev_charging_mode_selector.state
         last_ev_charged_by_time = ha_mqtt.ready_by_time_selector.state
+
+        if(ha_mqtt.ev_charging_mode_selector.state != "Ready by Time" and ha_mqtt.ready_by_time_selector.state != "None"):
+            ha_mqtt.ready_by_time_selector.set_state("None") # Reset the ready by time selector if the user changes the mode to something other than ready by time to prevent confusion
+            
         logger.debug(f"EV Charging settings changed. Forcing MPC to update with new settings.")
         mpc.run_optimisation(price_data) # Run the MPC optimisation to update the EV charging plan with the new settings
     

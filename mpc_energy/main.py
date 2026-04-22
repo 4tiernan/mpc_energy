@@ -287,7 +287,7 @@ def check_for_spike(price_data):
             spike_found_timestamp = 0 # Reset the spike found timestamp if no spikes are currently forecasted
                 
 last_ev_charging_mode = ha_mqtt.ev_charging_mode_selector.state
-last_ev_charged_by_time = ha_mqtt.ev_charged_by_time_input.state                
+last_ev_charged_by_time = ha_mqtt.ready_by_time_selector.state                
 
 def run_controller(price_update=False):
     global automatic_control, last_control_mode, last_ev_charging_mode, last_ev_charged_by_time
@@ -300,9 +300,9 @@ def run_controller(price_update=False):
             mpc.run_optimisation(price_data) # Run the MPC optimisation each time the price updates to keep the plot updated
         return
     
-    if(ha_mqtt.ev_charging_mode_selector.state != last_ev_charging_mode or ha_mqtt.ev_charged_by_time_input.state != last_ev_charged_by_time):
+    if(ha_mqtt.ev_charging_mode_selector.state != last_ev_charging_mode or ha_mqtt.ready_by_time_selector.state != last_ev_charged_by_time):
         last_ev_charging_mode = ha_mqtt.ev_charging_mode_selector.state
-        last_ev_charged_by_time = ha_mqtt.ev_charged_by_time_input.state
+        last_ev_charged_by_time = ha_mqtt.ready_by_time_selector.state
         logger.debug(f"EV Charging settings changed. Forcing MPC to update with new settings.")
         mpc.run_optimisation(price_data) # Run the MPC optimisation to update the EV charging plan with the new settings
     

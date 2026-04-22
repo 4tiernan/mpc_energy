@@ -336,7 +336,7 @@ class MPC:
             target_clock = target_clock + timedelta(days=1)
 
         hours_until_target = (target_clock - self.sim_start).total_seconds() / 3600
-        energy_needed = self.ev_battery_capacity_kwh - self.ev_current_soc_kwh
+        energy_needed = self.ev_battery_capacity_kwh - self.ev_soc_init
         charge_duration_at_max_rate = energy_needed / self.p_max_charge if self.p_max_charge > 0 else float('inf')
         if(hours_until_target < charge_duration_at_max_rate):
             logger.warning(f"Target ready-by time of {target_clock.strftime('%H:%M')} is only {hours_until_target:.2f} hours away, which is less than the {charge_duration_at_max_rate:.2f} hours required to fully charge the EV at max rate. The MPC will attempt to charge as much as possible by the target time, but may not reach full charge.")

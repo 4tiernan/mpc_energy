@@ -89,7 +89,7 @@ class EnergyController():
             grid_export=0,
             grid_import=0)
         
-    def import_power(self, battery_charge_limit = None, pv_limit = None):
+    def import_power(self, battery_charge_limit = None, pv_limit = None, grid_import_limit = None):
         if(battery_charge_limit == None):
             battery_charge_limit = self.plant.max_charge_power
         else:
@@ -100,6 +100,11 @@ class EnergyController():
         else:
             pv_limit = min(max(pv_limit, 0), self.plant.max_pv_power)
 
+        if(grid_import_limit == None):
+            grid_import_limit = self.plant.max_import_power
+        else:
+            grid_import_limit = min(max(grid_import_limit, 0), self.plant.max_import_power)
+
         self.working_mode = ControlMode.GRID_IMPORT.value
         self.plant.check_control_limits(
             working_mode=self.working_mode,
@@ -108,7 +113,7 @@ class EnergyController():
             charge=battery_charge_limit,
             pv=pv_limit,
             grid_export=0,
-            grid_import=self.plant.max_import_power)
+            grid_import=grid_import_limit)
 
 
     def self_consumption(self, pv_limit = None):

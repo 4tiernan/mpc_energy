@@ -798,7 +798,10 @@ class MPC:
         
         elif(grid_net > self.power_threshold): # if grid_net is positive we are importing power
             if(control_active):
-                self.EC.import_power(battery_charge_limit = min(-battery_power, 0)) # Battery power (- = Charge, + = Discharge)
+                if(approx_equal(abs(grid_net), load_power)):
+                    self.EC.import_power(battery_charge_limit = min(-battery_power, 0))
+                else:   
+                    self.EC.import_power(battery_charge_limit = min(-battery_power, 0), grid_import_limit = abs(grid_net)) # Battery power (- = Charge, + = Discharge)
             return ControlMode.GRID_IMPORT.value
         
         elif(inverter_power < 0 and battery_power < self.power_threshold):

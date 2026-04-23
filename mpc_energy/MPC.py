@@ -503,7 +503,6 @@ class MPC:
         self.ev_soc_upper_limit_param.value = max(float(self.ev_max_soc_target), 0.0)
         self.ev_soc_min_required_param.value = ev_soc_min_required_arr
 
-
     def run_optimisation(self, amber_data):
         start_optimisation = time.time()
 
@@ -799,12 +798,12 @@ class MPC:
         
         elif(grid_net > self.power_threshold): # if grid_net is positive we are importing power
             if(control_active):
-                self.EC.import_power(battery_charge_limit = abs(battery_power))
+                self.EC.import_power(battery_charge_limit = min(-battery_power, 0)) # Battery power (- = Charge, + = Discharge)
             return ControlMode.GRID_IMPORT.value
         
         elif(inverter_power < 0 and battery_power < self.power_threshold):
             if(control_active):
-                self.EC.import_power(battery_charge_limit = abs(battery_power), pv_limit = used_solar_power)
+                self.EC.import_power(battery_charge_limit = min(-battery_power, 0), pv_limit = used_solar_power)
             return ControlMode.GRID_IMPORT.value
 
         else:

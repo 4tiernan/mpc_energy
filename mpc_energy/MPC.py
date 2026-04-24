@@ -802,6 +802,7 @@ class MPC:
                     self.EC.import_power(battery_charge_limit = min(-battery_power, 0))
                 else:   
                     self.EC.import_power(battery_charge_limit = min(-battery_power, 0), grid_import_limit = abs(grid_net)) # Battery power (- = Charge, + = Discharge)
+            logger.debug(f"Grid import detected in plan (grid_net: {grid_net:.2f} kW). Battery charge power: {(battery_power):.2f} kW.")
             return ControlMode.GRID_IMPORT.value
         
         elif(inverter_power < 0 and battery_power < self.power_threshold):

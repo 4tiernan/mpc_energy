@@ -852,6 +852,7 @@ class MPC:
     def run(self, amber_data):
         [output, plotted_output] = self.run_optimisation(amber_data)
         control_mode = self.determine_control_mode(output)
+        logger.debug(f"Determined control mode: {control_mode} based on MPC plan, with load: {output['load_power'][0]} kW, solar available: {output['solar_available'][0]} kW, solar used: {output['solar_used'][0]} kW, inverter power: {output['inverter_power'][0]} kW, grid net: {output['grid_net'][0]} kW, battery power: {output['battery_power'][0]} kW.")
         return output, control_mode
 
     def determine_current_effective_price(self, output):

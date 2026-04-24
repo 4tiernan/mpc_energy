@@ -800,6 +800,8 @@ class MPC:
             if(control_active):
                 if(approx_equal(abs(grid_net), load_power)):
                     self.EC.import_power(battery_charge_limit = max(-battery_power, 0))
+                elif(approx_equal(-inverter_power, self.inverter_p_max)): # If the plan calls for max charging, set the battery charge limit to the max.
+                    self.EC.import_power(battery_charge_limit = self.p_max_charge, grid_import_limit = self.grid_import_limit)
                 else:   
                     self.EC.import_power(battery_charge_limit = max(-battery_power, 0), grid_import_limit = abs(grid_net)) # Battery power (- = Charge, + = Discharge)
             return ControlMode.GRID_IMPORT.value

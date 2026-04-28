@@ -77,7 +77,7 @@ class MPC:
         
         self.ev_soc_init = (getattr(self.plant, "ev_soc", 0.0) / 100.0) * self.ev_battery_capacity_kwh
         self.ev_charge_maintain_reward = 0.20 / (self.forecast_hrs*self.steps_per_hr*(self.ev_battery_capacity_kwh - self.ev_soc_init)) # $/kWh / interval reward for maintaining higher SOC throughout the day, currently equates to 10c total over the whole day
-
+        self.ev_charge_maintain_reward = 0.20
         # User configured values
         self.battery_min_export_cost = config_manager.battery_discharge_cost/100  # $/kWh (Export will only occour ABOVE this value)
         logger.debug(f"Battery discharge cost set to: {self.battery_min_export_cost} $/kWh")
@@ -432,8 +432,8 @@ class MPC:
             + cp.multiply(self.battery_min_export_cost, self.p_discharge) * self.dt_5min
             - cp.multiply(self.charge_maintain_reward, self.soc[0:-1])
             - cp.multiply(self.full_battery_reward, cp.multiply(self.solar_eod_reward_mask_param, self.soc[0:-1]))
-            - cp.multiply(0.4, self.p_ev) * self.dt_5min
-            #- cp.multiply(self.ev_stage2_reward, self.p_ev_stage2) * self.dt_5min
+            - cp.multiply(self.ev_stage1_reward, self.p_ev) * self.dt_5min
+            - cp.multiply(self.ev_stage2_reward, self.p_ev_stage2) * self.dt_5min
             - cp.multiply(self.ev_charge_maintain_reward, self.ev_soc[0:-1]) * self.dt_5min
         )
 

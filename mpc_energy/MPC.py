@@ -425,8 +425,6 @@ class MPC:
             self.ev_soc[1:] <= self.ev_soc_upper_limit_param,
             self.ev_soc[1:] >= self.ev_soc_min_required_param, # Ensure that minimum soc is met for time based charging. 
 
-            #self.soc[-1] == self.soc_init_param,
-
             self.p_ev >= 0, # EV charge power must be positive (no discharging the EV)
             self.p_ev <= self.ev_p_max_param,
             self.p_ev == self.p_ev_stage1 + self.p_ev_stage2,
@@ -493,7 +491,7 @@ class MPC:
         elif(ev_charge_mode == self.EV_MODE_FORCE_ON):
             ev_stage1_remaining_limit = float(self.ev_battery_capacity_kwh)
             ev_stage2_remaining_limit = float(self.ev_battery_capacity_kwh)
-            ev_soc_min_required_arr = [min(self.ev_soc_init + i*self.ev_max_charge_power * self.dt_5min, self.ev_max_soc_target) for i in range(int(self.N_5min))] *np.ones(int(self.N_5min), dtype=float) # Force the minimum required SOC to be the full battery capacity to ensure the EV is charged as soon as possible and stays charged.
+            ev_soc_min_required_arr = [min(self.ev_soc_init + i*self.ev_max_charge_power*0.9 * self.dt_5min, self.ev_max_soc_target) for i in range(int(self.N_5min))] *np.ones(int(self.N_5min), dtype=float) # Force the minimum required SOC to be the full battery capacity to ensure the EV is charged as soon as possible and stays charged.
             logger.debug("EV Force On Mode Active. required SOC array: " + str(ev_soc_min_required_arr))
         else:  # Charging Disabled
             ev_p_max = 0.0
@@ -678,7 +676,7 @@ class MPC:
 
 
             if(self._normalise_ev_mode() == self.EV_MODE_FORCE_ON):
-                self.target_ev_charge_rate = self.ev_max_charge_power if self.ev_plugged_in else 0.0 # In force on mode, set the target charge rate to the max if the EV is plugged in, otherwise 0.
+                self.target_ev_charge_rate = self.ev_max_charge_power # In force on mode, set the target charge rate to the max
             else:
                 if ev_power_constrained: # Only set the EV charge rate if the EV power plan exists and the battery is partially charged.
                     if battery_soc[0] > self.soc_min + 2:

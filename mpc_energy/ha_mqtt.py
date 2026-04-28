@@ -292,7 +292,7 @@ ready_by_time_selector = CreateSelectInput(
     name="EV Ready By Time",
     unique_id="ev_ready_by_time",
     options=[
-        "None",
+        "NA",
         "00:00", "00:30",
         "01:00", "01:30",
         "02:00", "02:30",
@@ -355,7 +355,7 @@ def initalise_entities(): # Initalise entities and get them discovered by the ha
     curtailment_reason_sensor.set_state("None")
     target_ev_charge_rate_sensor.set_state(0)
     ev_charging_mode_selector.set_state("Solar Smart")
-    ready_by_time_selector.set_state("07:00")
+    ready_by_time_selector.set_state("NA")
 
     time.sleep(10)
 

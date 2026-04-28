@@ -296,7 +296,6 @@ class MPC:
 
         return adjusted_forecast
     
-
     def _normalise_ev_mode(self):
         mode = str(self.ev_charging_mode).strip()
         if(self.ha_mqtt is not None and hasattr(self.ha_mqtt, "ev_charging_mode_selector")):
@@ -351,7 +350,6 @@ class MPC:
 
         return required_mask
     
-
     def build_optimisation_template(self):
         n = int(self.N_5min)
 
@@ -514,6 +512,8 @@ class MPC:
         time_index = [now + timedelta(minutes=5 * i) for i in range(int(self.N_5min))]
 
         self.update_values(amber_data, time_index)
+
+        logger.debug(f"EV Stage 1 Remaining kWh: {self.ev_stage1_remaining_kwh_param.value}, Stage 2 Remaining kWh: {self.ev_stage2_remaining_kwh_param.value}, EV Min SOC: {self.ev_soc_min_required_param.value}, EV Max SOC: {self.ev_soc_upper_limit_param.value}")
 
         #logger.error("Messing with prices!!")
         #self.prices_sell[180:] = 0.02 # Allow testing of various pricings

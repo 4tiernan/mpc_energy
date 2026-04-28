@@ -465,6 +465,8 @@ class MPC:
         self.ev_soc_init_param.value = float(self.ev_soc_init) if self.ev_soc_init is not None else 0.0
 
         ev_charge_mode = self._normalise_ev_mode()
+
+        logger.debug(f"EV Soc: {ev_soc_percent}%, Stage 1: {self.ev_stage1_remaining_kwh} kWh remaining, Stage 2: {self.ev_stage2_remaining_kwh} kWh remaining, Charge Mode: {ev_charge_mode}")
         
         ev_soc_min_required_arr = np.zeros(int(self.N_5min), dtype=float)
 
@@ -488,7 +490,7 @@ class MPC:
             logger.debug("EV Force On Mode Active. required SOC array: " + str(ev_soc_min_required_arr))
         else:  # Charging Disabled
             ev_p_max = 0.0
-
+        
         ev_p_max_arr = np.full(int(self.N_5min), ev_p_max, dtype=float)
         # NOTE:
         # A strict per-interval "p_ev == 0 OR p_ev >= min" rule is non-convex and would

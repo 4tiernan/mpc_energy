@@ -65,6 +65,7 @@ class MPC:
         self.target_ev_charge_rate = 0 # Target EV charge rate in kW, updated based on the MPC plan and current conditions
         self.ev_stage1_reward = max(float(config_manager.ev_stage1_charge_reward_cents_per_kwh), 0.0) / 100.0
         self.ev_stage2_reward = max(float(config_manager.ev_stage2_charge_reward_cents_per_kwh), 0.0) / 100.0
+
         self.ev_battery_capacity_kwh = max(float(getattr(self.plant, "ev_battery_capacity_kwh", 0.0)), 0.0)
         self.ev_min_soc_target = (min(max(float(config_manager.ev_min_soc), 0.0), 100.0) / 100.0) * self.ev_battery_capacity_kwh
         self.ev_max_soc_target = (min(max(float(config_manager.ev_max_soc), 0.0), 100.0) / 100.0) * self.ev_battery_capacity_kwh  
@@ -136,6 +137,12 @@ class MPC:
         self.sim_end = horizon_end
         self.N_5min = max(1, int(horizon_seconds // (5 * 60)))
         self.forecast_hrs = self.N_5min * self.dt_5min
+
+        self.ev_stage1_48hr_reward = np.zeros(int(self.N_5min), dtype=float)
+        self.ev_stage2_48hr_reward = np.zeros(int(self.N_5min), dtype=float)
+
+        self.ev_stage1_48hr_reward[:int(self.steps_per_hr*48)] = self.ev_stage1_reward
+        self.ev_stage2_48hr_reward[:int(self.steps_per_hr*48)] = self.ev_stage2_reward
 
         logger.debug(
             f"MPC forecast horizon set to {round(self.forecast_hrs, 2)} hrs "
@@ -434,8 +441,8 @@ class MPC:
             + cp.multiply(self.battery_min_export_cost, self.p_discharge) * self.dt_5min
             - cp.multiply(self.charge_maintain_reward, self.soc[0:-1])
             - cp.multiply(self.full_battery_reward, cp.multiply(self.solar_eod_reward_mask_param, self.soc[0:-1]))
-            - cp.multiply(self.ev_stage1_reward, self.p_ev) * self.dt_5min
-            - cp.multiply(self.ev_stage2_reward, self.p_ev_stage2) * self.dt_5min
+            - cp.multiply(self.ev_stage1_48hr_reward, self.p_ev_stage1) * self.dt_5min
+            - cp.multiply(self.ev_stage2_48hr_reward, self.p_ev_stage2) * self.dt_5min
             - cp.multiply(self.ev_charge_maintain_reward, self.ev_soc[0:-1]) * self.dt_5min
         )
 

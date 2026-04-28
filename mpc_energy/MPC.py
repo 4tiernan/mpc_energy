@@ -74,6 +74,8 @@ class MPC:
         self.ev_full_by_time = self.ha_mqtt.ready_by_time_selector.state if (self.ha_mqtt is not None and hasattr(self.ha_mqtt, "ready_by_time_selector")) else self.ev_full_by_time
         self.ev_stage1_remaining_kwh = 0.0
         self.ev_stage2_remaining_kwh = 0.0
+
+        logger.debug(f"EV Charge Reward Stage 1: {self.ev_stage1_reward} c/kWh, Stage 2: {self.ev_stage2_reward} c/kWh. EV Min SOC Target: {self.ev_min_soc_target} kWh, EV Max SOC Target: {self.ev_max_soc_target} kWh, EV Charging Mode: {self.ev_charging_mode}, EV Full by Time: {self.ev_full_by_time}")
         
         self.ev_soc_init = (getattr(self.plant, "ev_soc", 0.0) / 100.0) * self.ev_battery_capacity_kwh
         self.ev_charge_maintain_reward = 0.20 / (self.forecast_hrs*self.steps_per_hr*(self.ev_battery_capacity_kwh - self.ev_soc_init)) # $/kWh / interval reward for maintaining higher SOC throughout the day, currently equates to 10c total over the whole day

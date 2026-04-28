@@ -65,8 +65,6 @@ class MPC:
         self.target_ev_charge_rate = 0 # Target EV charge rate in kW, updated based on the MPC plan and current conditions
         self.ev_stage1_reward = max(float(config_manager.ev_stage1_charge_reward_cents_per_kwh), 0.0) / 100.0
         self.ev_stage2_reward = max(float(config_manager.ev_stage2_charge_reward_cents_per_kwh), 0.0) / 100.0
-        self.ev_grid_priority_stage1_reward = 0.30
-        self.ev_grid_priority_stage2_reward = 0.20
         self.ev_battery_capacity_kwh = max(float(getattr(self.plant, "ev_battery_capacity_kwh", 0.0)), 0.0)
         self.ev_min_soc_target = (min(max(float(config_manager.ev_min_soc), 0.0), 100.0) / 100.0) * self.ev_battery_capacity_kwh
         self.ev_max_soc_target = (min(max(float(config_manager.ev_max_soc), 0.0), 100.0) / 100.0) * self.ev_battery_capacity_kwh  
@@ -75,7 +73,7 @@ class MPC:
         self.ev_stage1_remaining_kwh = 0.0
         self.ev_stage2_remaining_kwh = 0.0
 
-        logger.debug(f"EV Charge Reward Stage 1: {self.ev_stage1_reward} c/kWh, Stage 2: {self.ev_stage2_reward} c/kWh. EV Min SOC Target: {self.ev_min_soc_target} kWh, EV Max SOC Target: {self.ev_max_soc_target} kWh, EV Charging Mode: {self.ev_charging_mode}, EV Full by Time: {self.ev_full_by_time}")
+        logger.debug(f"EV Charge Reward Stage 1: {self.ev_stage1_reward} $/kWh, Stage 2: {self.ev_stage2_reward} $/kWh. EV Min SOC Target: {self.ev_min_soc_target} kWh, EV Max SOC Target: {self.ev_max_soc_target} kWh, EV Charging Mode: {self.ev_charging_mode}, EV Full by Time: {self.ev_full_by_time}")
         
         self.ev_soc_init = (getattr(self.plant, "ev_soc", 0.0) / 100.0) * self.ev_battery_capacity_kwh
         self.ev_charge_maintain_reward = 0.20 / (self.forecast_hrs*self.steps_per_hr*(self.ev_battery_capacity_kwh - self.ev_soc_init)) # $/kWh / interval reward for maintaining higher SOC throughout the day, currently equates to 10c total over the whole day

@@ -434,7 +434,7 @@ class MPC:
             - cp.multiply(self.full_battery_reward, cp.multiply(self.solar_eod_reward_mask_param, self.soc[0:-1]))
             #- cp.multiply(self.ev_stage1_reward, self.p_ev) * self.dt_5min
             #- cp.multiply(self.ev_stage2_reward, self.p_ev_stage2) * self.dt_5min
-            - cp.multiply(0.2, self.p_ev) * self.dt_5min
+            - cp.multiply(0.4, self.p_ev) * self.dt_5min
             - cp.multiply(self.ev_charge_maintain_reward, self.ev_soc[0:-1]) * self.dt_5min
         )
 

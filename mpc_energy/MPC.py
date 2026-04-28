@@ -429,7 +429,7 @@ class MPC:
             
             self.p_ev >= 0, # EV charge power must be positive (no discharging the EV)
             self.p_ev <= self.ev_p_max_param,
-            self.soc[1:] >= self.p_ev * self.dt_5min + self.soc_min_param + 0.1, # Ensure we have enough energy in the battery to cover the EV charging for one interval if solar drops to zero unexpectedly (add a small buffer to ensure numerical stability)
+            self.soc[1:] >= self.p_ev * self.dt_5min + self.soc_min_param + 2, # Ensure we have enough energy in the battery to cover the EV charging for one interval if solar drops to zero unexpectedly (add a small buffer to ensure numerical stability)
             self.p_ev == self.p_ev_stage1 + self.p_ev_stage2,
             cp.sum(self.p_ev_stage1) * self.dt_5min <= self.ev_stage1_remaining_kwh_param,
             cp.sum(self.p_ev_stage2) * self.dt_5min <= self.ev_stage2_remaining_kwh_param,

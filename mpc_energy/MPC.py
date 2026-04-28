@@ -65,6 +65,8 @@ class MPC:
         self.target_ev_charge_rate = 0 # Target EV charge rate in kW, updated based on the MPC plan and current conditions
         self.ev_stage1_reward = max(float(config_manager.ev_stage1_charge_reward_cents_per_kwh), 0.0) / 100.0
         self.ev_stage2_reward = max(float(config_manager.ev_stage2_charge_reward_cents_per_kwh), 0.0) / 100.0
+        self.ev_stage1_12hr_reward += self.grid_import_penalty_cost
+        self.ev_stage2_48hr_reward += self.grid_import_penalty_cost
 
         self.ev_battery_capacity_kwh = max(float(getattr(self.plant, "ev_battery_capacity_kwh", 0.0)), 0.0)
         self.ev_min_soc_target = (min(max(float(config_manager.ev_min_soc), 0.0), 100.0) / 100.0) * self.ev_battery_capacity_kwh
@@ -74,7 +76,7 @@ class MPC:
         self.ev_stage1_remaining_kwh = 0.0
         self.ev_stage2_remaining_kwh = 0.0
 
-        logger.debug(f"EV Charge Reward Stage 1: {self.ev_stage1_reward} $/kWh, Stage 2: {self.ev_stage2_reward} $/kWh. EV Min SOC Target: {self.ev_min_soc_target} kWh, EV Max SOC Target: {self.ev_max_soc_target} kWh, EV Charging Mode: {self.ev_charging_mode}, EV Full by Time: {self.ev_full_by_time}")
+        logger.debug(f"EV Charge Reward Stage 1: {self.ev_stage1_reward} $/kWh (grid import cost added), Stage 2: {self.ev_stage2_reward} $/kWh (grid import cost added). EV Min SOC Target: {self.ev_min_soc_target} kWh, EV Max SOC Target: {self.ev_max_soc_target} kWh, EV Charging Mode: {self.ev_charging_mode}, EV Full by Time: {self.ev_full_by_time}")
         
         self.ev_soc_init = (getattr(self.plant, "ev_soc", 0.0) / 100.0) * self.ev_battery_capacity_kwh
         self.ev_charge_maintain_reward = 0.20 / (self.forecast_hrs*self.steps_per_hr*(self.ev_battery_capacity_kwh - self.ev_soc_init)) # $/kWh / interval reward for maintaining higher SOC throughout the day, currently equates to 10c total over the whole day
@@ -138,10 +140,10 @@ class MPC:
         self.N_5min = max(1, int(horizon_seconds // (5 * 60)))
         self.forecast_hrs = self.N_5min * self.dt_5min
 
-        self.ev_stage1_48hr_reward = np.zeros(int(self.N_5min), dtype=float)
+        self.ev_stage1_12hr_reward = np.zeros(int(self.N_5min), dtype=float)
         self.ev_stage2_48hr_reward = np.zeros(int(self.N_5min), dtype=float)
 
-        self.ev_stage1_48hr_reward[:int(self.steps_per_hr*48)] = self.ev_stage1_reward
+        self.ev_stage1_12hr_reward[:int(self.steps_per_hr*12)] = self.ev_stage1_reward
         self.ev_stage2_48hr_reward[:int(self.steps_per_hr*48)] = self.ev_stage2_reward
 
         logger.debug(
@@ -424,9 +426,10 @@ class MPC:
             self.ev_soc[1:] >= 0, # Don't allow negative SOC
             self.ev_soc[1:] <= self.ev_soc_upper_limit_param,
             self.ev_soc[1:] >= self.ev_soc_min_required_param, # Ensure that minimum soc is met for time based charging. 
-
+            
             self.p_ev >= 0, # EV charge power must be positive (no discharging the EV)
             self.p_ev <= self.ev_p_max_param,
+            self.soc >= self.p_ev * self.dt_5min + 0.1, # Ensure we have enough energy in the battery to cover the EV charging for one interval if solar drops to zero unexpectedly (add a small buffer to ensure numerical stability)
             self.p_ev == self.p_ev_stage1 + self.p_ev_stage2,
             cp.sum(self.p_ev_stage1) * self.dt_5min <= self.ev_stage1_remaining_kwh_param,
             cp.sum(self.p_ev_stage2) * self.dt_5min <= self.ev_stage2_remaining_kwh_param,
@@ -439,7 +442,7 @@ class MPC:
             + cp.multiply(self.battery_min_export_cost, self.p_discharge) * self.dt_5min
             - cp.multiply(self.charge_maintain_reward, self.soc[0:-1])
             - cp.multiply(self.full_battery_reward, cp.multiply(self.solar_eod_reward_mask_param, self.soc[0:-1]))
-            - cp.multiply(self.ev_stage1_48hr_reward, self.p_ev_stage1) * self.dt_5min
+            - cp.multiply(self.ev_stage1_12hr_reward, self.p_ev_stage1) * self.dt_5min
             - cp.multiply(self.ev_stage2_48hr_reward, self.p_ev_stage2) * self.dt_5min
             - cp.multiply(self.ev_charge_maintain_reward, self.ev_soc[0:-1]) * self.dt_5min
         )
@@ -678,13 +681,14 @@ class MPC:
             if(self._normalise_ev_mode() == self.EV_MODE_FORCE_ON):
                 self.target_ev_charge_rate = self.ev_max_charge_power # In force on mode, set the target charge rate to the max
             else:
-                if ev_power_constrained: # Only set the EV charge rate if the EV power plan exists and the battery is partially charged.
-                    if battery_soc[0] > self.soc_min + 2:
-                        self.target_ev_charge_rate = ev_power_constrained[0]
-                    else:
-                        logger.debug(f"Battery SOC is too low ({battery_soc[0]:.2f} kWh), not charging EV to preserve backup buffer. Adjusting first interval EV charge power from {ev_power_constrained[0]:.2f} kW to 0 kW.")
-                        self.target_ev_charge_rate = 0.0
-                        ev_power_constrained[0] = 0.0
+                if ev_power_constrained: # Only set the EV charge rate if the EV power plan exists
+                    self.target_ev_charge_rate = ev_power_constrained[0]
+                    # if battery_soc[0] > self.soc_min + 2:
+                    #     self.target_ev_charge_rate = ev_power_constrained[0]
+                    # else:
+                    #     logger.debug(f"Battery SOC is too low ({battery_soc[0]:.2f} kWh), not charging EV to preserve backup buffer. Adjusting first interval EV charge power from {ev_power_constrained[0]:.2f} kW to 0 kW.")
+                    #     self.target_ev_charge_rate = 0.0
+                    #     ev_power_constrained[0] = 0.0
 
                 else:
                     self.target_ev_charge_rate = 0.0

@@ -421,8 +421,6 @@ class MPC:
             self.p_ev >= 0, # EV charge power must be positive (no discharging the EV)
             self.p_ev <= self.ev_p_max_param,
             self.p_ev == self.p_ev_stage1 + self.p_ev_stage2,
-            self.p_ev_stage1 >= 0,
-            self.p_ev_stage2 >= 0,
             cp.sum(self.p_ev_stage1) * self.dt_5min <= self.ev_stage1_remaining_kwh_param,
             cp.sum(self.p_ev_stage2) * self.dt_5min <= self.ev_stage2_remaining_kwh_param,
         ]
@@ -434,8 +432,8 @@ class MPC:
             + cp.multiply(self.battery_min_export_cost, self.p_discharge) * self.dt_5min
             - cp.multiply(self.charge_maintain_reward, self.soc[0:-1])
             - cp.multiply(self.full_battery_reward, cp.multiply(self.solar_eod_reward_mask_param, self.soc[0:-1]))
-            - cp.multiply(0.4, self.p_ev_stage1) * self.dt_5min
-            - cp.multiply(0.05, self.p_ev_stage2) * self.dt_5min
+            - cp.multiply(0.4, self.p_ev) * self.dt_5min
+            #- cp.multiply(self.ev_stage2_reward, self.p_ev_stage2) * self.dt_5min
             - cp.multiply(self.ev_charge_maintain_reward, self.ev_soc[0:-1]) * self.dt_5min
         )
 

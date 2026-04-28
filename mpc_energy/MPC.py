@@ -405,7 +405,7 @@ class MPC:
 
         # Vectorized constraints
         constraints = [
-            self.soc[0] == 2.02, #self.soc_init_param,
+            self.soc[0] == self.soc_init_param,
             self.soc[1:] == self.soc[:-1] + self.dt_5min * self.discharge_efficiency * self.p_charge - self.dt_5min / self.discharge_efficiency * self.p_discharge,
             self.soc[1:] >= self.soc_min_param,
             self.soc[1:] <= self.soc_max_param,

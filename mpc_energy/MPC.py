@@ -65,8 +65,8 @@ class MPC:
         self.target_ev_charge_rate = 0 # Target EV charge rate in kW, updated based on the MPC plan and current conditions
         self.ev_stage1_reward = max(float(config_manager.ev_stage1_charge_reward_cents_per_kwh), 0.0) / 100.0
         self.ev_stage2_reward = max(float(config_manager.ev_stage2_charge_reward_cents_per_kwh), 0.0) / 100.0
-        self.ev_stage1_12hr_reward += self.grid_import_penalty_cost
-        self.ev_stage2_48hr_reward += self.grid_import_penalty_cost
+        self.ev_stage1_reward += self.grid_import_penalty_cost
+        self.ev_stage2_reward += self.grid_import_penalty_cost
 
         self.ev_battery_capacity_kwh = max(float(getattr(self.plant, "ev_battery_capacity_kwh", 0.0)), 0.0)
         self.ev_min_soc_target = (min(max(float(config_manager.ev_min_soc), 0.0), 100.0) / 100.0) * self.ev_battery_capacity_kwh

@@ -134,7 +134,7 @@ class HomeAssistantAPI:
         url = f"{self.base_url}/api/services/{domain}/{service}"
         return self.ha_request(url=url, data=data, method='post')
 
-    def send_notification(self, title, message, target):
+    def send_notification(self, title, message, target, channel=None):
         if not target:
             raise HAAPIError("Notification target is empty. Please set a valid Home Assistant notify service.")
 
@@ -151,14 +151,17 @@ class HomeAssistantAPI:
                 "'mobile_app_pixel_10_pro' or 'notify.mobile_app_pixel_10_pro'."
             )
         
-        self.call_service(
-            "notify",
-            service,
-            {
-                "title": title,
-                "message": message
+        payload = {
+            "title": title,
+            "message": message,
+        }
+        
+        if channel:
+            payload["data"] = {
+                "channel": channel
             }
-        )
+        
+        self.call_service("notify", service, payload)
 
     def create_persistent_notification(self, title, message, notification_id="mpc_energy_error"):
         return self.call_service(

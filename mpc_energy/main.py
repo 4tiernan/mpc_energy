@@ -79,12 +79,13 @@ def start_streamlit_dashboard():
         "--theme.base=light"
     ])
 
-def send_mobile_notification(title, message):
+def send_mobile_notification(title, message, channel=None):
     try:
         ha.send_notification(
             title=title,
             message=message,
-            target=config_manager.notification_target
+            target=config_manager.notification_target,
+            channel=channel
         )
     except Exception as notification_error:
         logger.error(f"Failed to send mobile notification. This likely means that the notification target is incorrect. Check the notification target and try again. Error sending notification: {notification_error}")
@@ -103,7 +104,7 @@ def PrintError(e):
         )
         if(config_manager.notification_target_option in ["error_warning", "both"] and config_manager.notification_target != "" and time.time() - last_error_mobile_notification_timestamp > 60*60): # If the user has selected to receive error warnings and it's been more than 60 minutes since the last error notification, send a new one
             last_error_mobile_notification_timestamp = time.time()
-            send_mobile_notification(title="MPC Energy Error", message=f"An error occurred: {e}. Check the MPC Energy Log for details.")
+            send_mobile_notification(title="MPC Energy Error", message=f"An error occurred: {e}. Check the MPC Energy Log for details.", channel="mpc_energy_error_warnings")
             
 
     except Exception as notification_error:
@@ -281,7 +282,7 @@ def check_for_spike(price_data):
                     notification_id="mpc_energy_price_spike_warning"
                 )
                 if(config_manager.notification_target_option in ["price_spike_warning", "both"] and config_manager.notification_target != ""):
-                    send_mobile_notification(title="MPC Forecast Feed In Price Spike", message=spike_message)   
+                    send_mobile_notification(title="MPC Forecast Feed In Price Spike", message=spike_message, channel="mpc_energy_price_spike_warnings")   
             
         else:
             spike_found_timestamp = 0 # Reset the spike found timestamp if no spikes are currently forecasted

@@ -5,6 +5,7 @@
 * Removed support for RBC controller due to lack of development.
 * Removed base load and target dispatch price sensors (RBC dependancies).
 * Fixed issue with grid import mode importing more than planned. 
+* Added Notification channel for android users. 
 
 ## 0.6.0
 * Adding flow power as retailer option

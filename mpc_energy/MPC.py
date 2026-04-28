@@ -418,6 +418,8 @@ class MPC:
             self.ev_soc[1:] <= self.ev_soc_upper_limit_param,
             self.ev_soc[1:] >= self.ev_soc_min_required_param, # Ensure that minimum soc is met for time based charging. 
 
+            self.soc[-1] == self.soc_init_param,
+
             self.p_ev >= 0, # EV charge power must be positive (no discharging the EV)
             self.p_ev <= self.ev_p_max_param,
             #self.p_ev == self.p_ev_stage1 + self.p_ev_stage2,

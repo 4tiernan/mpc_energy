@@ -510,8 +510,6 @@ class MPC:
         self.update_values(amber_data, time_index)
         self.update_ev_values(time_index)
 
-        logger.debug(f"EV Stage 1 Remaining kWh: {self.ev_stage1_remaining_kwh_param.value}, Stage 2 Remaining kWh: {self.ev_stage2_remaining_kwh_param.value}")
-
         #logger.error("Messing with prices!!")
         #self.prices_sell[180:] = 0.02 # Allow testing of various pricings
         #self.prices_buy[180:] = 0.05 

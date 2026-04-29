@@ -232,7 +232,8 @@ def update_sensors(price_data):
     set_sensor_if_changed(ha_mqtt.net_profit_sensor, round(plant.daily_net_profit, 2))
     set_sensor_if_changed(ha_mqtt.profit_remaining_today_sensor, round(mpc.profit_remaining_today, 2))
     set_sensor_if_changed(ha_mqtt.profit_tomorrow_sensor, round(mpc.profit_tomorrow, 2))
-    set_sensor_if_changed(ha_mqtt.target_ev_charge_rate_sensor, round(mpc.target_ev_charge_rate, 2))
+    if(mpc.ev_configured):
+       set_sensor_if_changed(ha_mqtt.target_ev_charge_rate_sensor, round(mpc.target_ev_charge_rate, 2))
 
     if(plant.grid_power < 0):
         price = price_data.feedIn_price

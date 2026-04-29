@@ -59,8 +59,7 @@ options:
   ev_min_charge_power_kw: ""
   ev_min_soc: 20
   ev_max_soc: 80
-  ev_stage1_charge_reward_cents_per_kwh: 20
-  ev_stage2_charge_reward_cents_per_kwh: 5
+  ev_charge_reward_cents_per_kwh: 5
 
   pv_max_power_limit_entity_id: ""
   import_max_power_limit_entity_id: ""
@@ -143,8 +142,7 @@ schema:
   ev_min_charge_power_kw: str?
   ev_min_soc: int?
   ev_max_soc: int?
-  ev_stage1_charge_reward_cents_per_kwh: int?
-  ev_stage2_charge_reward_cents_per_kwh: int?
+  ev_charge_reward_cents_per_kwh: int?
 
   pv_max_power_limit_entity_id: str
   import_max_power_limit_entity_id: str

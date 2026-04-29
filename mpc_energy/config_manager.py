@@ -41,8 +41,7 @@ ev_max_charge_power_entity_id = get_entity_id("ev_max_charge_power_entity_id", d
 ev_min_charge_power_kw = get_entity_id("ev_min_charge_power_kw", default="")
 ev_min_soc = get_entity_id("ev_min_soc", default=20)
 ev_max_soc = get_entity_id("ev_max_soc", default=80)
-ev_stage1_charge_reward_cents_per_kwh = get_entity_id("ev_stage1_charge_reward_cents_per_kwh", default=20)
-ev_stage2_charge_reward_cents_per_kwh = get_entity_id("ev_stage2_charge_reward_cents_per_kwh", default=5)
+ev_charge_reward_cents_per_kwh = get_entity_id("ev_charge_reward_cents_per_kwh", default=20)
 
 pv_max_power_limit_entity_id = get_entity_id("pv_max_power_limit_entity_id")
 import_max_power_limit_entity_id = get_entity_id("import_max_power_limit_entity_id")

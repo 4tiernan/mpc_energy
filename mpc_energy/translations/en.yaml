@@ -88,20 +88,16 @@ configuration:
     description: Optional minimum charging rate while EV is plugged in and below target SOC.
 
   ev_min_soc:
-    name: EV Minimum SOC Target (%)
-    description: Stage 1 EV charging target. MPC applies the higher reward up to this SOC.
+    name: EV Minimum SOC (%)
+    description: MPC will force charge to at least this SOC when EV is plugged in.
 
   ev_max_soc:
-    name: EV Maximum SOC Target (%)
-    description: Stage 2 EV charging target. MPC applies the lower reward up to this SOC.
+    name: EV Maximum SOC (%)
+    description: MPC will limit charging to this SOC when EV is plugged in.
 
-  ev_stage1_charge_reward_cents_per_kwh:
-    name: EV Stage 1 Reward (c/kWh)
-    description: Reward applied to EV charging energy from current SOC to EV minimum SOC target.
-
-  ev_stage2_charge_reward_cents_per_kwh:
-    name: EV Stage 2 Reward (c/kWh)
-    description: Reward applied to EV charging energy from EV minimum SOC target to EV maximum SOC target.
+  ev_charge_reward_cents_per_kwh:
+    name: EV Charge Reward (c/kWh)
+    description: Reward applied to EV charging energy. (How much you will permit MPC to spend to charge the EV beyond the minimum SOC, default is 5c/kWh)
 
   pv_max_power_limit_entity_id:
     name: Max PV DC Power (kW, Set to a value or an entity)

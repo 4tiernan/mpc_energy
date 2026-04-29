@@ -380,12 +380,7 @@ class MPC:
         self.price_buy_param = cp.Parameter(n, name="price_buy")
         self.price_sell_param = cp.Parameter(n, name="price_sell")
         self.demand_mask_param = cp.Parameter(n, nonneg=True, name="demand_mask")
-        self.solar_eod_reward_mask_param = cp.Parameter(n, nonneg=True, name="solar_eod_reward_mask")
-        
-        self.ev_p_max_param = cp.Parameter(n, nonneg=True, name="ev_p_max")
-        self.ev_soc_init_param = cp.Parameter(nonneg=True, name="ev_soc_init")
-        self.ev_soc_upper_limit_param = cp.Parameter(nonneg=True, name="ev_soc_upper_limit")
-        self.ev_soc_min_required_param = cp.Parameter(n, nonneg=True, name="ev_soc_min_required")
+        self.solar_eod_reward_mask_param = cp.Parameter(n, nonneg=True, name="solar_eod_reward_mask")        
 
         self.grid_import_limit_param = cp.Parameter(nonneg=True, name="grid_import_limit")
         self.grid_export_limit_param = cp.Parameter(nonneg=True, name="grid_export_limit")
@@ -409,22 +404,13 @@ class MPC:
             self.solar_used <= self.solar_dc_max_param,
             self.solar_used + self.solar_curtail == self.solar_forecast_param,
             self.solar_used + self.p_discharge == self.p_charge + self.inverter_power,
-            self.grid_import + self.inverter_power == self.load_forecast_param + self.p_ev + self.grid_export,
             self.grid_import <= self.grid_import_limit_param,
             self.grid_export <= self.grid_export_limit_param,
             self.inverter_power <= self.inverter_p_max_param,
             self.inverter_power >= -self.inverter_p_max_param,
-            self.peak_demand >= cp.multiply(self.demand_mask_param, self.grid_import),
-            self.ev_soc[0] == self.ev_soc_init_param,
-            self.ev_soc[1:] == self.ev_soc[:-1] + (self.dt_5min * self.p_ev), # EV SOC in kWh, p_ev in kW, dt in hours.
-            self.ev_soc[1:] >= 0, # Don't allow negative SOC
-            self.ev_soc[1:] <= self.ev_soc_upper_limit_param,
-            self.ev_soc[1:] >= self.ev_soc_min_required_param, # Ensure that minimum soc is met for time based charging. 
-            
-            self.p_ev >= 0, # EV charge power must be positive (no discharging the EV)
-            self.p_ev <= self.ev_p_max_param,
-            self.soc[1:] >= self.p_ev * self.dt_5min + self.soc_min_param, # Ensure we have enough energy in the battery to cover the EV charging for one interval if solar drops to zero unexpectedly (add a small buffer to ensure numerical stability)
+            self.peak_demand >= cp.multiply(self.demand_mask_param, self.grid_import)
         ]
+        
 
         objective_list = (
             cp.multiply(self.grid_import, self.price_buy_param) * self.dt_5min
@@ -436,10 +422,35 @@ class MPC:
         )
 
         if(self.ev_configured):
+            # EV Parameters
+            self.ev_p_max_param = cp.Parameter(n, nonneg=True, name="ev_p_max")
+            self.ev_soc_init_param = cp.Parameter(nonneg=True, name="ev_soc_init")
+            self.ev_soc_upper_limit_param = cp.Parameter(nonneg=True, name="ev_soc_upper_limit")
+            self.ev_soc_min_required_param = cp.Parameter(n, nonneg=True, name="ev_soc_min_required")
+
+            constraints += [
+                self.grid_import + self.inverter_power == self.load_forecast_param + self.p_ev + self.grid_export,
+
+                self.ev_soc[0] == self.ev_soc_init_param,
+                self.ev_soc[1:] == self.ev_soc[:-1] + (self.dt_5min * self.p_ev), # EV SOC in kWh, p_ev in kW, dt in hours.
+                self.ev_soc[1:] >= 0, # Don't allow negative SOC
+                self.ev_soc[1:] <= self.ev_soc_upper_limit_param,
+                self.ev_soc[1:] >= self.ev_soc_min_required_param, # Ensure that minimum soc is met for time based charging. 
+                
+                self.p_ev >= 0, # EV charge power must be positive (no discharging the EV)
+                self.p_ev <= self.ev_p_max_param,
+                self.soc[1:] >= self.p_ev * self.dt_5min + self.soc_min_param, # Ensure we have enough energy in the battery to cover the EV charging for one interval if solar drops to zero unexpectedly (add a small buffer to ensure numerical stability)
+            ]
+
             objective_list += (
                 - cp.multiply(self.ev_charge_48hr_reward, self.p_ev) * self.dt_5min
                 - cp.multiply(self.ev_charge_maintain_reward, self.ev_soc[0:-1]) * self.dt_5min
             )
+        else:
+            constraints += [
+                self.grid_import + self.inverter_power == self.load_forecast_param + self.grid_export,
+            ]
+
 
         self.objective_expression = (
             cp.sum(objective_list)

@@ -162,7 +162,6 @@ class MPC:
     # Update any values or forecasts required to run the sim
     def update_values(self, amber_data, time_index, inject_real_values = True):
         self.update_limits() # Update the limits in case the user has changed any config values that affect the limits since the last update
-        self.update_ev_values(time_index)
         
         current_soc = (self.plant.battery_soc / 100)*self.soc_max
         self.soc_init = min(max(current_soc, self.soc_min), self.soc_max) #constrain the soc to within limits to stop solver from doing weird stuff
@@ -509,6 +508,7 @@ class MPC:
         time_index = [now + timedelta(minutes=5 * i) for i in range(int(self.N_5min))]
 
         self.update_values(amber_data, time_index)
+        self.update_ev_values(time_index)
 
         logger.debug(f"EV Stage 1 Remaining kWh: {self.ev_stage1_remaining_kwh_param.value}, Stage 2 Remaining kWh: {self.ev_stage2_remaining_kwh_param.value}")
 

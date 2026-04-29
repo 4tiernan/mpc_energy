@@ -433,9 +433,13 @@ class MPC:
             + cp.multiply(self.battery_min_export_cost, self.p_discharge) * self.dt_5min
             - cp.multiply(self.charge_maintain_reward, self.soc[0:-1])
             - cp.multiply(self.full_battery_reward, cp.multiply(self.solar_eod_reward_mask_param, self.soc[0:-1]))
-            - cp.multiply(self.ev_charge_48hr_reward, self.p_ev) * self.dt_5min
-            - cp.multiply(self.ev_charge_maintain_reward, self.ev_soc[0:-1]) * self.dt_5min
         )
+
+        if(self.ev_configured):
+            objective_list += (
+                - cp.multiply(self.ev_charge_48hr_reward, self.p_ev) * self.dt_5min
+                - cp.multiply(self.ev_charge_maintain_reward, self.ev_soc[0:-1]) * self.dt_5min
+            )
 
         self.objective_expression = (
             cp.sum(objective_list)

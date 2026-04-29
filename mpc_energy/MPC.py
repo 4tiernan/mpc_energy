@@ -455,7 +455,9 @@ class MPC:
         self.prob = cp.Problem(cp.Minimize(self.objective_expression), constraints)
 
     def update_ev_values(self, time_index):
-        self.ev_plugged_in = bool(getattr(self.plant, "ev_plugged_in", False))
+        #self.ev_plugged_in = bool(getattr(self.plant, "ev_plugged_in", False))
+        self.ev_plugged_in = True # Assume the EV is always plugged in for the moment
+
         self.ev_max_charge_power = max(float(getattr(self.plant, "ev_max_charge_power", 0.0)), 0.0)
         self.ev_min_charge_power = max(float(getattr(self.plant, "ev_min_charge_power", 0.0)), 0.0)
         ev_soc_percent = min(max(float(getattr(self.plant, "ev_soc", 0.0) or 0.0), 0.0), 100.0)

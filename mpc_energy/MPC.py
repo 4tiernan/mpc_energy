@@ -702,6 +702,7 @@ class MPC:
             else:
                 ev_power = None
                 ev_soc_percent = None
+                ev_power_constrained = None
                 load_power = [round(load, 2) for load in self.load_5min]
 
             self.profit_remaining_today = round(float(forecast_profit_today), 2)
@@ -726,7 +727,7 @@ class MPC:
                 "solar_forecast": solar_forecast_power,
                 "solar_used": solar_used_power,
                 "load_power": load_power,
-                "c": ev_power_constrained,
+                "ev_charging_power": ev_power_constrained,
                 "ev_soc_percent": ev_soc_percent,
                 "soc_min": self.soc_min,
                 "soc_max": self.soc_max,

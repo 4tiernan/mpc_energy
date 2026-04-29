@@ -322,14 +322,13 @@ def plot_mpc_results(st, output):
     ), row=1, col=1, secondary_y=False)
 
     ev_charging_power = output.get("ev_charging_power")
-    if ev_charging_power is None:
-        ev_charging_power = [0.0] * len(time_index)
-    fig.add_trace(go.Scatter(
-        x=time_index,
-        y=round_list(ev_charging_power),
-        name="EV Charger (kW)",
-        line=dict(color="#8e44ad", width=2, shape="hv")
-    ), row=1, col=1, secondary_y=False)
+    if ev_charging_power is not None:
+        fig.add_trace(go.Scatter(
+            x=time_index,
+            y=round_list(ev_charging_power),
+            name="EV Charger (kW)",
+            line=dict(color="#8e44ad", width=2, shape="hv")
+        ), row=1, col=1, secondary_y=False)
 
     fig.add_trace(go.Scatter(
         x=time_index,
@@ -414,13 +413,13 @@ def plot_mpc_results(st, output):
     # ===============================
     # BOTTOM: EV SOC (if present)
     # ===============================
-    
-    fig.add_trace(go.Scatter(
-        x=time_index,
-        y=round_list(output["ev_soc_percent"][:-1]),
-        name="EV SOC (%)",
-        line=dict(color="blue")
-    ), row=2, col=1, secondary_y=True)
+    if output.get("ev_soc_percent") is not None:
+        fig.add_trace(go.Scatter(
+            x=time_index,
+            y=round_list(output["ev_soc_percent"][:-1]),
+            name="EV SOC (%)",
+            line=dict(color="blue")
+        ), row=2, col=1, secondary_y=True)
 
     # ===============================
     # AXES LIMITS (soft defaults)

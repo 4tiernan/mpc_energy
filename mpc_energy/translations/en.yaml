@@ -65,27 +65,27 @@ configuration:
 
   ev_plugged_in_entity_id:
     name: EV Plugged-In Binary Sensor
-    description: Optional binary sensor for EV availability (on/true/home = plugged in).
+    description: Binary sensor for EV availability (on/true/home = plugged in).
 
   ev_charging_power_entity_id:
     name: EV Charging Power Entity (kW)
-    description: Optional EV charging power used for load de-biasing and real-time base-load calculation.
+    description: EV charging power used for load de-biasing and real-time base-load calculation.
 
   ev_soc_entity_id:
     name: EV SOC Entity (Percentage)
-    description: Optional EV SOC sensor used for staged EV charging rewards.
+    description: EV SOC sensor used for staged EV charging rewards.
 
   ev_battery_capacity_kwh:
     name: EV Battery Capacity (kWh, value or entity)
-    description: Optional EV battery capacity used with EV SOC to determine staged charging rewards.
+    description: EV battery capacity used with EV SOC to determine staged charging rewards.
 
   ev_max_charge_power_entity_id:
     name: EV Max Charge Power (kW, value or entity)
-    description: Optional EV charge-rate upper limit used by MPC when EV is plugged in.
+    description: EV charge-rate upper limit used by MPC when EV is plugged in.
 
   ev_min_charge_power_kw:
     name: EV Min Charge Power (kW, value or entity)
-    description: Optional minimum charging rate while EV is plugged in and below target SOC.
+    description: EV charge-rate lower limit used by MPC when EV is plugged in.
 
   ev_min_soc:
     name: EV Minimum SOC (%)

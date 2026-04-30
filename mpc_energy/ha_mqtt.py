@@ -41,9 +41,14 @@ class CreateSelectInput():
         self.entity.select_option(self.state)
     
     def publish_command(self, command):
-        command_topic = getattr(getattr(self.entity, "_entity", None), "_command_topic", None)
-        if command_topic is not None:
-            self.entity._mqtt_client.publish(command_topic, payload=command, qos=0, retain=True)
+        command_topic = getattr(self.entity, "_command_topic", None)
+        mqtt_client = getattr(self.entity, "mqtt_client", None)
+
+        if command_topic is not None and mqtt_client is not None:
+            mqtt_client.publish(command_topic, payload=command, qos=0, retain=True)
+        else:
+            logger.warning(f"Unable to publish command for {self.name}: missing MQTT command topic/client")
+
         
     def set_state(self, state, publish_command=False):
         if(state in self.options):

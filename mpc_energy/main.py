@@ -217,6 +217,7 @@ def update_sensors(price_data):
     override_status = control_mode_override_manager.state['active']
     override_mode = control_mode_override_manager.state['mode']
     opperating_mode = override_mode if override_status else EC.working_mode
+
     set_sensor_if_changed(ha_mqtt.max_feedIn_sensor, round(price_data.feedIn_max_forecast_price))
     set_sensor_if_changed(ha_mqtt.current_feedIn_sensor, round(price_data.feedIn_price))
     set_sensor_if_changed(ha_mqtt.current_general_price_sensor, round(price_data.general_price))

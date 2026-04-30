@@ -58,7 +58,7 @@ class ControlModeOverrideManager:
             "start_price": None,
             "duration_selection": None
         }
-        self.ha_mqtt.control_mode_override_selector.set_state("Disabled")
+        self.ha_mqtt.control_mode_override_selector.set_state("Disabled", publish_command=True)
 
     def get_price_for_mode(self, mode, amber_data):
         import_price_modes = ["Grid Import"]

@@ -39,9 +39,16 @@ class CreateSelectInput():
     def callback_function(self, client: Client, user_data, message: MQTTMessage):
         self.state = message.payload.decode()
         self.entity.select_option(self.state)
+    
+    def publish_command(self, command):
+        command_topic = getattr(getattr(self.entity, "_entity", None), "_command_topic", None)
+        if command_topic is not None:
+            self.entity._mqtt_client.publish(command_topic, payload=command, qos=0, retain=True)
         
-    def set_state(self, state):
+    def set_state(self, state, publish_command=False):
         if(state in self.options):
+            if publish_command:
+                self.publish_command(state)
             self.entity.select_option(state)
             self.state = state
         else:

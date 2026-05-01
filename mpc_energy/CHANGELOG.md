@@ -1,4 +1,5 @@
 ## 0.8.0
+* Added ability to setup multiple optional loads through Web UI
 
 ## 0.7.0
 * Added net grid interaction kWh sensor to aid automations.

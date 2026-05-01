@@ -31,7 +31,7 @@ if(config_manager.energy_retailer != "amber" and config_manager.energy_retailer 
 
 # Check to see if an amber site number has been set and print the available ones if not
 if(config_manager.energy_retailer == "amber" and config_manager.amber_site_id == ""):
-    from amber_api import AmberAPI
+    from External_Interfaces.amber_api import AmberAPI
     amber = AmberAPI(config_manager.amber_api_key, "")
     sites = amber.get_sites()
     if(not sites):
@@ -130,7 +130,7 @@ while(started == False):
         from energy_controller import EnergyController
         from ha_api import HomeAssistantAPI
         import ha_mqtt
-        from amber_api import AmberAPI
+        from External_Interfaces.amber_api import AmberAPI
         from PlantControl import Plant
         from control_mode_override import ControlModeOverrideManager
 

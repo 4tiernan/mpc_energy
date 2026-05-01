@@ -1,3 +1,5 @@
+## 0.8.0
+
 ## 0.7.0
 * Added net grid interaction kWh sensor to aid automations.
 * Added EV charging with target charge rate sensor. (Currently requires HA automation to control EV charger) 

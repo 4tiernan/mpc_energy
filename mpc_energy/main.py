@@ -70,7 +70,7 @@ def start_streamlit_dashboard():
         "-m",
         "streamlit",
         "run",
-        "webserver.py",
+        "web_dashboard/webserver.py",
         "--server.headless=true",
         "--server.port=8501",
         "--server.address=0.0.0.0",

@@ -87,7 +87,7 @@ else:
     except Exception:
         time_index = list(range(len(st.session_state.mpc_output["soc"])))
         
-    import web_plot
+    import mpc_energy.web_dashboard.web_plot as web_plot
     web_plot.plot_mpc_results(st, st.session_state.mpc_output)
 
 

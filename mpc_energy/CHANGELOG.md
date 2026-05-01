@@ -6,6 +6,8 @@
 * Removed base load and target dispatch price sensors (RBC dependancies).
 * Fixed issue with grid import mode importing more than planned. 
 * Added Notification channel for android users. 
+* Removed PV Daily Generation sensor data use (resolves error that occoured overnight since Sigenergy Integration v1.2.2).
+* Fixed issue where system would perform the most recently selected control overide upon HA restart.
 
 ## 0.6.0
 * Adding flow power as retailer option

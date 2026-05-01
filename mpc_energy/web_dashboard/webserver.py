@@ -15,6 +15,11 @@ st.set_page_config(
     layout="wide"
 )
 
+if hasattr(st.sidebar, "page_link"):
+    st.sidebar.page_link("pages/1_Optional_Loads.py", label="Optional Loads", icon="⚙️")
+else:
+    st.sidebar.markdown("Configure optional loads from the **Optional Loads** page in the sidebar navigation.")
+
 
 if "mqtt_queue" not in st.session_state:
     st.session_state.mqtt_queue = queue.Queue()

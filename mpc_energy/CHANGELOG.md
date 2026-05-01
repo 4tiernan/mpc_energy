@@ -1,5 +1,13 @@
-## 0.6.1
-* Bug fix for flow power happy hour timining incorrect
+## 0.7.0
+* Added net grid interaction kWh sensor to aid automations.
+* Added EV charging with target charge rate sensor. (Currently requires HA automation to control EV charger) 
+* Added EV charging control modes. 
+* Removed support for RBC controller due to lack of development.
+* Removed base load and target dispatch price sensors (RBC dependancies).
+* Fixed issue with grid import mode importing more than planned. 
+* Added Notification channel for android users. 
+* Removed PV Daily Generation sensor data use (resolves error that occoured overnight since Sigenergy Integration v1.2.2).
+* Fixed issue where system would perform the most recently selected control overide upon HA restart.
 
 ## 0.6.0
 * Adding flow power as retailer option

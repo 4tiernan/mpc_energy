@@ -4,6 +4,9 @@ class MPCEnergyError(Exception):
 class SigenergyConnectionError(MPCEnergyError):
      """Raised when Sigenergy entities are unavailable, indicating the system may be offline."""
 
+class PlantControlError(MPCEnergyError):
+     """Base exception for Plant Control failures."""
+
 class HAAPIError(MPCEnergyError):
      """HA API Authentication Error"""
 

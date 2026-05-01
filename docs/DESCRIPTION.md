@@ -33,11 +33,10 @@ This document lists:
 | Net Profits Today | `$` | Net daily profit. (Negative indicates a net cost, excludes daily usage and Amber fees)|
 | Profit Remaining Today | `$` | MPC forecast additional profit remaining for current day. |
 | Profit Tomorrow | `$` | MPC forecast profit for tomorrow. |
-| Target Discharge Price | `c/kWh` | RBC target dispatch/discharge price threshold (Not used for MPC controller). |
 | kWh Discharged | `kWh` | Energy required to charge to full. |
 | kWh Remaining | `kWh` | Available stored energy (backup energy excluded). |
 | kWh Required Overnight | `kWh` | Estimated overnight energy requirement (with inflation). |
-| kWh Till Sundown | `kWh` | Estimated required energy until sundown (6pm hard coded, used for RBC only). |
+| kWh Till Sundown | `kWh` | Estimated required energy until sundown (6pm hard coded). |
 | Average Daily Load | `kWh` | Average daily load estimate (no inflation). |
 | Estimated Price | — | 0/1 style status indicating if Amber failed to provide a real price after it was expected (Their API occasionally fails to get the prices from AEMO). |
 | Curtailment Status | — | 0/1 status if system is curtailing. |
@@ -50,18 +49,17 @@ This document lists:
 These are MQTT-discovered controls and are still relevant when auditing MQTT entities:
 
 - **Switch:** `Automatic Control` this switch allows MPC Energy to control your system, if off, MPC Energy will just read data and plot with no action.
-- **Select:** `Energy Controller` with options `MPC`, `RBC`, `Safe Mode`.
+- **Select:** `Energy Controller` with options `MPC`, `Safe Mode`.
 - **Select:** `Control Mode Override` allows you to manually override the control mode, (this will be set back to disabled once the override has finished).
 - **Select:** `Control Mode Override Duration` sets the duration of the control mode override to 5, 15, 30 or 60 minutes or until the relevant price changes.
 
 ---
 
-## Controller options explained (MPC / RBC / Safe Mode)
+## Controller options explained (MPC / Safe Mode)
 
 The **Energy Controller** selector exposes three top-level controller options:
 
 - **Safe Mode**: A conservative fallback state that aims to minimise avoidable grid interaction. It does not intentionally export and only imports once the battery is depleted. Use this mode if data quality is poor or controller behaviour appears abnormal.
-- **RBC (Rule Based Control)**: Uses deterministic IF/ELSE style rules to pick control actions. Behaviour is predictable and generally conservative; it can export when conditions suit but prohibits grid import until battery energy is depleated.
 - **MPC (Model Predictive Control)**: Solves an optimisation over the forecast horizon (prices, load, solar, constraints) and selects the control plan that optimises expected economic outcome. This is the most primary mode and yeilds the greatest overall performance and is the recommended controller.
 
 ---

@@ -139,7 +139,7 @@ def plot_mpc_results(st, output):
         row_heights=[0.6, 0.25, 0.25],  # Row height proportions
         specs=[
             [{'secondary_y': True}],   # Row 1 (power + prices)
-            [{'secondary_y': False}],  # Row 2 (SOC)
+            [{'secondary_y': True}],  # Row 2 (SOC)
             [{'secondary_y': True}]   # Row 3 (control mode)
         ]
     )
@@ -321,6 +321,15 @@ def plot_mpc_results(st, output):
         line=dict(color="orange", shape="hv")
     ), row=1, col=1, secondary_y=False)
 
+    ev_charging_power = output.get("ev_charging_power")
+    if ev_charging_power is not None:
+        fig.add_trace(go.Scatter(
+            x=time_index,
+            y=round_list(ev_charging_power),
+            name="EV Charger (kW)",
+            line=dict(color="#8e44ad", width=2, shape="hv")
+        ), row=1, col=1, secondary_y=False)
+
     fig.add_trace(go.Scatter(
         x=time_index,
         y=round_list(output["solar_forecast"]),
@@ -400,6 +409,18 @@ def plot_mpc_results(st, output):
     if soc_max is not None:
         fig.add_hline(y=soc_max, row=2, col=1, line_dash="dash", line_color="red")
 
+
+    # ===============================
+    # BOTTOM: EV SOC (if present)
+    # ===============================
+    if output.get("ev_soc_percent") is not None:
+        fig.add_trace(go.Scatter(
+            x=time_index,
+            y=round_list(output["ev_soc_percent"][:-1]),
+            name="EV SOC (%)",
+            line=dict(color="blue")
+        ), row=2, col=1, secondary_y=True)
+
     # ===============================
     # AXES LIMITS (soft defaults)
     # ===============================
@@ -418,9 +439,16 @@ def plot_mpc_results(st, output):
 
     fig.update_yaxes(
         title_text="SOC (kWh)",
-        range=[0, 40],
-        autorange=True,
-        row=2, col=1
+        range=[0, 41],
+        autorange=False,
+        row=2, col=1, secondary_y=False
+    )
+
+    fig.update_yaxes(
+        title_text="EV SOC (%)",
+        range=[0, 101],
+        autorange=False,
+        row=2, col=1, secondary_y=True
     )
 
     # ===============================

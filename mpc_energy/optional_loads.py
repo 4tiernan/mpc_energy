@@ -20,7 +20,7 @@ class OptionalLoad:
         self,
         name: str,
         power_entity_id: str,
-        load_type: str = "generic",
+        load_type: str = "ev",
         plugged_in_entity_id: str = "",
         level_entity_id: str = "",
         capacity_kwh: float = 0.0,
@@ -98,7 +98,7 @@ class OptionalLoad:
         return cls(
             name=name,
             power_entity_id=power_entity_id,
-            load_type=str(item.get("load_type", "generic")).strip(),
+            load_type=str(item.get("load_type", "ev")).strip(),
             plugged_in_entity_id=str(item.get("plugged_in_entity_id", "")).strip(),
             level_entity_id=str(item.get("level_entity_id", "")).strip(),
             capacity_kwh=float(item.get("capacity_kwh", 0.0) or 0.0),

@@ -22,7 +22,7 @@ if col_btn2.button("Clear and delete all saved loads"):
 
 rows = st.session_state.optional_load_rows
 if not rows:
-    rows = [{"name": "", "power_entity_id": "", "load_type": "generic"}]
+    rows = [{"name": "", "power_entity_id": "", "load_type": "ev"}]
 
 edited_rows: list[dict] = []
 for idx, row in enumerate(rows):
@@ -30,10 +30,10 @@ for idx, row in enumerate(rows):
         col_t1, col_t2 = st.columns([2, 2])
         l_type = col_t1.selectbox(
             "Load Type",
-            options=["generic", "ev", "hot_water"],
-            index=["generic", "ev", "hot_water"].index(row.get("load_type", "generic")),
+            options=["ev", "hot_water"],
+            index=["ev", "hot_water"].index(row.get("load_type", "ev") if row.get("load_type") != "generic" else "ev"),
             key=f"optional_load_type_{idx}",
-            format_func=lambda x: x.replace("_", " ").title()
+            format_func=lambda x: "EV" if x == "ev" else x.replace("_", " ").title()
         )
         
         name = col_t2.text_input("Load Name", value=row.get("name", ""), key=f"name_input_{idx}")
@@ -54,7 +54,7 @@ for idx, row in enumerate(rows):
 
         if l_type == "ev":
             c1, c2 = st.columns(2)
-            lvl_ent = c1.text_input("Battery SOC (%)", value=lvl_ent, key=f"ev_soc_{idx}")
+            lvl_ent = c1.text_input("Battery SOC Entity ID (%)", value=lvl_ent, key=f"ev_soc_{idx}")
             cap = c2.text_input("Battery Capacity (kWh)", value=cap, key=f"ev_cap_{idx}")
             
             c3, c4 = st.columns(2)
@@ -66,10 +66,10 @@ for idx, row in enumerate(rows):
             max_p = c6.text_input("Charger Max Power (kW)", value=max_p, key=f"ev_maxp_{idx}")
             
             c7, c8 = st.columns(2)
-            p_ent = c7.text_input("Charger Power Entity ID", value=p_ent, key=f"ev_pent_{idx}")
+            p_ent = c7.text_input("Charger Power Entity ID (kW)", value=p_ent, key=f"ev_pent_{idx}")
             reward = c8.text_input("Charge Reward (c/kWh)", value=reward, key=f"ev_rew_{idx}")
             
-            plug_ent = st.text_input("Charger Availability Entity ID", value=plug_ent, key=f"ev_avail_{idx}")
+            plug_ent = st.text_input("EV Plugged In Entity ID", value=plug_ent, key=f"ev_avail_{idx}")
 
         elif l_type == "hot_water":
             c1, c2 = st.columns(2)
@@ -81,16 +81,10 @@ for idx, row in enumerate(rows):
             vol = c4.text_input("Tank Volume (L)", value=vol, key=f"hw_vol_{idx}")
             
             c5, c6 = st.columns(2)
-            max_p = c5.text_input("Heater Power (kW)", value=max_p, key=f"hw_hp_{idx}")
+            max_p = c5.text_input("Rated Power (kW)", value=max_p, key=f"hw_hp_{idx}")
             p_ent = c6.text_input("Heater Power Entity ID", value=p_ent, key=f"hw_hpent_{idx}")
 
             reward = st.text_input("Charge Reward (c/kWh)", value=reward, key=f"hw_rew_{idx}")
-
-        else: # generic
-            c1, c2 = st.columns(2)
-            p_ent = c1.text_input("Power Entity ID (kW)", value=p_ent, key=f"gen_p_{idx}")
-            plug_ent = c2.text_input("Availability Entity ID", value=plug_ent, key=f"gen_avail_{idx}")
-            reward = st.text_input("Charge Reward (c/kWh)", value=reward, key=f"gen_rew_{idx}")
 
         edited_rows.append({
             "name": name, "power_entity_id": p_ent, "load_type": l_type,
@@ -106,7 +100,7 @@ add_row = col_act1.button("Add row", use_container_width=True)
 save = col_act2.button("Save optional loads", type="primary", use_container_width=True)
 
 if add_row:
-    st.session_state.optional_load_rows = edited_rows + [{"name": "", "power_entity_id": "", "load_type": "generic"}]
+    st.session_state.optional_load_rows = edited_rows + [{"name": "", "power_entity_id": "", "load_type": "ev"}]
     st.rerun()
 
 if save:

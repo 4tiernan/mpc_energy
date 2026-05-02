@@ -37,67 +37,69 @@ with st.form("optional_loads_form"):
                 format_func=lambda x: x.replace("_", " ").title()
             )
             
-            name = col_t2.text_input(
-                "Load Name",
-                value=row.get("name", ""),
-                key=f"optional_load_name_{idx}",
-                placeholder="e.g. My EV or Water Heater",
-            )
+            name = col_t2.text_input("Load Name", value=row.get("name", ""), key=f"name_input_{idx}")
 
-            col1, col2 = st.columns(2)
-            entity_id = col1.text_input(
-                "Power Entity ID (kW)",
-                value=row.get("power_entity_id", ""),
-                key=f"optional_load_entity_{idx}",
-                placeholder="sensor.load_power",
-            )
-            plugged_in_entity_id = col2.text_input(
-                "Availability / Plugged-in Entity ID",
-                value=row.get("plugged_in_entity_id", ""),
-                key=f"optional_load_plugged_{idx}",
-                placeholder="binary_sensor.connected",
-            )
-
-            # Conditional Fields based on type
-            level_entity_id = ""
-            capacity_kwh = "0.0"
-            max_charge_power_entity_id = ""
-            min_charge_power_kw = "0.0"
-            min_limit = "0.0"
-            max_limit = "100.0"
-            volume_l = "0.0"
-            temp_min = "0.0"
-            temp_max = "0.0"
+            # Local state for field mapping
+            lvl_ent = row.get("level_entity_id", "")
+            cap = str(row.get("capacity_kwh", "0.0"))
+            min_lim = str(row.get("min_limit", "0.0"))
+            max_lim = str(row.get("max_limit", "100.0"))
+            min_p = str(row.get("min_charge_power_kw", "0.0"))
+            max_p = row.get("max_charge_power_entity_id", "")
+            p_ent = row.get("power_entity_id", "")
+            plug_ent = row.get("plugged_in_entity_id", "")
+            reward = str(row.get("charge_reward_cents_per_kwh", "0.0"))
+            vol = str(row.get("volume_l", "0.0"))
+            tmin = str(row.get("temp_min", "0.0"))
+            tmax = str(row.get("temp_max", "0.0"))
 
             if l_type == "ev":
-                c1, c2, c3 = st.columns(3)
-                level_entity_id = c1.text_input("SOC Entity ID (%)", value=row.get("level_entity_id", ""), key=f"optional_load_level_{idx}")
-                capacity_kwh = c2.text_input("Battery Capacity (kWh)", value=str(row.get("capacity_kwh", "0.0")), key=f"optional_load_cap_{idx}")
-                max_charge_power_entity_id = c3.text_input("Max Charge Power Entity", value=row.get("max_charge_power_entity_id", ""), key=f"optional_load_maxp_{idx}")
-                
-                c4, c5, c6 = st.columns(3)
-                min_charge_power_kw = c4.text_input("Min Charge Power (kW)", value=str(row.get("min_charge_power_kw", "0.0")), key=f"optional_load_minp_{idx}")
-                min_limit = c5.text_input("Min SOC Limit (%)", value=str(row.get("min_limit", "0.0")), key=f"optional_load_minlim_{idx}")
-                max_limit = c6.text_input("Max SOC Limit (%)", value=str(row.get("max_limit", "100.0")), key=f"optional_load_maxlim_{idx}")
-            
-            elif l_type == "hot_water":
                 c1, c2 = st.columns(2)
-                level_entity_id = c1.text_input("Temperature Entity ID (°C)", value=row.get("level_entity_id", ""), key=f"optional_load_level_{idx}")
-                volume_l = c2.text_input("Tank Volume (L)", value=str(row.get("volume_l", "0.0")), key=f"optional_load_vol_{idx}")
+                lvl_ent = c1.text_input("Battery SOC (%)", value=lvl_ent, key=f"ev_soc_{idx}")
+                cap = c2.text_input("Battery Capacity (kWh)", value=cap, key=f"ev_cap_{idx}")
                 
                 c3, c4 = st.columns(2)
-                temp_min = c3.text_input("Target Min Temp (°C)", value=str(row.get("temp_min", "0.0")), key=f"optional_load_tmin_{idx}")
-                temp_max = c4.text_input("Target Max Temp (°C)", value=str(row.get("temp_max", "0.0")), key=f"optional_load_tmax_{idx}")
+                min_lim = c3.text_input("Min Battery SOC (%)", value=min_lim, key=f"ev_minlim_{idx}")
+                max_lim = c4.text_input("Max Battery SOC (%)", value=max_lim, key=f"ev_maxlim_{idx}")
+                
+                c5, c6 = st.columns(2)
+                min_p = c5.text_input("Charger Min Power (kW)", value=min_p, key=f"ev_minp_{idx}")
+                max_p = c6.text_input("Charger Max Power (kW)", value=max_p, key=f"ev_maxp_{idx}")
+                
+                c7, c8 = st.columns(2)
+                p_ent = c7.text_input("Charger Power Entity ID", value=p_ent, key=f"ev_pent_{idx}")
+                reward = c8.text_input("Charge Reward (c/kWh)", value=reward, key=f"ev_rew_{idx}")
+                
+                plug_ent = st.text_input("Charger Availability Entity ID", value=plug_ent, key=f"ev_avail_{idx}")
 
-            charge_reward = st.text_input("Charge Reward (c/kWh)", value=str(row.get("charge_reward_cents_per_kwh", "0.0")), key=f"optional_load_reward_{idx}")
+            elif l_type == "hot_water":
+                c1, c2 = st.columns(2)
+                tmin = c1.text_input("Min Tank Temp (C)", value=tmin, key=f"hw_tmin_{idx}")
+                tmax = c2.text_input("Max Tank Temp (C)", value=tmax, key=f"hw_tmax_{idx}")
+                
+                c3, c4 = st.columns(2)
+                lvl_ent = c3.text_input("Tank Temperature Entity ID (C)", value=lvl_ent, key=f"hw_lvl_{idx}")
+                vol = c4.text_input("Tank Volume (L)", value=vol, key=f"hw_vol_{idx}")
+                
+                c5, c6 = st.columns(2)
+                max_p = c5.text_input("Heater Power (kW)", value=max_p, key=f"hw_hp_{idx}")
+                p_ent = c6.text_input("Heater Power Entity ID", value=p_ent, key=f"hw_hpent_{idx}")
+
+                reward = st.text_input("Charge Reward (c/kWh)", value=reward, key=f"hw_rew_{idx}")
+
+            else: # generic
+                c1, c2 = st.columns(2)
+                p_ent = c1.text_input("Power Entity ID (kW)", value=p_ent, key=f"gen_p_{idx}")
+                plug_ent = c2.text_input("Availability Entity ID", value=plug_ent, key=f"gen_avail_{idx}")
+                reward = st.text_input("Charge Reward (c/kWh)", value=reward, key=f"gen_rew_{idx}")
 
             edited_rows.append({
-                "name": name, "power_entity_id": entity_id, "load_type": l_type,
-                "plugged_in_entity_id": plugged_in_entity_id, "level_entity_id": level_entity_id,
-                "capacity_kwh": capacity_kwh, "max_charge_power_entity_id": max_charge_power_entity_id,
-                "min_charge_power_kw": min_charge_power_kw, "min_limit": min_limit,
-                "max_limit": max_limit, "charge_reward_cents_per_kwh": charge_reward,
-                "volume_l": volume_l, "temp_min": temp_min, "temp_max": temp_max,
+                "name": name, "power_entity_id": p_ent, "load_type": l_type,
+                "plugged_in_entity_id": plug_ent, "level_entity_id": lvl_ent,
+                "capacity_kwh": cap, "max_charge_power_entity_id": max_p,
+                "min_charge_power_kw": min_p, "min_limit": min_lim,
+                "max_limit": max_lim, "charge_reward_cents_per_kwh": reward,
+                "volume_l": vol, "temp_min": tmin, "temp_max": tmax,
             })
 
     add_row = st.form_submit_button("Add row")

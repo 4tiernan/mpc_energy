@@ -20,6 +20,7 @@ class OptionalLoad:
         self,
         name: str,
         power_entity_id: str,
+        load_type: str = "generic",
         plugged_in_entity_id: str = "",
         level_entity_id: str = "",
         capacity_kwh: float = 0.0,
@@ -35,6 +36,7 @@ class OptionalLoad:
         # Configuration parameters
         self.name = name
         self.power_entity_id = power_entity_id
+        self.load_type = load_type
         self.plugged_in_entity_id = plugged_in_entity_id
         self.level_entity_id = level_entity_id
         self.capacity_kwh = capacity_kwh
@@ -70,8 +72,8 @@ class OptionalLoad:
         
         raw_level_val = self._get_numeric(ha, self.level_entity_id) if self.level_entity_id else 0.0
         
-        # If volume and temperature range are provided, treat as a thermal load
-        if self.volume_l > 0 and self.temp_max > self.temp_min:
+        # Handle thermal loads (Hot Water)
+        if self.load_type == "hot_water" and self.volume_l > 0 and self.temp_max > self.temp_min:
             # Energy Capacity (kWh) = (Volume * 4.186 * deltaT) / 3600
             self.capacity_kwh = (self.volume_l * 4.186 * (self.temp_max - self.temp_min)) / 3600.0
             # Calculate level based on current temperature: % = (current_T - T_min) / (T_max - T_min)
@@ -96,6 +98,7 @@ class OptionalLoad:
         return cls(
             name=name,
             power_entity_id=power_entity_id,
+            load_type=str(item.get("load_type", "generic")).strip(),
             plugged_in_entity_id=str(item.get("plugged_in_entity_id", "")).strip(),
             level_entity_id=str(item.get("level_entity_id", "")).strip(),
             capacity_kwh=float(item.get("capacity_kwh", 0.0) or 0.0),
@@ -113,6 +116,7 @@ class OptionalLoad:
         return {
             "name": self.name,
             "power_entity_id": self.power_entity_id,
+            "load_type": self.load_type,
             "plugged_in_entity_id": self.plugged_in_entity_id,
             "level_entity_id": self.level_entity_id,
             "capacity_kwh": self.capacity_kwh,

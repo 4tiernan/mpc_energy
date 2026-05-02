@@ -1,6 +1,6 @@
 import streamlit as st
 
-import loads.optional_loads as optional_loads
+import optional_loads
 
 st.set_page_config(page_title="Optional Loads", layout="wide")
 

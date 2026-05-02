@@ -1,5 +1,5 @@
 from typing import Any
-from ..optional_loads import OptionalLoad
+from optional_loads import OptionalLoad
 
 class HWLoad(OptionalLoad):
     """

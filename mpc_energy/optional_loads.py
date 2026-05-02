@@ -19,9 +19,9 @@ def create_load_instance(item: dict[str, Any]) -> "OptionalLoad | None":
     """Factory function to create a specific load instance based on load_type."""
     l_type = str(item.get("load_type", "ev")).strip().lower()
     if l_type == "hot_water":
-        from .loads.HW_load import HWLoad
+        from loads.HW_load import HWLoad
         return HWLoad.from_dict(item)
-    from .loads.EV_load import EVLoad
+    from loads.EV_load import EVLoad
     return EVLoad.from_dict(item)
 
 class OptionalLoad:

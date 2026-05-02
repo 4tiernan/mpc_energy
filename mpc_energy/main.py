@@ -182,15 +182,13 @@ while(started == False):
             )
             demand_tariff = flow.demand_tarrif
         
-        plant = Plant(ha) 
+        plant = Plant(ha, opt_loads) 
         
         EC = EnergyController(
             ha=ha,
             ha_mqtt=ha_mqtt,
             plant=plant
         )
-        
-        plant.optional_loads = opt_loads
 
         control_mode_override_manager = ControlModeOverrideManager(ha_mqtt=ha_mqtt, energy_controller=EC, plant=plant)
 
@@ -201,7 +199,8 @@ while(started == False):
             local_tz=ha.local_tz,
             demand_tarrif=demand_tariff,
             retailer=config_manager.energy_retailer,
-            ha_mqtt=ha_mqtt
+            ha_mqtt=ha_mqtt,
+            optional_loads=opt_loads
         ) 
 
         # Start Streamlit dashboard

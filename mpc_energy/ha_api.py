@@ -174,7 +174,7 @@ class HomeAssistantAPI:
             }
         )
     
-    def get_history(self, entity_id, start_time=None, end_time=None, type=float):
+    def get_history(self, entity_id, start_time=None, end_time=None, type=float) -> list[History]:
         """Fetch history for a specific entity.
         Home Assistant requires:
         /api/history/period/<start>?end_time=...&filter_entity_id=...

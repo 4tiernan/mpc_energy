@@ -3,6 +3,7 @@ import os
 from typing import Any
 import cvxpy as cp
 import numpy as np
+from ha_api import HomeAssistantAPI
 
 DEFAULT_PATH = "/data/optional_loads.json"
 LOAD_CLASSES = {}
@@ -26,7 +27,7 @@ def create_load_instance(item: dict[str, Any]) -> "OptionalLoad | None":
     from loads.EV_load import EVLoad
     return EVLoad.from_dict(item)
 
-def load_optional_load_instances(ha=None, plant=None, EC=None, local_tz=None, ha_mqtt=None):
+def load_optional_load_instances(ha, plant, local_tz, ha_mqtt):
     """Factory function to load and initialize instances ready for use."""
     raw_configs = load_optional_loads()
     instances = []
@@ -35,7 +36,6 @@ def load_optional_load_instances(ha=None, plant=None, EC=None, local_tz=None, ha
         if instance:
             instance.ha = ha
             instance.plant = plant
-            instance.EC = EC
             instance.local_tz = local_tz
             instance.ha_mqtt = ha_mqtt
             if ha:
@@ -43,75 +43,32 @@ def load_optional_load_instances(ha=None, plant=None, EC=None, local_tz=None, ha
             instances.append(instance)
     return instances
 
-def get_mpc_loads(ha, plant, EC, local_tz, ha_mqtt):
+def get_mpc_loads(ha, plant, local_tz, ha_mqtt):
     """Alias for main.py compatibility and clean MPC init."""
-    return load_optional_load_instances(ha, plant, EC, local_tz, ha_mqtt)
+    return load_optional_load_instances(ha, plant, local_tz, ha_mqtt)
 
 class OptionalLoad:
     def __init__(
         self,
         name: str,
-        power_entity_id: str,
-        load_type: str = "ev",
-        plugged_in_entity_id: str = "",
-        level_entity_id: str = "",
-        capacity_kwh: float = 0.0,
-        max_charge_power_entity_id: str = "",
-        min_charge_power_kw: float = 0.0,
-        min_limit: float = 0.0,
-        max_limit: float = 100.0,
-        charge_reward_cents_per_kwh: float = 0.0
+        load_type: str,
+        reward_cents_per_kwh: float
     ):
         # Configuration parameters
         self.name = name
-        self.power_entity_id = power_entity_id
         self.load_type = load_type
-        self.plugged_in_entity_id = plugged_in_entity_id
-        self.level_entity_id = level_entity_id
-        self.capacity_kwh = capacity_kwh
-        self.max_charge_power_entity_id = max_charge_power_entity_id
-        self.min_charge_power_kw = min_charge_power_kw
-        self.min_limit = min_limit
-        self.max_limit = max_limit
-        self.charge_reward_cents_per_kwh = charge_reward_cents_per_kwh
-
-        # Real-time state attributes (manipulated data)
-        self.is_plugged_in: bool = False
-        self.current_power_kw: float = 0.0
-        self.current_level_percent: float = 0.0
-        self.max_charge_power_limit: float = 0.0
+        self.reward_cents_per_kwh = reward_cents_per_kwh
         
         # MPC References
-        self.ha = None
-        self.plant = None
+        self.ha: HomeAssistantAPI = None
+        self.ha_mqtt = None
         self.local_tz = None
-
-    @property
-    def current_charge_kwh(self) -> float:
-        """Returns the current energy level in kWh."""
-        return (self.current_level_percent / 100.0) * self.capacity_kwh
 
     @property
     def charge_remaining_kwh(self) -> float:
         """Returns the energy required to reach the max target in kWh."""
         target_kwh = (self.max_limit / 100.0) * self.capacity_kwh
         return max(0.0, target_kwh - self.current_charge_kwh)
-
-    def update_data(self, ha) -> None:
-        """Collects and updates real-time data from Home Assistant."""
-        self.current_power_kw = self._get_numeric(ha, self.power_entity_id)
-        
-        raw_level_val = self._get_numeric(ha, self.level_entity_id) if self.level_entity_id else 0.0
-        
-        if self.level_entity_id:
-            self.current_level_percent = min(max(raw_level_val, 0.0), 100.0)
-        
-        if self.plugged_in_entity_id:
-            self.is_plugged_in = self._get_bool(ha, self.plugged_in_entity_id)
-        else:
-            self.is_plugged_in = True  # Assume always plugged in if no sensor provided
-            
-        self.max_charge_power_limit = self._get_numeric(ha, self.max_charge_power_entity_id)
 
     @classmethod
     def from_dict(cls, item: dict[str, Any]) -> Any:

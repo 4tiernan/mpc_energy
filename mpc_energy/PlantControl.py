@@ -3,29 +3,21 @@ import datetime
 from zoneinfo import ZoneInfo
 import time
 import numpy as np
-import math
 import pandas as pd
+import math
 from collections import defaultdict
 from typing import Any
 import config_manager
 from mpc_logger import logger
 from exceptions import HAAPIError, SigenergyConnectionError, PlantControlError
-import traceback
+import data_helpers
 from helper_functions import round_minutes
 
-
-@dataclass
-class BinnedStateClass:
-    states: list[Any] # States that make up the avg
-    avg_state: Any # Avg of the states
-    time: datetime # Start time of the bin
-
-
 class Plant:
-    def __init__(self, ha):
+    def __init__(self, ha, optional_loads):
         self.ha = ha
+        self.optional_loads = optional_loads
         self.local_tz = ha.local_tz
-        self.optional_loads = None
         self.check_for_enabled_entites() # Check to make sure all the required entities are enabled before starting the app to prevent issues later on.
 
         self.control_mode_options = [
@@ -153,7 +145,7 @@ class Plant:
         self.inverter_power = self.get_sigenergy_numeric_state(config_manager.inverter_power_entity_id)
         self.grid_power = self.get_sigenergy_numeric_state(config_manager.grid_power_entity_id)
         self.load_power = self.get_sigenergy_numeric_state(config_manager.load_power_entity_id)
-        self.avg_daily_load = sum(bin.avg_state*(self.time_step_minutes/60) for bin in self.get_load_avg(days_ago=self.load_avg_days, optional_loads=self.optional_loads))
+        self.avg_daily_load = sum(bin.avg_state*(self.time_step_minutes/60) for bin in self.get_load_avg(days_ago=self.load_avg_days))
         
 
         self.calculate_today_profit_cost()
@@ -276,10 +268,7 @@ class Plant:
         inverter_power_state_history = self.ha.get_history(config_manager.inverter_power_entity_id, start_time=start_datetime, end_time=end_datetime)
         solar_power_state_history = self.ha.get_history(config_manager.solar_power_entity_id, start_time=start_datetime, end_time=end_datetime)
         load_power_state_history = self.ha.get_history(config_manager.load_power_entity_id, start_time=start_datetime, end_time=end_datetime)
-        ev_power_state_history = []
-        if(self.ev_enabled):
-            ev_power_state_history = self.ha.get_history(config_manager.ev_charging_power_entity_id, start_time=start_datetime, end_time=end_datetime)
-        
+
         grid_power_state_history = self.ha.get_history(config_manager.grid_power_entity_id, start_time=start_datetime, end_time=end_datetime)
         grid_import_kwh_state_history = self.ha.get_history(config_manager.plant_daily_import_kwh_entity_id, start_time=start_datetime, end_time=end_datetime)
         grid_export_kwh_state_history = self.ha.get_history(config_manager.plant_daily_export_kwh_entity_id, start_time=start_datetime, end_time=end_datetime)
@@ -291,30 +280,21 @@ class Plant:
         #requested_data_received = self.validate_returned_data_timedelta(inverter_power_state_history, start_datetime, end_datetime)
 
 
-        binned_battery_soc_state_history = self.bin_data(battery_soc_state_history, bin_period=bin_period, start_bin_datetime=start_datetime, end_bin_datetime=end_datetime)
-        binned_battery_power_state_history = self.bin_data(battery_power_state_history, bin_period=bin_period, start_bin_datetime=start_datetime, end_bin_datetime=end_datetime)
-        binned_inverter_power_state_history = self.bin_data(inverter_power_state_history, bin_period=bin_period, start_bin_datetime=start_datetime, end_bin_datetime=end_datetime)
-        binned_load_power_state_history = self.bin_data(load_power_state_history, bin_period=bin_period, start_bin_datetime=start_datetime, end_bin_datetime=end_datetime)
-
-        binned_ev_power_state_history = []
-        if(len(ev_power_state_history) > 0):
-            try:
-                binned_ev_power_state_history = self.bin_data(ev_power_state_history, bin_period=bin_period, start_bin_datetime=start_datetime, end_bin_datetime=end_datetime)
-            except Exception as e:
-                logger.warning(f"Unable to bin EV power history, defaulting EV history to 0 kW for this window. Exception: {e}")
-        if(len(binned_ev_power_state_history) == 0):
-            binned_ev_power_state_history = [BinnedStateClass(states=[], avg_state=0.0, time=state.time) for state in binned_load_power_state_history]
+        binned_battery_soc_state_history = data_helpers.bin_data(battery_soc_state_history, bin_period=bin_period, start_bin_datetime=start_datetime, end_bin_datetime=end_datetime)
+        binned_battery_power_state_history = data_helpers.bin_data(battery_power_state_history, bin_period=bin_period, start_bin_datetime=start_datetime, end_bin_datetime=end_datetime)
+        binned_inverter_power_state_history = data_helpers.bin_data(inverter_power_state_history, bin_period=bin_period, start_bin_datetime=start_datetime, end_bin_datetime=end_datetime)
+        binned_load_power_state_history = data_helpers.bin_data(load_power_state_history, bin_period=bin_period, start_bin_datetime=start_datetime, end_bin_datetime=end_datetime)
         
-        binned_solar_power_state_history = self.bin_data(solar_power_state_history, bin_period=bin_period, start_bin_datetime=start_datetime, end_bin_datetime=end_datetime)
-        binned_grid_power_state_history = self.bin_data(grid_power_state_history, bin_period=bin_period, start_bin_datetime=start_datetime, end_bin_datetime=end_datetime)
+        binned_solar_power_state_history = data_helpers.bin_data(solar_power_state_history, bin_period=bin_period, start_bin_datetime=start_datetime, end_bin_datetime=end_datetime)
+        binned_grid_power_state_history = data_helpers.bin_data(grid_power_state_history, bin_period=bin_period, start_bin_datetime=start_datetime, end_bin_datetime=end_datetime)
 
-        binned_grid_import_kwh_state_history = self.bin_data(grid_import_kwh_state_history, bin_period=bin_period, start_bin_datetime=start_datetime, end_bin_datetime=end_datetime)
-        binned_grid_export_kwh_state_history = self.bin_data(grid_export_kwh_state_history, bin_period=bin_period, start_bin_datetime=start_datetime, end_bin_datetime=end_datetime)
+        binned_grid_import_kwh_state_history = data_helpers.bin_data(grid_import_kwh_state_history, bin_period=bin_period, start_bin_datetime=start_datetime, end_bin_datetime=end_datetime)
+        binned_grid_export_kwh_state_history = data_helpers.bin_data(grid_export_kwh_state_history, bin_period=bin_period, start_bin_datetime=start_datetime, end_bin_datetime=end_datetime)
 
         
-        binned_feed_in_state_history = self.bin_data(feed_in_state_history, bin_period=bin_period, start_bin_datetime=start_datetime, end_bin_datetime=end_datetime, interpolation_method="step")
-        binned_general_price_state_history = self.bin_data(general_price_state_history, bin_period=bin_period, start_bin_datetime=start_datetime, end_bin_datetime=end_datetime, interpolation_method="step")# Step Interpolation as prices dont gradually change
-        binned_working_mode_state_history = self.bin_data(working_mode_state_history, bin_period=bin_period, start_bin_datetime=start_datetime, end_bin_datetime=end_datetime, string_state=True)
+        binned_feed_in_state_history = data_helpers.bin_data(feed_in_state_history, bin_period=bin_period, start_bin_datetime=start_datetime, end_bin_datetime=end_datetime, interpolation_method="step")
+        binned_general_price_state_history = data_helpers.bin_data(general_price_state_history, bin_period=bin_period, start_bin_datetime=start_datetime, end_bin_datetime=end_datetime, interpolation_method="step")# Step Interpolation as prices dont gradually change
+        binned_working_mode_state_history = data_helpers.bin_data(working_mode_state_history, bin_period=bin_period, start_bin_datetime=start_datetime, end_bin_datetime=end_datetime, string_state=True)
 
         binned_battery_soc_kwh_history = [(item.avg_state / 100.0) * self.rated_capacity for item in binned_battery_soc_state_history]
         
@@ -329,7 +309,6 @@ class Plant:
             "inverter_power": [state.avg_state for state in binned_inverter_power_state_history],
             "solar_power": [state.avg_state for state in binned_solar_power_state_history],
             "load_power": [state.avg_state for state in binned_load_power_state_history],
-            "ev_power": [max(0.0, state.avg_state) for state in binned_ev_power_state_history],
             "grid_power": [state.avg_state for state in binned_grid_power_state_history],
             "prices_sell": [state.avg_state/100.0 for state in binned_feed_in_state_history], # Converted to dollars from cents
             "prices_buy": [state.avg_state/100.0 for state in binned_general_price_state_history],
@@ -509,118 +488,7 @@ class Plant:
         else:
             raise(f"Requested control mode '{control_mode}' is not a valid control mode!")
         
-    def interpolate_values(self, values, method="linear"):
-        '''takes a list of numeric values with possible None values to interpolate and interpolates the None values using the specified method. Returns a list of the same length with no None values.'''
-        s = pd.Series(values)
 
-        if method == "linear":
-            # 5, None, None, None, 6 → 5, 5.25, 5.5, 5.75, 6
-            return (
-                s.interpolate(method="linear")
-                .bfill()
-                .ffill()
-                .tolist()
-            )
-
-        elif method == "step":
-            # 5, None, None, None, 6 → 5, 5, 5, 5, 6
-            return (
-                s.ffill()   # forward fill
-                .bfill()   # in case the first values are None
-                .tolist()
-            )
-
-        else:
-            raise ValueError("method must be 'linear' or 'step'")
-
-    def bin_data(self, history, bin_period, start_bin_datetime, end_bin_datetime, string_state=False, interpolation_method="linear"): 
-        """
-        Takes a list of historical state data and bins it into specified time intervals, averaging the state values within each bin. Handles both numeric and string states. Also fills in missing bins with None values and can interpolate those values if desired.
-
-        history[x].state    -> numeric value (string or float)
-        history[x].time     -> datetime object (tz-aware)
-        start_bin_datetime  -> datetime object for bin start time
-        end_bin_datetime    -> datetime object for bin end time
-        bin_period          -> time period (minutes) to bin data into
-
-        Returns:
-            List of BinnedStateClass objs:
-            [
-                bin.time": bin_start_datetime,
-                bin.avg_state": average_value_in_bin
-                ...
-            ]
-        """
-        bin_delta = datetime.timedelta(minutes=bin_period)
-        if end_bin_datetime < start_bin_datetime:
-            raise ValueError(f"end_bin_datetime: '{end_bin_datetime}' must be greater than or equal to start_bin_datetime: '{start_bin_datetime}'")
-        bin_qty = int(((end_bin_datetime - start_bin_datetime).total_seconds()) // bin_delta.total_seconds()) + 1
-
-        # Remove any invalid states from the history list (Unavailable, None, etc)
-        clean_history = []
-        for hist in history:
-            try:
-                if hist.state is not None:
-                    if not string_state:
-                        hist.state = float(hist.state)
-                    clean_history.append(hist)
-            except (ValueError, TypeError):
-                pass  # drop unknown/unavailable/etc
-                
-
-        binned_history = []
-        current_bin_datetime = start_bin_datetime
-
-        # Build the binned history skeleton with empty states and correct time bins
-        for i in range(bin_qty):
-            binned_history.append(BinnedStateClass(avg_state=None, states=[], time=current_bin_datetime))
-            current_bin_datetime = current_bin_datetime + bin_delta
-        
-        i = 0 # Incrementer for binned_history
-        for state in clean_history:
-            delta = state.time - start_bin_datetime # Time delta between start bin time and current state time
-            bin_index = int(delta.total_seconds() // bin_delta.total_seconds())
-            #print(f"Delta{delta}  idx:{bin_index} binqty:{bin_qty}")
-
-            if 0 <= bin_index < bin_qty:
-                binned_history[bin_index].states.append(state.state)
-
-        #for interval in binned_history: # Print for debuging
-        #    print(interval.states)
-
-        if not string_state: # If the state is a string, don't try an average it
-            for interval in binned_history:
-                if(len(interval.states) == 0):
-                    interval.avg_state = None
-                    #raise Exception(f"Failed to get state data for {interval.time} time period")
-                else:
-                    interval.avg_state = round(sum(interval.states) / len(interval.states), 2)
-            
-            # Interpolation
-            values = [b.avg_state for b in binned_history]
-            values = self.interpolate_values(values, method=interpolation_method)  
-            for i, interval in enumerate(binned_history):
-                interval.avg_state = round(values[i], 2)
-
-        else: # If the state is a string
-            last_known_state = "Unknown"
-            if(binned_history[0].states):
-                last_known_state = binned_history[0].states[-1]
-
-            for bin in binned_history:
-                if(bin.states):
-                    bin.avg_state = bin.states[-1]
-                    last_known_state = bin.states[-1]
-                else:
-                    bin.avg_state = last_known_state # If there is no state update in the binned time, the state mustn't have changed so use the last known value
-
-            #print(f"avg: {interval.state} states: {interval.states}")
-
-        #for i in range(len(avg_day)): # Print average for each day and each time
-        #    print(avg_day[i].state)
-        #    print(avg_day[i].states)       
-
-        return binned_history
     
     def validate_returned_data_timedelta(self, data, requested_start, requested_end, tollerance_minutes=30):
         '''
@@ -649,7 +517,7 @@ class Plant:
                 return False
         return True
 
-    def update_load_avg(self, days_ago=7, optional_loads=None):
+    def update_load_avg(self, days_ago=7):
         '''
         Calculate the average load power profile for a day based on the past load history.
         '''
@@ -674,23 +542,23 @@ class Plant:
             for i in range(int(24 * 60 / self.time_step_minutes)):
                 t = (datetime.datetime.min + datetime.timedelta(minutes=i * self.time_step_minutes)).time()
                 val = (i / (24 * 60 / self.time_step_minutes)) * configured_avg_load
-                avg_day.append(BinnedStateClass(avg_state=round(val, 2), states=[], time=t))
+                avg_day.append(data_helpers.BinnedStateClass(avg_state=round(val, 2), states=[], time=t))
 
             return avg_day # Return the avg day with the default load profile
         
 
         # Bin whole history first
-        binned_load_history = self.bin_data(load_power_history, self.time_step_minutes, start, end)
+        binned_load_history = data_helpers.bin_data(load_power_history, self.time_step_minutes, start, end)
         
         # Debias using optional loads if provided
-        if optional_loads:
-            for load in optional_loads:
-                history = load.get_historical_power(start, end, self.time_step_minutes)
-                if history:
+        if self.optional_loads:
+            for load in self.optional_loads:
+                opt_history = load.get_historical_power(start=start, end=end, bin_period=self.time_step_minutes)
+                if opt_history:
                     logger.debug(f"Debiasing load history using optional load: {load.name}")
-                    for i in range(min(len(binned_load_history), len(history))):
-                        val = history[i].avg_state or 0.0
-                        binned_load_history[i].avg_state = max(binned_load_history[i].avg_state - val, 0.0)
+                    for i in range(min(len(binned_load_history), len(opt_history))):
+                        opt_val = opt_history[i].avg_state or 0.0
+                        binned_load_history[i].avg_state = max(binned_load_history[i].avg_state - opt_val, 0.0)
 
         # Split binned history into days
         history_by_day = defaultdict(list)
@@ -733,7 +601,7 @@ class Plant:
                 raise PlantControlError(f"No valid data for time bin {per_day_binned[0][i].time.time()} across all days.")
 
             avg_day.append(
-                BinnedStateClass(
+                data_helpers.BinnedStateClass(
                     avg_state=avg_val,
                     states=states,
                     time=per_day_binned[0][i].time.time()
@@ -761,14 +629,14 @@ class Plant:
         
         return [rounded_current_time, rounded_forecast_time]
     
-    def get_load_avg(self, days_ago, hours_update_interval=24, optional_loads=None): # hours_update_interval: frequency to update the load date
+    def get_load_avg(self, days_ago, hours_update_interval=24): # hours_update_interval: frequency to update the load date
         if(time.time() - self.last_load_data_retrival_timestamp > hours_update_interval*60*60 or self.avg_load_day == None):
-            self.avg_load_day = self.update_load_avg(days_ago, optional_loads=optional_loads)
+            self.avg_load_day = self.update_load_avg(days_ago)
             self.last_load_data_retrival_timestamp = time.time()
         return self.avg_load_day
     
-    def forecast_load_power(self, forecast_hours_from_now=None, forecast_till_time=None, forecast_start_time=None, forecast_end_time=None, optional_loads=None):
-        avg_day = self.get_load_avg(days_ago=self.load_avg_days, optional_loads=optional_loads)
+    def forecast_load_power(self, forecast_hours_from_now=None, forecast_till_time=None, forecast_start_time=None, forecast_end_time=None):
+        avg_day = self.get_load_avg(days_ago=self.load_avg_days)
 
         # Determine the current and the end of the forecast datetimes, both rounded to 5 min
         [rounded_current_time, rounded_forecast_time] = self.round_forecast_times(
@@ -797,7 +665,7 @@ class Plant:
                 power = avg_kw_per_bin
 
             forecast_power.append(
-                BinnedStateClass(
+                data_helpers.BinnedStateClass(
                     avg_state=power,
                     states=[],
                     time=point_time
@@ -806,8 +674,8 @@ class Plant:
 
         return forecast_power
             
-    def forecast_consumption_amount(self, forecast_hours_from_now=None, forecast_till_time=None, optional_loads=None):
-        avg_day = self.get_load_avg(days_ago=self.load_avg_days, optional_loads=optional_loads)
+    def forecast_consumption_amount(self, forecast_hours_from_now=None, forecast_till_time=None, ):
+        avg_day = self.get_load_avg(days_ago=self.load_avg_days)
 
         [rounded_current_time, rounded_forecast_time] = self.round_forecast_times(forecast_hours_from_now, forecast_till_time)
 

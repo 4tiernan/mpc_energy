@@ -7,6 +7,7 @@ import config_manager
 import const
 from exceptions import MPCEnergyError
 from mpc_logger import logger
+import optional_loads
 
 app_start_timestamp = time.time()
 def start_timer():
@@ -60,6 +61,15 @@ if(config_manager.energy_retailer == "amber" and config_manager.amber_site_id ==
 # nano /opt/energy-manager/run.sh
 
 logger.info("------------------------  Starting MPC Energy App  ------------------------")
+
+opt_loads = optional_loads.load_optional_loads()
+if opt_loads:
+    logger.debug(f"Optional Loads Configured ({len(opt_loads)}):")
+    for load in opt_loads:
+        logger.debug(f"  - {load}")
+else:
+    logger.debug("No optional loads configured.")
+
 started = False
 
 streamlit_proc = None

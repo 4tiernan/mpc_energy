@@ -25,6 +25,7 @@ class Plant:
     def __init__(self, ha):
         self.ha = ha
         self.local_tz = ha.local_tz
+        self.optional_loads = None
         self.check_for_enabled_entites() # Check to make sure all the required entities are enabled before starting the app to prevent issues later on.
 
         self.control_mode_options = [
@@ -42,8 +43,6 @@ class Plant:
         self.max_export_power = self.get_config_entry_value(config_manager.export_max_power_limit_entity_id)
         self.max_import_power = self.get_config_entry_value(config_manager.import_max_power_limit_entity_id)
 
-        self.ev_enabled = config_manager.ev_charging_power_entity_id != ""
-                            
         self.time_step_minutes = 5
         self.load_avg_days = 3
 
@@ -154,19 +153,8 @@ class Plant:
         self.inverter_power = self.get_sigenergy_numeric_state(config_manager.inverter_power_entity_id)
         self.grid_power = self.get_sigenergy_numeric_state(config_manager.grid_power_entity_id)
         self.load_power = self.get_sigenergy_numeric_state(config_manager.load_power_entity_id)
-        self.avg_daily_load = sum(bin.avg_state*(self.time_step_minutes/60) for bin in self.get_load_avg(days_ago=self.load_avg_days))
+        self.avg_daily_load = sum(bin.avg_state*(self.time_step_minutes/60) for bin in self.get_load_avg(days_ago=self.load_avg_days, optional_loads=self.optional_loads))
         
-        self.ev_plugged_in = self.parse_boolean_state(config_manager.ev_plugged_in_entity_id, default=False)
-        self.ev_power_kw = 0.0
-        if(self.ev_enabled):
-            self.ev_power_kw = max(0.0, self.get_sigenergy_numeric_state(config_manager.ev_charging_power_entity_id))
-        self.base_load_power = max(self.load_power - self.ev_power_kw, 0.0)
-        self.ev_soc = None
-        if(config_manager.ev_soc_entity_id != ""):
-            self.ev_soc = min(max(self.get_sigenergy_numeric_state(config_manager.ev_soc_entity_id), 0.0), 100.0)
-        self.ev_battery_capacity_kwh = self.get_optional_config_entry_value(config_manager.ev_battery_capacity_kwh, default_value=0.0)
-        self.ev_max_charge_power = self.get_optional_config_entry_value(config_manager.ev_max_charge_power_entity_id, default_value=0.0)
-        self.ev_min_charge_power = max(self.get_optional_config_entry_value(config_manager.ev_min_charge_power_kw, default_value=0.0), 0.0)
 
         self.calculate_today_profit_cost()
         
@@ -660,38 +648,8 @@ class Plant:
                 )
                 return False
         return True
-    
-    def get_ev_binned_history(self, start, end, time_bucket_size=5):
-        '''Gets the EV charging power history, bins it into time buckets.'''
-        ev_power_history = self.ha.get_history(config_manager.ev_charging_power_entity_id, start_time=start, end_time=end)
 
-        time_bucket_hours = time_bucket_size / 60.0
-
-        # EV history is allowed to be partial; missing bins are treated as 0 kW EV charging
-        # so recently-enabled EV sensors can still contribute without forcing full fallback.
-        ev_coverage_ratio = 0.0
-        ev_has_data = len(ev_power_history) > 0
-        if(ev_has_data):
-            requested_seconds = max((end - start).total_seconds(), 1.0)
-            ev_span_seconds = max((ev_power_history[-1].time - ev_power_history[0].time).total_seconds(), 0.0)
-            ev_coverage_ratio = ev_span_seconds / requested_seconds
-
-        ev_min_coverage_ratio = 0.5
-
-        if(ev_has_data and ev_coverage_ratio >= ev_min_coverage_ratio):
-            binned_ev_power = self.bin_data(ev_power_history, bin_period=time_bucket_size, start_bin_datetime=start, end_bin_datetime=end, interpolation_method="step")
-
-            # Avoid interpolation artifacts when EV history is partial by forcing no-data bins to 0 kW.
-            for ev_state in binned_ev_power:
-                ev_state.avg_state = max(ev_state.avg_state, 0.0)
-
-            logger.debug("Using EV-debiased load profile for load forecast generation.")
-            return binned_ev_power
-        else:
-            logger.warning("EV power history coverage is insufficient for EV-debiased load forecasting. ")
-            return None
-
-    def update_load_avg(self, days_ago=7):
+    def update_load_avg(self, days_ago=7, optional_loads=None):
         '''
         Calculate the average load power profile for a day based on the past load history.
         '''
@@ -706,25 +664,6 @@ class Plant:
 
         load_power_history = self.ha.get_history(config_manager.load_power_entity_id, start_time=start, end_time=end)
 
-        ev_by_day = None
-        if(self.ev_enabled):
-            ev_binned_history = self.get_ev_binned_history(start, end, self.time_step_minutes)
-            ev_by_day = {}
-            if ev_binned_history is not None:
-                    if ev_binned_history is not None:
-                        logger.debug(
-                            f"EV history available for load debiasing with {len(ev_binned_history)} bins "
-                            f"spanning from {ev_binned_history[0].time} to {ev_binned_history[-1].time}, "
-                        )
-
-                        # Split EV load history into days
-                        ev_by_day = defaultdict(list)
-                        for ev in ev_binned_history:
-                            ev_by_day[ev.time.date()].append(ev)
-                    
-                        
-            
-                
         # Check to see if the requested amount of data was recieved, use the configured default if not
         if(not self.validate_returned_data_timedelta(data=load_power_history, requested_start=start, requested_end=end)):
             configured_avg_load = config_manager.estimated_daily_load_energy_consumption 
@@ -740,52 +679,33 @@ class Plant:
             return avg_day # Return the avg day with the default load profile
         
 
-        # If we've got here we must have the requested number of days of load data     
-
-        # Remove any invalid states from the history list (Unavailable, None, etc)
-        clean_history = []
-        for hist in load_power_history:
-            try:
-                if hist.state is not None:
-                    hist.state = float(hist.state)
-                    clean_history.append(hist)
-            except (ValueError, TypeError):
-                pass  # drop unknown/unavailable/etc
+        # Bin whole history first
+        binned_load_history = self.bin_data(load_power_history, self.time_step_minutes, start, end)
         
-        # --- Split history into days ---
-        history_by_day = defaultdict(list)
-        for h in clean_history:
-            history_by_day[h.time.date()].append(h)
+        # Debias using optional loads if provided
+        if optional_loads:
+            for load in optional_loads:
+                history = load.get_historical_power(start, end, self.time_step_minutes)
+                if history:
+                    logger.debug(f"Debiasing load history using optional load: {load.name}")
+                    for i in range(min(len(binned_load_history), len(history))):
+                        val = history[i].avg_state or 0.0
+                        binned_load_history[i].avg_state = max(binned_load_history[i].avg_state - val, 0.0)
 
+        # Split binned history into days
+        history_by_day = defaultdict(list)
+        for b in binned_load_history:
+            try:
+                history_by_day[b.time.date()].append(b)
+            except AttributeError:
+                pass # Handle cases where bin might not have a date
         
         # --- Bin history data by day and subtract EV power--- 
         per_day_binned = []
         for day, day_data in history_by_day.items():
-            day_start = datetime.datetime.combine(day, datetime.time.min, tzinfo=self.local_tz)
-            day_end = datetime.datetime.combine(day, datetime.time.max, tzinfo=self.local_tz)
-
             try:
-                binned = self.bin_data(
-                    day_data,
-                    bin_period=self.time_step_minutes,
-                    start_bin_datetime=day_start,
-                    end_bin_datetime=day_end
-                )
-
-                 # --- subtract EV per bin ---
-                if self.ev_enabled:
-                    if ev_by_day is not None:
-                        ev_day_bins = ev_by_day.get(day, [])
-
-                        for i in range(min(len(binned), len(ev_day_bins))):
-                            ev_kw = ev_day_bins[i].avg_state or 0.0
-                            #logger.debug(f"Day {day} Bin {binned[i].time}: Load {binned[i].avg_state} kW - EV {ev_day_bins[i].avg_state} kW = {binned[i].avg_state - ev_kw} kW") # Check EV data and subtraction logic.
-                            binned[i].avg_state = max(binned[i].avg_state - ev_kw, 0.0)
-                               
-                    else:
-                        logger.debug("EV history is unavailable, skipping EV-debiasing for load forecast generation.")
-
-                per_day_binned.append(binned)
+                if len(day_data) > 0:
+                    per_day_binned.append(day_data)
             except Exception as e:
                 logger.warning(f"Skipping day {day} due to binning error: {e}")
 
@@ -841,14 +761,14 @@ class Plant:
         
         return [rounded_current_time, rounded_forecast_time]
     
-    def get_load_avg(self, days_ago, hours_update_interval=24): # hours_update_interval: frequency to update the load date
+    def get_load_avg(self, days_ago, hours_update_interval=24, optional_loads=None): # hours_update_interval: frequency to update the load date
         if(time.time() - self.last_load_data_retrival_timestamp > hours_update_interval*60*60 or self.avg_load_day == None):
-            self.avg_load_day = self.update_load_avg(days_ago)
+            self.avg_load_day = self.update_load_avg(days_ago, optional_loads=optional_loads)
             self.last_load_data_retrival_timestamp = time.time()
         return self.avg_load_day
     
-    def forecast_load_power(self, forecast_hours_from_now=None, forecast_till_time=None, forecast_start_time=None, forecast_end_time=None):
-        avg_day = self.get_load_avg(days_ago=self.load_avg_days)
+    def forecast_load_power(self, forecast_hours_from_now=None, forecast_till_time=None, forecast_start_time=None, forecast_end_time=None, optional_loads=None):
+        avg_day = self.get_load_avg(days_ago=self.load_avg_days, optional_loads=optional_loads)
 
         # Determine the current and the end of the forecast datetimes, both rounded to 5 min
         [rounded_current_time, rounded_forecast_time] = self.round_forecast_times(
@@ -886,8 +806,8 @@ class Plant:
 
         return forecast_power
             
-    def forecast_consumption_amount(self, forecast_hours_from_now=None, forecast_till_time=None):
-        avg_day = self.get_load_avg(days_ago=self.load_avg_days)
+    def forecast_consumption_amount(self, forecast_hours_from_now=None, forecast_till_time=None, optional_loads=None):
+        avg_day = self.get_load_avg(days_ago=self.load_avg_days, optional_loads=optional_loads)
 
         [rounded_current_time, rounded_forecast_time] = self.round_forecast_times(forecast_hours_from_now, forecast_till_time)
 

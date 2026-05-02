@@ -7,7 +7,7 @@ import config_manager
 import const
 from exceptions import MPCEnergyError
 from mpc_logger import logger
-import optional_loads
+import loads.optional_loads
 
 app_start_timestamp = time.time()
 def start_timer():
@@ -62,11 +62,18 @@ if(config_manager.energy_retailer == "amber" and config_manager.amber_site_id ==
 
 logger.info("------------------------  Starting MPC Energy App  ------------------------")
 
-opt_loads = optional_loads.load_optional_loads()
+opt_loads = loads.optional_loads.load_optional_load_instances()
 if opt_loads:
     logger.debug(f"Optional Loads Configured ({len(opt_loads)}):")
     for load in opt_loads:
-        logger.debug(f"  - {load}")
+        logger.debug(f"  - Name: {load.name}")
+        logger.debug(f"    Type: {load.load_type}")
+        logger.debug(f"    Power Entity: {load.power_entity_id}")
+        logger.debug(f"    Capacity: {load.capacity_kwh} kWh")
+        logger.debug(f"    Limits: {load.min_limit}% to {load.max_limit}%")
+        if hasattr(load, 'volume_l') and load.volume_l > 0:
+            logger.debug(f"    Thermal: {load.volume_l}L, {load.temp_min}°C to {load.temp_max}°C")
+            
 else:
     logger.debug("No optional loads configured.")
 
@@ -182,6 +189,8 @@ while(started == False):
             ha_mqtt=ha_mqtt,
             plant=plant
         )
+        
+        plant.optional_loads = opt_loads
 
         control_mode_override_manager = ControlModeOverrideManager(ha_mqtt=ha_mqtt, energy_controller=EC, plant=plant)
 
@@ -243,8 +252,8 @@ def update_sensors(price_data):
     set_sensor_if_changed(ha_mqtt.net_profit_sensor, round(plant.daily_net_profit, 2))
     set_sensor_if_changed(ha_mqtt.profit_remaining_today_sensor, round(mpc.profit_remaining_today, 2))
     set_sensor_if_changed(ha_mqtt.profit_tomorrow_sensor, round(mpc.profit_tomorrow, 2))
-    if(mpc.ev_configured):
-       set_sensor_if_changed(ha_mqtt.target_ev_charge_rate_sensor, round(mpc.target_ev_charge_rate, 2))
+    
+    # Note: Target EV charge rate sensor logic should be moved to iterate over all opt_loads in mpc.py
 
     if(plant.grid_power < 0):
         price = price_data.feedIn_price

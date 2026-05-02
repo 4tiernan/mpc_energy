@@ -1,6 +1,8 @@
 import json
 import os
 from typing import Any
+import cvxpy as cp
+import numpy as np
 
 DEFAULT_PATH = "/data/optional_loads.json"
 LOAD_CLASSES = {}
@@ -23,6 +25,27 @@ def create_load_instance(item: dict[str, Any]) -> "OptionalLoad | None":
         return HWLoad.from_dict(item)
     from loads.EV_load import EVLoad
     return EVLoad.from_dict(item)
+
+def load_optional_load_instances(ha=None, plant=None, EC=None, local_tz=None, ha_mqtt=None):
+    """Factory function to load and initialize instances ready for use."""
+    raw_configs = load_optional_loads()
+    instances = []
+    for cfg in raw_configs:
+        instance = create_load_instance(cfg)
+        if instance:
+            instance.ha = ha
+            instance.plant = plant
+            instance.EC = EC
+            instance.local_tz = local_tz
+            instance.ha_mqtt = ha_mqtt
+            if ha:
+                instance.update_data(ha)
+            instances.append(instance)
+    return instances
+
+def get_mpc_loads(ha, plant, EC, local_tz, ha_mqtt):
+    """Alias for main.py compatibility and clean MPC init."""
+    return load_optional_load_instances(ha, plant, EC, local_tz, ha_mqtt)
 
 class OptionalLoad:
     def __init__(
@@ -57,6 +80,11 @@ class OptionalLoad:
         self.current_power_kw: float = 0.0
         self.current_level_percent: float = 0.0
         self.max_charge_power_limit: float = 0.0
+        
+        # MPC References
+        self.ha = None
+        self.plant = None
+        self.local_tz = None
 
     @property
     def current_charge_kwh(self) -> float:
@@ -151,6 +179,27 @@ class OptionalLoad:
             return state in true_states
         except Exception:
             return default
+
+    # --- MPC Interface Stubs ---
+    def debias_load(self, current_load, historical_data):
+        """Remove current device power from load to avoid feedback loops."""
+        return current_load
+        
+    def get_historical_power(self, start, end, bin_period):
+        """Retrieve and bin historical power usage for this device."""
+        return None
+
+    def build_cvxpy(self, n, dt, mpc_soc, mpc_soc_min_param):
+        """Define CVXPY variables, constraints and rewards."""
+        return [], 0, np.zeros(n)
+
+    def update_values(self, n, dt, time_index, load_5min):
+        """Update CVXPY parameters based on latest forecasts/state."""
+        pass
+
+    def get_results(self, dt):
+        """Extract results from the solver."""
+        return {}
 
 
 def load_optional_loads() -> list[dict[str, Any]]:

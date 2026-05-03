@@ -12,7 +12,7 @@ class BinnedStateClass:
     avg_state: Any # Avg of the states
     time: datetime # Start time of the bin
 
-def bin_data(self, history, bin_period, start_bin_datetime, end_bin_datetime, string_state=False, interpolation_method="linear") -> list[BinnedStateClass]: 
+def bin_data(history, bin_period, start_bin_datetime, end_bin_datetime, string_state=False, interpolation_method="linear") -> list[BinnedStateClass]: 
     """
     Takes a list of historical state data and bins it into specified time intervals, averaging the state values within each bin. Handles both numeric and string states. Also fills in missing bins with None values and can interpolate those values if desired.
 
@@ -101,7 +101,7 @@ def bin_data(self, history, bin_period, start_bin_datetime, end_bin_datetime, st
 
     return binned_history
 
-def interpolate_values(self, values, method="linear"):
+def interpolate_values(values, method="linear"):
     '''takes a list of numeric values with possible None values to interpolate and interpolates the None values using the specified method. Returns a list of the same length with no None values.'''
     s = pd.Series(values)
 

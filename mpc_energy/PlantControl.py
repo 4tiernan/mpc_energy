@@ -578,7 +578,7 @@ class Plant:
                 if len(day_data) >= expected_bins_per_day:
                     per_day_binned.append(day_data[:expected_bins_per_day])
                 else:
-                    logger.degbug(f"Skipping day {day} for average load calculation due to insufficient data bins: expected {expected_bins_per_day}, got {len(day_data)}.")
+                    logger.debug(f"Skipping day {day} for average load calculation due to insufficient data bins: expected {expected_bins_per_day}, got {len(day_data)}.")
             except Exception as e:
                 logger.warning(f"Skipping day {day} due to binning error: {e}")
 

@@ -261,6 +261,7 @@ class EVLoad(OptionalLoad):
             max_charge_power_kw=float(item.get("max_charge_power_kw", 0.0) or 0.0),
             min_charge_power_kw=float(item.get("min_charge_power_kw", 0.0) or 0.0),
             power_entity_id=str(item.get("power_entity_id", "")).strip(),
+            level_entity_id=str(item.get("level_entity_id", "")).strip(),
             capacity_kwh=float(item.get("capacity_kwh", 0.0) or 0.0),
             min_level_limit=float(item.get("min_level_limit", 0.0) or 0.0),
             max_level_limit=float(item.get("max_level_limit", 100.0) or 100.0),

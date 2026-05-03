@@ -570,10 +570,15 @@ class Plant:
         
         # --- Bin history data by day and subtract EV power--- 
         per_day_binned = []
+        expected_bins_per_day = int(24 * 60 / self.time_step_minutes)
         for day, day_data in history_by_day.items():
             try:
-                if len(day_data) > 0:
-                    per_day_binned.append(day_data)
+                # Only include days that have at least the expected number of bins
+                # This avoids partial days (like a single midnight bin) causing index errors.
+                if len(day_data) >= expected_bins_per_day:
+                    per_day_binned.append(day_data[:expected_bins_per_day])
+                else:
+                    logger.degbug(f"Skipping day {day} for average load calculation due to insufficient data bins: expected {expected_bins_per_day}, got {len(day_data)}.")
             except Exception as e:
                 logger.warning(f"Skipping day {day} due to binning error: {e}")
 

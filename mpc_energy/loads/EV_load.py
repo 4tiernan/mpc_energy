@@ -66,7 +66,7 @@ class EVLoad(OptionalLoad):
         self.ev_charge_48hr_reward = np.zeros(int(mpc.N_5min), dtype=float)
         self.ev_charge_48hr_reward[:int(mpc.steps_per_hr*48)] = self.reward_cents_per_kwh / 100.0 # Only reward EV charging in the first 48 hrs to avoid charging near the end of the forecast horizon.
 
-        divisor = max(int(mpc.N_5min) * mpc.dt_5min * (self.capacity_kwh - self.current_charge_kwh), 1.0)
+        divisor = max(int(mpc.N_5min) * mpc.dt_5min * (self.capacity_kwh), 1.0)
         self.charge_maintain_reward = 0.20 / divisor
 
         n = int(mpc.N_5min)

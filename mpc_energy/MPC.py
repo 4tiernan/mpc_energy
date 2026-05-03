@@ -338,9 +338,9 @@ class MPC:
         ]
 
         total_load = self.load_forecast_param
-
+        mpc_instace = self
         for load in self.optional_loads:
-            l_constraints, l_objective_term, l_p_var = load.build_cvxpy(n, self)
+            l_constraints, l_objective_term, l_p_var = load.build_cvxpy(mpc_instace)
             constraints += l_constraints
             objective_list.append(l_objective_term)
             total_load += l_p_var

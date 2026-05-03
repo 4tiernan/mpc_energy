@@ -1,5 +1,5 @@
 from typing import Any, Tuple, List
-from optional_loads import OptionalLoad
+from loads.optional_loads import OptionalLoad
 import cvxpy as cp
 import numpy as np
 from datetime import datetime, timedelta

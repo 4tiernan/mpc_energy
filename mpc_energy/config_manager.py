@@ -1,5 +1,7 @@
 # Module to retreive the config values from the app configuration page, App must be reloaded for changes to take effect
 import json
+from mpc_logger import logger
+
 
 with open("/data/options.json") as f:
     options = json.load(f)
@@ -7,7 +9,8 @@ with open("/data/options.json") as f:
 def get_entity_id(key, default=None):
     value = options.get(key, default)
     if((value == None or value == "") and default == None):
-        raise Exception(f"Missing required configuration: {key}. \n Please ensure this value has been set in the app configuration page and restart the app.") from None
+        logger.error(f"Missing required configuration: {key}. \n Please ensure this value has been set in the app configuration page and restart the app.")
+        exit()
     return value
 
 accepted_risks = get_entity_id("accepted_risks")

@@ -7,11 +7,8 @@ import const
 from exceptions import MPCEnergyError
 from mpc_logger import logger
 import loads.optional_loads
+import config_manager
 
-try: 
-    import config_manager
-except Exception as e:
-    logger.error(f"Error importing configuration: {e}")
 
 app_start_timestamp = time.time()
 def start_timer():

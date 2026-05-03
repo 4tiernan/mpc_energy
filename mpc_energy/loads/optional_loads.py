@@ -3,7 +3,7 @@ import os
 from typing import Any
 import cvxpy as cp
 import numpy as np
-from requests_cache import logger
+from mpc_logger import logger
 from ha_api import HomeAssistantAPI
 
 DEFAULT_PATH = "/data/optional_loads.json"
@@ -53,7 +53,7 @@ def load_optional_load_instances(ha: HomeAssistantAPI, local_tz, ha_mqtt):
                 
     else:
         logger.debug("No optional loads configured.")
-        
+
     return instances
 
 def get_mpc_loads(ha, local_tz, ha_mqtt):

@@ -9,6 +9,12 @@ from mpc_logger import logger
 import loads.optional_loads
 import config_manager
 
+# Initialize globals as None so error handlers can safely check them if startup fails early
+ha = None
+EC = None
+ha_mqtt = None
+plant = None
+mpc = None
 
 app_start_timestamp = time.time()
 def start_timer():
@@ -100,6 +106,10 @@ def PrintError(e):
     if(not isinstance(e, MPCEnergyError)):
         traceback.print_exc() # Prints the full traceback to the console for unexpected errors
     
+    # If Home Assistant API object isn't initialized yet, we can't send HA notifications
+    if ha is None:
+        return
+
     try:
         ha.create_persistent_notification(
             title="MPC Energy Error",
@@ -114,14 +124,16 @@ def PrintError(e):
         logger.error(f"Failed to create Home Assistant notification for the error. This likely means that the Home Assistant API is down. Check the API and try again. Error creating notification: {notification_error}")
 
 def FailSafe(e):
-    global EC, ha_mqtt
     PrintError(e)
-    try:
-        if(ha_mqtt.automatic_control_switch.state == True):
-            EC.self_consumption()
-            logger.warning("Succsessfully put system into safe mode after detecting an error.")        
-    except:
-        logger.error("Failed to put system into safe mode after detecting an error.")   
+    
+    # Only attempt safe mode if the Energy Controller and MQTT objects are actually loaded
+    if EC is not None and ha_mqtt is not None:
+        try:
+            if(ha_mqtt.automatic_control_switch.state == True):
+                EC.self_consumption()
+                logger.warning("Succsessfully put system into safe mode after detecting an error.")        
+        except Exception as failsafe_error:
+            logger.error(f"Failed to put system into safe mode after detecting an error: {failsafe_error}")   
 
     logger.warning("Trying again after 30 seconds")
     time.sleep(30)    

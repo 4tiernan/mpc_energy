@@ -8,16 +8,45 @@ from mpc_logger import logger
 import warnings
 
 import json
+from exceptions import MPCEnergyError, MQTTAuthenticationError, MQTTConnectionError
 import paho.mqtt.client as mqtt
 import const
 import config_manager
 import loads.optional_loads
 from helper_functions import round_minutes
 
+mqtt_conn_result = None
+def on_connect(client, userdata, flags, rc, properties=None):
+    global mqtt_conn_result
+    mqtt_conn_result = rc
+
 mqtt_client = mqtt.Client()
+mqtt_client.on_connect = on_connect
 mqtt_client.username_pw_set(config_manager.MQTT_USER, config_manager.MQTT_PASS) 
-mqtt_client.connect(const.MQTT_HOST, const.MQTT_PORT)
-mqtt_client.loop_start()
+
+try:
+    mqtt_client.connect(const.MQTT_HOST, const.MQTT_PORT)
+    mqtt_client.loop_start()
+    
+    # Wait for the CONNACK response from the broker to verify credentials
+    wait_start = time.time()
+    while mqtt_conn_result is None and time.time() - wait_start < 5:
+        time.sleep(0.1)
+        
+    if mqtt_conn_result is not None and mqtt_conn_result != 0:
+        if mqtt_conn_result == 4:
+            raise MQTTAuthenticationError("Connection refused (bad username or password). Please check your MQTT credentials in the add-on configuration.")
+        elif mqtt_conn_result == 5:
+            raise MQTTAuthenticationError("Connection refused (not authorized).")
+        else:
+            raise MQTTConnectionError(f"Broker refused connection with return code {mqtt_conn_result}.")
+            
+except Exception as e:
+    if isinstance(e, MPCEnergyError):
+        raise e
+    # Catch connection errors (like DNS failure) and provide a helpful message
+    raise MPCEnergyError(f"Failed to connect to the MQTT broker at '{const.MQTT_HOST}:{const.MQTT_PORT}'. "
+                         f"Please ensure the Mosquitto broker is running and the hostname is correct. Error: {e}") from e
 
 class MPC:
     def __init__(self, ha, plant, EC, local_tz, demand_tarrif, retailer, optional_loads: list[loads.optional_loads.OptionalLoad]):

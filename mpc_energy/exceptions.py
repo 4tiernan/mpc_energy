@@ -30,3 +30,9 @@ class AmberAPIRequestError(AmberAPIError):
 
 class FlowPowerError(MPCEnergyError):
     """Base exception for Flow Power forecast failures."""
+
+class MQTTConnectionError(MPCEnergyError):
+    """Base exception for MQTT connection failures."""
+
+class MQTTAuthenticationError(MPCEnergyError):
+    """Base exception for MQTT connection failures."""

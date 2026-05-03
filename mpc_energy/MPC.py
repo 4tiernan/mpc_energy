@@ -353,7 +353,7 @@ class MPC:
 
 
         self.objective_expression = (
-            cp.sum(objective_list)
+            sum(cp.sum(item) for item in objective_list)
             + self.peak_demand * self.demand_peak_price_param # not summed as it's a single peak charge
         )
 

@@ -25,8 +25,12 @@ def create_load_instance(item: dict[str, Any]) -> "OptionalLoad | None":
     if l_type == "hot_water":
         from loads.HW_load import HWLoad
         return HWLoad.from_dict(item)
-    from loads.EV_load import EVLoad
-    return EVLoad.from_dict(item)
+    elif l_type == "ev":    
+        from loads.EV_load import EVLoad
+        return EVLoad.from_dict(item)
+    else:
+        logger.warning(f"Unknown load_type '{l_type}' in item: {item}. Skipping.")
+        return None
 
 def load_optional_load_instances(ha: HomeAssistantAPI, local_tz, ha_mqtt):
     """Factory function to load and initialize instances ready for use."""
@@ -123,7 +127,7 @@ def load_optional_loads() -> list[dict[str, Any]]:
         if not isinstance(item, dict):
             continue
 
-        load = OptionalLoad.from_dict(item)
+        load = create_load_instance(item)
         if load is None:
             continue
 
@@ -138,7 +142,7 @@ def save_optional_loads(loads: list[dict[str, Any]]) -> None:
         if not isinstance(item, dict):
             continue
 
-        load = OptionalLoad.from_dict(item)
+        load = create_load_instance(item)
         if load is None:
             continue
 

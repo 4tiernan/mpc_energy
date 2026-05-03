@@ -124,3 +124,19 @@ def interpolate_values(values, method="linear"):
 
     else:
         raise ValueError("method must be 'linear' or 'step'")
+    
+
+def get_time_range_from_hours(hours: float, tz) -> tuple:
+    """
+    Converts a duration in hours into a start and end datetime pair, 
+    rounded to the nearest 5-minute interval.
+    """
+    from datetime import datetime, timedelta
+    from helper_functions import round_minutes
+
+    now = datetime.now(tz)
+    rounded_now = round_minutes(time=now, nearest_minute=5)
+    start_datetime = round_minutes(time=rounded_now - timedelta(hours=hours), nearest_minute=5)
+    end_datetime = rounded_now
+    
+    return start_datetime, end_datetime

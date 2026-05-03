@@ -45,7 +45,10 @@ class EVLoad(OptionalLoad):
     def get_historical_power(self, start=None, end=None, hours=None, bin_period=5):
         if not self.power_entity_id: return None
         
-        history = self.ha.get_history(self.power_entity_id, start_time=start, end_time=end, hours=hours)
+        if hours is not None and (start is None or end is None):
+            start, end = data_helpers.get_time_range_from_hours(hours, self.local_tz)
+
+        history = self.ha.get_history(self.power_entity_id, start_time=start, end_time=end)
         if not history: return None
         
         requested_seconds = max((end - start).total_seconds(), 1.0)

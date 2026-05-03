@@ -21,10 +21,8 @@ if col_btn2.button("Clear and delete all saved loads"):
     st.rerun()
 
 rows = st.session_state.optional_load_rows
-if not rows:
-    rows = [{"name": "", "power_entity_id": "", "load_type": "ev"}]
-
 edited_rows: list[dict] = []
+
 for idx, row in enumerate(rows):
     with st.container(border=True):
         col_t1, col_t2 = st.columns([2, 2])
@@ -94,6 +92,9 @@ for idx, row in enumerate(rows):
             "max_level_limit": max_lim, "reward_cents_per_kwh": reward,
             "volume_l": vol, "temp_min": tmin, "temp_max": tmax,
         })
+
+if not edited_rows:
+    st.info("No optional loads configured. Click 'Add row' to begin.")
 
 col_act1, col_act2 = st.columns(2)
 add_row = col_act1.button("Add row", use_container_width=True)

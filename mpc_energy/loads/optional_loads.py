@@ -127,10 +127,13 @@ def load_optional_loads() -> list[dict[str, Any]]:
     return cleaned
 
 
-def save_optional_loads(loads: list[dict[str, Any]]) -> None:
+def save_optional_loads(load_configs: list[dict[str, Any]]) -> None:
     cleaned: list[dict[str, Any]] = []
-    for item in loads:
+    for item in load_configs:
         if not isinstance(item, dict):
+            continue
+
+        if not item.get("name"):
             continue
 
         load = create_load_instance(item)

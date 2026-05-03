@@ -41,13 +41,13 @@ for idx, row in enumerate(rows):
         # Local state for field mapping
         lvl_ent = row.get("level_entity_id", "")
         cap = str(row.get("capacity_kwh", "0.0"))
-        min_lim = str(row.get("min_limit", "0.0"))
-        max_lim = str(row.get("max_limit", "100.0"))
+        min_lim = str(row.get("min_level_limit", "0.0"))
+        max_lim = str(row.get("max_level_limit", "100.0"))
         min_p = str(row.get("min_charge_power_kw", "0.0"))
         max_p = row.get("max_charge_power_entity_id", "")
         p_ent = row.get("power_entity_id", "")
         plug_ent = row.get("plugged_in_entity_id", "")
-        reward = str(row.get("charge_reward_cents_per_kwh", "0.0"))
+        reward = str(row.get("reward_cents_per_kwh", "0.0"))
         vol = str(row.get("volume_l", "0.0"))
         tmin = str(row.get("temp_min", "0.0"))
         tmax = str(row.get("temp_max", "0.0"))
@@ -90,8 +90,8 @@ for idx, row in enumerate(rows):
             "name": name, "power_entity_id": p_ent, "load_type": l_type,
             "plugged_in_entity_id": plug_ent, "level_entity_id": lvl_ent,
             "capacity_kwh": cap, "max_charge_power_entity_id": max_p,
-            "min_charge_power_kw": min_p, "min_limit": min_lim,
-            "max_limit": max_lim, "charge_reward_cents_per_kwh": reward,
+            "min_charge_power_kw": min_p, "min_level_limit": min_lim,
+            "max_level_limit": max_lim, "reward_cents_per_kwh": reward,
             "volume_l": vol, "temp_min": tmin, "temp_max": tmax,
         })
 

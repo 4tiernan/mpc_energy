@@ -62,21 +62,6 @@ if(config_manager.energy_retailer == "amber" and config_manager.amber_site_id ==
 
 logger.info("------------------------  Starting MPC Energy App  ------------------------")
 
-opt_loads = loads.optional_loads.load_optional_load_instances()
-if opt_loads:
-    logger.debug(f"Optional Loads Configured ({len(opt_loads)}):")
-    for load in opt_loads:
-        logger.debug(f"  - Name: {load.name}")
-        logger.debug(f"    Type: {load.load_type}")
-        logger.debug(f"    Power Entity: {load.power_entity_id}")
-        logger.debug(f"    Capacity: {load.capacity_kwh} kWh")
-        logger.debug(f"    Limits: {load.min_limit}% to {load.max_limit}%")
-        if hasattr(load, 'volume_l') and load.volume_l > 0:
-            logger.debug(f"    Thermal: {load.volume_l}L, {load.temp_min}°C to {load.temp_max}°C")
-            
-else:
-    logger.debug("No optional loads configured.")
-
 started = False
 
 streamlit_proc = None
@@ -158,6 +143,8 @@ while(started == False):
             token=const.HA_TOKEN,
         )
 
+        opt_loads = loads.optional_loads.load_optional_load_instances(ha, ha.local_tz, ha_mqtt)
+
         demand_tariff = None
 
         if(config_manager.energy_retailer == "amber"):
@@ -202,6 +189,9 @@ while(started == False):
             ha_mqtt=ha_mqtt,
             optional_loads=opt_loads
         ) 
+
+        
+
 
         # Start Streamlit dashboard
         streamlit_proc = start_streamlit_dashboard()

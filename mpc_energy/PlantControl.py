@@ -14,7 +14,7 @@ import data_helpers
 from helper_functions import round_minutes
 
 class Plant:
-    def __init__(self, ha, optional_loads):
+    def __init__(self, ha, optional_loads: list):
         self.ha = ha
         self.optional_loads = optional_loads
         self.local_tz = ha.local_tz

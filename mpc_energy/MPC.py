@@ -35,11 +35,11 @@ try:
         
     if mqtt_conn_result is not None and mqtt_conn_result != 0:
         if mqtt_conn_result == 4:
-            raise MQTTAuthenticationError("Connection refused (bad username or password). Please check your MQTT credentials in the add-on configuration.")
+            raise MQTTAuthenticationError("MQTT Authentication Error: Connection refused (bad username or password). Please check your MQTT credentials in the add-on configuration.")
         elif mqtt_conn_result == 5:
-            raise MQTTAuthenticationError("Connection refused (not authorized).")
+            raise MQTTAuthenticationError("MQTT Authentication Error: Connection refused (not authorized).")
         else:
-            raise MQTTConnectionError(f"Broker refused connection with return code {mqtt_conn_result}.")
+            raise MQTTConnectionError(f"MQTT Connection Error: Broker refused connection with return code {mqtt_conn_result}.")
             
 except Exception as e:
     if isinstance(e, MPCEnergyError):

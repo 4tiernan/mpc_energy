@@ -37,6 +37,8 @@ class EVLoad(OptionalLoad):
         self.min_level_limit = min_level_limit
         self.max_level_limit = max_level_limit
 
+        logger.debug(f"Initialized EV Load '{name}' with capacity {capacity_kwh} kWh, current level limits {min_level_limit}% to {max_level_limit}%, max charge power {max_charge_power_kw} kW, min charge power {min_charge_power_kw} kW, and reward {reward_cents_per_kwh} c/kWh.")
+
         # Optional load required params
         super().__init__(name, load_type, reward_cents_per_kwh)
     

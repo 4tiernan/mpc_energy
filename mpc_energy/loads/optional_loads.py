@@ -45,16 +45,7 @@ def load_optional_load_instances(ha: HomeAssistantAPI, local_tz, ha_mqtt):
             instances.append(instance)
 
     if instances:
-        logger.debug(f"{len(instances)} Optional Loads Configured:")
-        for load in instances:
-            logger.debug(f"  - Name: {load.name}")
-            logger.debug(f"    Type: {load.load_type}")
-            logger.debug(f"    Power Entity: {load.power_entity_id}")
-            logger.debug(f"    Capacity: {load.capacity_kwh} kWh")
-            logger.debug(f"    Limits: {load.min_limit}% to {load.max_limit}%")
-            if hasattr(load, 'volume_l') and load.volume_l > 0:
-                logger.debug(f"    Thermal: {load.volume_l}L, {load.temp_min}°C to {load.temp_max}°C")
-                
+        logger.debug(f"{len(instances)} Optional Loads Configured.")
     else:
         logger.debug("No optional loads configured.")
 

@@ -108,23 +108,20 @@ class EVLoad(OptionalLoad):
             mode = self.EV_MODE_SOLAR_SMART
         return mode
     
-    def update_mpc_values(self, mpc):
+    def update_mpc_values(self, time_index, mpc):
         self.update_data()
-        
-        self.soc_init_param.value = float(self.current_charge_kwh)
-        self.soc_upper_limit_param.value = (self.max_level_limit / 100.0) * self.capacity_kwh
 
         # Mode detection via HA MQTT
         mode = self._normalise_ev_mode()
 
         # Build power limits
-        p_max_arr = np.zeros(int(mpc.N_5min), dtype=float)
+        p_max_arr = np.zeros(int(mpc.N_5min), dtype=float) # Start with no charging allowed, then enable based on mode and grid import limits
         grid_import_limit = mpc.grid_import_limit
         
         for i, load in enumerate(mpc.load_5min):
             max_avail = grid_import_limit - load
             p_max_arr[i] = max(0.0, min(self.max_charge_power_kw, max_avail))
-        self.p_max_param.value = p_max_arr
+        
 
         # SOC constraints
         ev_soc_min_required_arr = np.zeros(int(mpc.N_5min), dtype=float)
@@ -132,54 +129,51 @@ class EVLoad(OptionalLoad):
         self.max_target_kwh = (self.max_level_limit / 100.0) * self.capacity_kwh
 
         # If the EV soc is below the minimum soc target, charge asap reguardless of the selected mode. 
-        if(self.current_charge_kwh < self.min_target_kwh):
-            logger.debug(f"EV SOC of {self.current_charge_kwh:.2f} kWh is below the minimum SOC target of {self.min_target_kwh:.2f} kWh. The MPC will attempt to charge the EV as soon as possible to reach the minimum SOC target.")
-            ev_soc_min_required_arr = self.build_ev_min_soc_constraint(target_soc=self.min_target_kwh, p_max_arr=p_max_arr)
+        if(self.current_ev_soc_kWh < self.min_target_kwh):
+            logger.debug(f"EV SOC of {self.current_ev_soc_kWh:.2f} kWh is below the minimum SOC target of {self.min_target_kwh:.2f} kWh. The MPC will attempt to charge the EV as soon as possible to reach the minimum SOC target.")
+            ev_soc_min_required_arr = self.build_ev_min_soc_constraint(target_soc=self.min_target_kwh, p_max_arr=p_max_arr, mpc=mpc)
         else:
             if(mode == self.EV_MODE_SOLAR_SMART):
                 pass # No minimum SOC constraint, let the optimiser decide when to charge based on the solar forecast and prices.
             elif(mode == self.EV_MODE_READY_BY_TIME):
-                ev_soc_min_required_arr = self.build_ev_ready_by_time_min_soc_mask(mpc.time_index)
+                ev_soc_min_required_arr = self.build_ev_ready_by_time_min_soc_mask(time_index, mpc)
             elif(mode == self.EV_MODE_FORCE_ON):
-                ev_soc_min_required_arr = self.build_ev_min_soc_constraint(target_soc=self.max_target_kwh, p_max_arr=p_max_arr)
+                ev_soc_min_required_arr = self.build_ev_min_soc_constraint(target_soc=self.max_target_kwh, p_max_arr=p_max_arr, mpc=mpc)
                 logger.debug("EV Force On Mode Active. required SOC array: " + str(ev_soc_min_required_arr))
-            else:  # Charging Disabled
-                ev_p_max_arr = np.zeros(int(self.N_5min), dtype=float) # No charging allowed, set max power to 0
-
-
-        self.soc_min_required_param.value = ev_soc_min_required_arr
+            elif(mode == self.EV_MODE_DISABLED):  # Charging Disabled
+                p_max_arr = np.zeros(int(self.N_5min), dtype=float) # No charging allowed, set max power to 0
+            else:
+                logger.warning(f"Unknown EV charging mode '{mode}', defaulting to 'Solar Smart' (no minimum SOC constraint).")
+                # No minimum SOC constraint, let the optimiser decide when to charge based on the solar forecast and prices.
+        
+        self.p_max_param.value = p_max_arr
+        self.soc_init_param.value = float(self.current_ev_soc_kWh)
+        self.soc_upper_limit_param.value = max(float((self.max_level_limit / 100.0) * self.capacity_kwh), 0) # Set the upper SOC limit based on the max_level_limit percentage
+        self.soc_min_required_param.value = ev_soc_min_required_arr # Set the minimum SOC constraint array based on the selected mode and current SOC
         
     def update_data(self) -> None:
         """Collects and updates real-time data from Home Assistant."""
-        self.get_historical_power(hours=0.25)
-        self.current_power_kw = self._get_numeric(ha, self.power_entity_id)
-        
-        raw_level_val = self._get_numeric(ha, self.level_entity_id) if self.level_entity_id else 0.0
-        
-        if self.level_entity_id:
-            self.current_level_percent = min(max(raw_level_val, 0.0), 100.0)
-            self.current_charge_kwh = (self.current_level_percent / 100.0) * self.capacity_kwh
+        self.current_ev_soc_percent = self.ha.get_numeric_state(self.level_entity_id) if self.level_entity_id else None
+        if self.current_ev_soc_percent is not None:
+            self.current_ev_soc_kWh = (self.current_ev_soc_percent / 100.0) * self.capacity_kwh
         else:
-            self.current_level_percent = 0.0
-            self.current_charge_kwh = 0.0
+            self.current_ev_soc_kWh = None
         
         if self.plugged_in_entity_id:
-            self.is_plugged_in = self._get_bool(ha, self.plugged_in_entity_id)
+            self.is_plugged_in = self.ha.get_boolean_state(self.plugged_in_entity_id)
         else:
             self.is_plugged_in = True  # Assume always plugged in if no sensor provided
             
-        self.max_charge_power_limit = self._get_numeric(ha, self.max_charge_power_entity_id)
-
-    def build_ev_min_soc_constraint(self, target_soc, p_max_arr):
-        target_soc = max(min(target_soc, self.ev_battery_capacity_kwh), 0.0)
-        ev_soc_min_required_arr = [min(self.ev_soc_init + i*p_max_arr[i]*0.95 * self.dt_5min, target_soc) for i in range(int(self.N_5min))] *np.ones(int(self.N_5min), dtype=float) # Force minimum SOC constraint based on max charge rate but allow a slight reductuion to ensure feasibility
+    def build_ev_min_soc_constraint(self, target_soc, p_max_arr, mpc):
+        target_soc = max(min(target_soc, self.capacity_kwh), 0.0)
+        ev_soc_min_required_arr = [min(self.current_ev_soc_kWh + i*p_max_arr[i]*0.95 * mpc.dt_5min, target_soc) for i in range(int(mpc.N_5min))] *np.ones(int(mpc.N_5min), dtype=float) # Force minimum SOC constraint based on max charge rate but allow a slight reductuion to ensure feasibility
         return ev_soc_min_required_arr
     
-    def build_ev_ready_by_time_min_soc_mask(self, time_index):
+    def build_ev_ready_by_time_min_soc_mask(self, time_index, mpc):
         self.ev_full_by_time = self.ha_mqtt.ready_by_time_selector.state if (self.ha_mqtt is not None and hasattr(self.ha_mqtt, "ready_by_time_selector")) else self.ev_full_by_time
 
-        required_mask = np.zeros(int(self.N_5min), dtype=float)
-        if(self.ev_battery_capacity_kwh <= 0):
+        required_mask = np.zeros(int(mpc.N_5min), dtype=float)
+        if(self.capacity_kwh <= 0):
             return required_mask
 
         try:
@@ -194,12 +188,12 @@ class EVLoad(OptionalLoad):
             logger.warning(f"Invalid ev_full_by_time '{self.ev_full_by_time}'. Expected HH:MM, defaulting to 07:00.")
             target_clock = datetime.now(self.local_tz).replace(hour=7, minute=0, second=0, microsecond=0)
 
-        if(target_clock < self.sim_start):
+        if(target_clock < mpc.sim_start):
             target_clock = target_clock + timedelta(days=1)
 
-        hours_until_target = (target_clock - self.sim_start).total_seconds() / 3600
-        energy_needed = self.ev_max_soc_target - self.ev_soc_init
-        charge_duration_at_max_rate = energy_needed / self.ev_max_charge_power if self.ev_max_charge_power > 0 else float('inf')
+        hours_until_target = (target_clock - mpc.sim_start).total_seconds() / 3600
+        energy_needed = self.max_target_kwh - self.current_ev_soc_kWh
+        charge_duration_at_max_rate = energy_needed / self.max_charge_power_kw if self.max_charge_power_kw > 0 else float('inf')
         logger.debug(f"EV charge-by time: {target_clock.strftime('%Y-%m-%d %H:%M')}, which is {hours_until_target:.2f} hours from sim start. Energy needed: {energy_needed:.2f} kWh, Charge duration at max rate: {charge_duration_at_max_rate:.2f} hours.")
         if(hours_until_target < charge_duration_at_max_rate):
             logger.warning(f"Target ready-by time of {target_clock.strftime('%H:%M')} is only {hours_until_target:.2f} hours away, which is less than the {charge_duration_at_max_rate:.2f} hours required to fully charge the EV at max rate. The MPC will attempt to charge as much as possible by the target time, but may not reach full charge.")
@@ -231,8 +225,44 @@ class EVLoad(OptionalLoad):
             "ev_soc_percent": soc_pct,
             "power": p_res
         }
+    
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "name": self.name,
+            "load_type": self.load_type,
+            "reward_cents_per_kwh": self.reward_cents_per_kwh,
+
+            "plugged_in_entity_id": self.plugged_in_entity_id,
+            "max_charge_power_kw": self.max_charge_power_kw,
+            "min_charge_power_kw": self.min_charge_power_kw,
+            "power_entity_id": self.power_entity_id,
+            "level_entity_id": self.level_entity_id,
+            "capacity_kwh": self.capacity_kwh,
+            "min_level_limit": self.min_level_limit,
+            "max_level_limit": self.max_level_limit,
+            
+        }
 
     @classmethod
-    def from_dict(cls, item: dict[str, Any]) -> "EVLoad | None":
-        return super().from_dict(item)
+    def from_dict(cls, item: dict[str, Any]) -> "EVLoad | None":  
+        """
+        Base from_dict. If called on OptionalLoad, acts as a factory. 
+        If called on a subclass, instantiates that subclass.
+        """
+        if not item:
+            return None
+
+        return cls(
+            name=str(item.get("name", "")).strip(),
+            load_type=str(item.get("load_type", "ev")).strip(),
+            reward_cents_per_kwh=float(item.get("reward_cents_per_kwh", 0.0) or 0.0),
+
+            plugged_in_entity_id=str(item.get("plugged_in_entity_id", "")).strip(),
+            max_charge_power_kw=float(item.get("max_charge_power_kw", 0.0) or 0.0),
+            min_charge_power_kw=float(item.get("min_charge_power_kw", 0.0) or 0.0),
+            power_entity_id=str(item.get("power_entity_id", "")).strip(),
+            capacity_kwh=float(item.get("capacity_kwh", 0.0) or 0.0),
+            min_level_limit=float(item.get("min_level_limit", 0.0) or 0.0),
+            max_level_limit=float(item.get("max_level_limit", 100.0) or 100.0),
+        )
     

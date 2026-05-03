@@ -424,7 +424,7 @@ class MPC:
 
         self.update_values(amber_data, time_index)
         for load in self.optional_loads:
-            load.update_mpc_values(self)
+            load.update_mpc_values(self, time_index)
 
         #logger.error("Messing with prices!!")
         #self.prices_sell[180:] = 0.02 # Allow testing of various pricings
@@ -570,8 +570,10 @@ class MPC:
                 res = load.get_results(self.dt_5min)
                 if "power" in res:
                     load_power = [round(lp + p, 2) for lp, p in zip(load_power, res["power"])]
-                optional_results.update(res)
-            
+
+                for res_key, res_value in res.items():
+                    res_key_named = f"{load.name}_{res_key}"
+                    optional_results[res_key_named] = res_value            
 
             self.profit_remaining_today = round(float(forecast_profit_today), 2)
             self.profit_tomorrow = round(float(forecast_profit_tomorrow), 2)

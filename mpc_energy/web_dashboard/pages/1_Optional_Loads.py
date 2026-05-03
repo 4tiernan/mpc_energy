@@ -1,6 +1,6 @@
 import streamlit as st
 
-import optional_loads
+import loads.optional_loads as optional_loads
 
 st.set_page_config(page_title="Optional Loads", layout="wide")
 
@@ -104,6 +104,13 @@ if add_row:
     st.rerun()
 
 if save:
-    optional_loads.save_optional_loads(edited_rows)
-    st.session_state.optional_load_rows = optional_loads.load_optional_loads()
-    st.success("Optional loads saved. These are stored under /data so they persist across add-on updates.")
+    # Validation: Ensure names are unique and not empty
+    names = [r["name"].strip() for r in edited_rows]
+    if any(not n for n in names):
+        st.error("Please ensure all optional loads have a name.")
+    elif len(names) != len(set(names)):
+        st.error("Duplicate names detected. Each optional load must have a unique name.")
+    else:
+        optional_loads.save_optional_loads(edited_rows)
+        st.session_state.optional_load_rows = optional_loads.load_optional_loads()
+        st.success("Optional loads saved. These are stored under /data so they persist across add-on updates.")

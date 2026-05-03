@@ -129,6 +129,19 @@ class HomeAssistantAPI:
             return float(state)
         except (TypeError, ValueError):
             raise HAAPIError(f"Unable to convert state '{state}' for entity '{entity_id}' to float.") from None
+    
+    def get_boolean_state(self, entity_id, default=False) -> bool:
+        if not entity_id:
+            logger.warning("Boolean state requested but entity_id is empty. Returning default value: "+str(default))
+            return default
+        try:
+            state_payload = self.get_state(entity_id)
+            state = str(state_payload.get("state", "")).strip().lower()
+            true_states = {"on", "true", "home", "connected", "plugged", "plugged_in", "yes"}
+            return state in true_states
+        except Exception as e:
+            logger.warning(f"Unable to get boolean state for '{entity_id}' Exception '{str(e)}'. Returning default value: "+str(default))
+            return default
 
     def call_service(self, domain, service, data):
         url = f"{self.base_url}/api/services/{domain}/{service}"

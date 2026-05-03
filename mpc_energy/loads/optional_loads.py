@@ -113,18 +113,7 @@ def load_optional_loads() -> list[dict[str, Any]]:
     if not isinstance(data, list):
         return []
 
-    cleaned: list[dict[str, Any]] = []
-    for item in data:
-        if not isinstance(item, dict):
-            continue
-
-        load = create_load_instance(item)
-        if load is None:
-            continue
-
-        cleaned.append(load.to_dict())
-
-    return cleaned
+    return data
 
 
 def save_optional_loads(load_configs: list[dict[str, Any]]) -> None:

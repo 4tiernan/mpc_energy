@@ -42,7 +42,7 @@ for idx, row in enumerate(rows):
         min_lim = str(row.get("min_level_limit", "0.0"))
         max_lim = str(row.get("max_level_limit", "100.0"))
         min_p = str(row.get("min_charge_power_kw", "0.0"))
-        max_p = row.get("max_charge_power_entity_id", "")
+        max_p = str(row.get("max_charge_power_kw", "0.0"))
         p_ent = row.get("power_entity_id", "")
         plug_ent = row.get("plugged_in_entity_id", "")
         reward = str(row.get("reward_cents_per_kwh", "0.0"))
@@ -87,7 +87,7 @@ for idx, row in enumerate(rows):
         edited_rows.append({
             "name": name, "power_entity_id": p_ent, "load_type": l_type,
             "plugged_in_entity_id": plug_ent, "level_entity_id": lvl_ent,
-            "capacity_kwh": cap, "max_charge_power_entity_id": max_p,
+            "capacity_kwh": cap, "max_charge_power_kw": max_p,
             "min_charge_power_kw": min_p, "min_level_limit": min_lim,
             "max_level_limit": max_lim, "reward_cents_per_kwh": reward,
             "volume_l": vol, "temp_min": tmin, "temp_max": tmax,

@@ -246,8 +246,8 @@ def update_sensors(price_data):
     set_sensor_if_changed(ha_mqtt.current_general_price_sensor, round(price_data.general_price))
     set_sensor_if_changed(ha_mqtt.kwh_discharged_sensor, round(plant.kwh_till_full, 2))
     set_sensor_if_changed(ha_mqtt.kwh_remaining_sensor, round(plant.kwh_stored_available, 2))
-    set_sensor_if_changed(ha_mqtt.kwh_required_overnight_sensor, round(plant.kwh_required_remaining(buffer_percentage=0), 2))    
-    set_sensor_if_changed(ha_mqtt.kwh_required_till_sundown_sensor, round(plant.kwh_required_till_sundown(buffer_percentage=0), 2))
+    set_sensor_if_changed(ha_mqtt.kwh_required_overnight_sensor, round(plant.kwh_required_remaining(), 2))    
+    set_sensor_if_changed(ha_mqtt.kwh_required_till_sundown_sensor, round(plant.kwh_required_till_sundown(), 2))
     set_sensor_if_changed(ha_mqtt.next_grid_interaction_kwh_sensor, round(mpc.next_grid_interaction_kwh, 2))
     set_sensor_if_changed(ha_mqtt.working_mode_sensor, opperating_mode)
 

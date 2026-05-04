@@ -195,7 +195,7 @@ class HomeAssistantAPI:
         if not start_time:
             raise ValueError("start_time is required for history endpoint")
 
-        url = self.base_url+f"/api/history/period/{start_time}"
+        url = self.base_url+f"/api/history/period/{start_time.isoformat()}"
         params = {"filter_entity_id": entity_id}
         if end_time:
             params["end_time"] = end_time

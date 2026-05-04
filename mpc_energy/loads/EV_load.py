@@ -58,7 +58,11 @@ class EVLoad(OptionalLoad):
         if not history: return None
         
         requested_seconds = max((end - start).total_seconds(), 1.0)
-        ev_span_seconds = max((history[-1].time - history[0].time).total_seconds(), 0.0)
+        if len(history) == 1:
+            # If there's only one point and it covers the start of our window, it spans the whole duration
+            ev_span_seconds = requested_seconds if history[0].time <= start + timedelta(minutes=5) else 0.0
+        else:
+            ev_span_seconds = max((history[-1].time - history[0].time).total_seconds(), 0.0)
         coverage = ev_span_seconds / requested_seconds
         
         if coverage < 0.5:

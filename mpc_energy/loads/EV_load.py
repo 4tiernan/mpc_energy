@@ -37,7 +37,12 @@ class EVLoad(OptionalLoad):
         self.min_level_limit = min_level_limit
         self.max_level_limit = max_level_limit
 
-        logger.debug(f"Initialized EV Load '{name}' with capacity {capacity_kwh} kWh, current level limits {min_level_limit}% to {max_level_limit}%, max charge power {max_charge_power_kw} kW, min charge power {min_charge_power_kw} kW, and reward {reward_cents_per_kwh} c/kWh.")
+        logger.debug(f"Initialized EV Load '{name}' with capacity {capacity_kwh} kWh," 
+                     f" current level limits {min_level_limit}% to {max_level_limit}%,"
+                     f"max charge power {max_charge_power_kw} kW,"
+                     f"min charge power {min_charge_power_kw} kW, and reward {reward_cents_per_kwh} c/kWh."
+                     f" Plugged-in entity: '{plugged_in_entity_id}', Power entity: '{power_entity_id}', Level entity: '{level_entity_id}'."
+                     )
 
         # Optional load required params
         super().__init__(name, load_type, reward_cents_per_kwh)
@@ -56,7 +61,7 @@ class EVLoad(OptionalLoad):
         coverage = ev_span_seconds / requested_seconds
         
         if coverage < 0.5:
-            logger.warning(f"Insufficient history coverage ({round(coverage*100)}%) for EV load {self.name}. Skipping debias.")
+            logger.warning(f"Insufficient history coverage ({round(coverage*100)}%) for EV load {self.name} with power entity '{self.power_entity_id}'. Skipping debias.")
             return None
             
         binned = data_helpers.bin_data(history, bin_period, start, end, interpolation_method="step")

@@ -524,11 +524,11 @@ class Plant:
 
         # Determine the start and end datetimes for the requested history based on the number of days ago to look back from
         today = datetime.datetime.now(self.local_tz).date()
-        end_date = today - datetime.timedelta(days=1)
+        end_date = today - datetime.timedelta(days=1) # Today doesn't have a full day so only go up to yesterday
         start_date = end_date - datetime.timedelta(days=days_ago)
 
         start = datetime.datetime.combine(start_date, datetime.time.min, tzinfo=self.local_tz)
-        end = datetime.datetime.combine(end_date, datetime.time.min, tzinfo=self.local_tz)
+        end = datetime.datetime.combine(end_date, datetime.time.max, tzinfo=self.local_tz)
 
         load_power_history = self.ha.get_history(config_manager.load_power_entity_id, start_time=start, end_time=end)
 

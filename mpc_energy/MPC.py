@@ -594,15 +594,13 @@ class MPC:
 
             load_power = [round(load, 2) for load in self.load_5min]
             
-            optional_results = {}
+            optional_loads_results = {}
             for load in self.optional_loads:
                 res = load.get_results(self.dt_5min)
                 if "power" in res:
+                    # Aggregating power for the total site load forecast
                     load_power = [round(lp + p, 2) for lp, p in zip(load_power, res["power"])]
-
-                for res_key, res_value in res.items():
-                    res_key_named = f"{load.name}_{res_key}"
-                    optional_results[res_key_named] = res_value            
+                optional_loads_results[load.name] = res
 
             self.profit_remaining_today = round(float(forecast_profit_today), 2)
             self.profit_tomorrow = round(float(forecast_profit_tomorrow), 2)
@@ -628,8 +626,8 @@ class MPC:
                 "load_power": load_power,
                 "soc_min": self.soc_min,
                 "soc_max": self.soc_max,
+                "optional_loads": optional_loads_results,
             }
-            output.update(optional_results)
             output = self.convert_to_python(output) # Ensure all arrays and data is in the plain python format, ie no numpy
             plan_modes = self.determine_plan_modes(output) # Determine the control mode for each time period
             output.update({"plan_modes": plan_modes}) # Add the control modes to the output to be plotted

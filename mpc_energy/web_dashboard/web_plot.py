@@ -321,15 +321,16 @@ def plot_mpc_results(st, output):
         line=dict(color="orange", shape="hv")
     ), row=1, col=1, secondary_y=False)
 
-    ev_charging_power = output.get("ev_charging_power")
-    if ev_charging_power is not None:
-        fig.add_trace(go.Scatter(
-            x=time_index,
-            y=round_list(ev_charging_power),
-            name="EV Charger (kW)",
-            line=dict(color="#8e44ad", width=2, shape="hv")
-        ), row=1, col=1, secondary_y=False)
-
+    # Add traces for optional loads (power)
+    if "optional_loads" in output:
+        for load_name, load_data in output["optional_loads"].items():
+            if "power" in load_data and load_data["power"] is not None:
+                fig.add_trace(go.Scatter(
+                    x=time_index,
+                    y=round_list(load_data["power"]),
+                    name=f"{load_name} Power (kW)",
+                    line=dict(width=2, shape="hv") # Color will be assigned by Plotly default
+                ), row=1, col=1, secondary_y=False)
     fig.add_trace(go.Scatter(
         x=time_index,
         y=round_list(output["solar_forecast"]),
@@ -410,16 +411,17 @@ def plot_mpc_results(st, output):
         fig.add_hline(y=soc_max, row=2, col=1, line_dash="dash", line_color="red")
 
 
-    # ===============================
-    # BOTTOM: EV SOC (if present)
-    # ===============================
-    if output.get("ev_soc_percent") is not None:
-        fig.add_trace(go.Scatter(
-            x=time_index,
-            y=round_list(output["ev_soc_percent"][:-1]),
-            name="EV SOC (%)",
-            line=dict(color="blue")
-        ), row=2, col=1, secondary_y=True)
+    # Add traces for optional loads (SOC)
+    if "optional_loads" in output:
+        for load_name, load_data in output["optional_loads"].items():
+            if "soc_percent" in load_data and load_data["soc_percent"] is not None:
+                # SOC arrays have N+1 elements, so slice to N elements for plotting against time_index
+                fig.add_trace(go.Scatter(
+                    x=time_index,
+                    y=round_list(load_data["soc_percent"][:-1]),
+                    name=f"{load_name} SOC (%)",
+                    line=dict(shape="hv") # Color will be assigned by Plotly default
+                ), row=2, col=1, secondary_y=True)
 
     # ===============================
     # AXES LIMITS (soft defaults)

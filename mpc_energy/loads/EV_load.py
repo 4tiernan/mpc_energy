@@ -236,9 +236,8 @@ class EVLoad(OptionalLoad):
         soc_pct = [round((x / self.capacity_kwh) * 100, 2) if self.capacity_kwh > 0 else 0 for x in soc_ev.tolist()]
         
         return {
-            "ev_charging_power": p_res,
-            "ev_soc_percent": soc_pct,
-            "power": p_res
+            "power": p_res,
+            "soc_percent": soc_pct
         }
     
     def to_dict(self) -> dict[str, Any]:

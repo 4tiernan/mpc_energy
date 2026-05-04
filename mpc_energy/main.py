@@ -85,6 +85,8 @@ def start_streamlit_dashboard():
         "--server.address=0.0.0.0",
         "--server.enableCORS=false",
         "--server.enableXsrfProtection=false",
+        "--server.fileWatcherType=none",
+        "--browser.gatherUsageStats=false",
         "--theme.base=light"
     ])
 
@@ -462,6 +464,12 @@ while True:
         # Run main code if a price update is due or if its been more than 10s since the last loop (but not close to the price update so we're free to run asap for the price update)
         if(time.time() >= next_amber_update_timestamp or (regular_loop_update_due and seconds_till_price_update > 20)): 
             last_loop_timestamp = time.time()
+
+            # Check if streamlit is still running and restart if it has crashed
+            if streamlit_proc is not None and streamlit_proc.poll() is not None:
+                logger.warning(f"Streamlit dashboard process exited with code {streamlit_proc.poll()}. Restarting...")
+                streamlit_proc = start_streamlit_dashboard()
+
             main_loop_code()
         
         if(time.time() - int(last_alive_time_timestamp) >= 1):

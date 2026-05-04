@@ -17,8 +17,11 @@ st.set_page_config(
 
 if hasattr(st.sidebar, "page_link"):
     st.sidebar.page_link("pages/1_Optional_Loads.py", label="Optional Loads", icon="⚙️")
+    st.sidebar.page_link("plant_config_page.py", label="Plant Configuration", icon="🏭")
 else:
-    st.sidebar.markdown("Configure optional loads from the **Optional Loads** page in the sidebar navigation.")
+    st.sidebar.markdown("""
+    - [Optional Loads](pages/1_Optional_Loads.py)
+    - [Plant Configuration](plant_config_page.py)""")
 
 
 if "mqtt_queue" not in st.session_state:
@@ -110,11 +113,3 @@ else:
 
 #    p_max = st.slider("Max charge power (kW)", 1.0, 10.0, 5.0)
 #    dt = st.number_input("Timestep (hours)", value=0.5)
-
-
-
-
-
-
-
-

@@ -8,6 +8,8 @@ from exceptions import MPCEnergyError
 from mpc_logger import logger
 import loads.optional_loads
 import config_manager
+import json
+import os
 
 # Initialize globals as None so error handlers can safely check them if startup fails early
 ha = None
@@ -185,7 +187,18 @@ while(started == False):
             )
             demand_tariff = flow.demand_tarrif
         
-        plant = SigEnergyPlant(ha, opt_loads) 
+        plant_config = load_plant_config()
+        brand = plant_config.get("plant_brand", "Sigenergy")
+        
+        if brand == "Sigenergy":
+            plant = SigEnergyPlant(ha, opt_loads, plant_config)
+        elif brand == "Goodwe":
+            # Placeholder for upcoming GoodwePlant implementation
+            # from plants.goodwe_plant import GoodwePlant
+            # plant = GoodwePlant(ha, opt_loads, plant_config)
+            raise MPCEnergyError("Goodwe plant support is not yet fully implemented.")
+        else:
+            plant = SigEnergyPlant(ha, opt_loads, plant_config)
         
         EC = EnergyController(
             ha=ha,

@@ -43,13 +43,9 @@ options:
   flow_export_price_entity_id: ""
   flow_price_forecast_entity_id: ""
 
-  battery_discharge_cost: 7
-
   spike_price_warning_level: 25
   notification_target: ""
   notification_target_option: none
-
-  estimated_daily_load_energy_consumption: 24
 
   ev_plugged_in_entity_id: ""
   ev_charging_power_entity_id: ""
@@ -61,49 +57,12 @@ options:
   ev_max_soc: 80
   ev_charge_reward_cents_per_kwh: 5
 
-  pv_max_power_limit_entity_id: ""
-  import_max_power_limit_entity_id: ""
-  export_max_power_limit_entity_id: ""
-  battery_max_discharge_power_limit_entity_id: "sensor.sigen_plant_ess_rated_discharging_power"
-  battery_max_charge_power_limit_entity_id: "sensor.sigen_plant_ess_rated_charging_power"
-  inverter_max_power_limit_entity_id: "sensor.sigen_plant_max_active_power"
-  
-
-  battery_power_sign_convention: "- Charge, + Discharge"
-
   solcast_forecast_today_entity_id: "sensor.solcast_pv_forecast_forecast_today"
   solcast_forecast_tomorrow_entity_id: "sensor.solcast_pv_forecast_forecast_tomorrow"
   solcast_forecast_day_3_entity_id: "sensor.solcast_pv_forecast_forecast_day_3"
   solcast_forecast_day_4_entity_id: "sensor.solcast_pv_forecast_forecast_day_4"
   solcast_solar_kwh_remaining_today_entity_id: "sensor.solcast_pv_forecast_forecast_remaining_today"
   solcast_solar_power_this_hour_entity_id: "sensor.solcast_pv_forecast_forecast_this_hour"
-
-  ha_ems_control_switch_entity_id: "switch.sigen_plant_remote_ems_controlled_by_home_assistant"
-  ems_control_mode_entity_id: "select.sigen_plant_remote_ems_control_mode"
-
-  load_power_entity_id: "sensor.sigen_plant_consumed_power"
-  solar_power_entity_id: "sensor.sigen_plant_pv_power"
-  battery_power_entity_id: "sensor.sigen_plant_battery_power"
-  inverter_power_entity_id: "sensor.sigen_plant_plant_active_power"
-  grid_power_entity_id: "sensor.sigen_plant_grid_active_power"
-  
-  battery_soc_entity_id: "sensor.sigen_plant_battery_state_of_charge"
-  battery_stored_energy_entity_id: "sensor.sigen_plant_available_max_discharging_capacity"
-  battery_kwh_till_full_entity_id: "sensor.sigen_plant_available_max_charging_capacity"
-  plant_solar_kwh_today_entity_id: "sensor.sigen_plant_daily_pv_energy"
-  plant_daily_load_kwh_entity_id: "sensor.sigen_plant_daily_load_consumption"
-  plant_daily_import_kwh_entity_id: "sensor.sigen_plant_daily_grid_import_energy"
-  plant_daily_export_kwh_entity_id: "sensor.sigen_plant_daily_grid_export_energy"
-  
-  battery_rated_capacity_entity_id: "sensor.sigen_plant_rated_energy_capacity"
-  backup_soc_entity_id: "number.sigen_plant_ess_backup_state_of_charge"
-  charge_cutoff_soc_entity_id: "number.sigen_plant_ess_charge_cut_off_state_of_charge"
-
-  battery_discharge_limiter_entity_id: "number.sigen_plant_ess_max_discharging_limit"
-  battery_charge_limiter_entity_id: "number.sigen_plant_ess_max_charging_limit"
-  pv_limiter_entity_id: "number.sigen_plant_pv_max_power_limit"
-  export_limiter_entity_id: "number.sigen_plant_grid_export_limitation"
-  import_limiter_entity_id: "number.sigen_plant_grid_import_limitation"
 
   log_level: info
 
@@ -126,13 +85,9 @@ schema:
   flow_export_price_entity_id: str?
   flow_price_forecast_entity_id: str?
 
-  battery_discharge_cost: int?
-
   spike_price_warning_level: int  
   notification_target: str?
   notification_target_option: list(none|price_spike_warning|error_warning|both)
-
-  estimated_daily_load_energy_consumption: int
 
   ev_plugged_in_entity_id: str?
   ev_charging_power_entity_id: str?
@@ -144,53 +99,4 @@ schema:
   ev_max_soc: int?
   ev_charge_reward_cents_per_kwh: int?
 
-  pv_max_power_limit_entity_id: str
-  import_max_power_limit_entity_id: str
-  export_max_power_limit_entity_id: str
-  battery_max_discharge_power_limit_entity_id: str
-  battery_max_charge_power_limit_entity_id: str
-  inverter_max_power_limit_entity_id: str
-  
-  battery_power_sign_convention: list(+ Charge, - Discharge|- Charge, + Discharge)
-
-  solcast_forecast_today_entity_id: str
-  solcast_forecast_tomorrow_entity_id: str
-  solcast_forecast_day_3_entity_id: str
-  solcast_forecast_day_4_entity_id: str
-  solcast_solar_kwh_remaining_today_entity_id: str
-  solcast_solar_power_this_hour_entity_id: str
-
-  ha_ems_control_switch_entity_id: str
-  ems_control_mode_entity_id: str
-
-  load_power_entity_id: str
-  solar_power_entity_id: str
-  battery_power_entity_id: str
-  inverter_power_entity_id: str
-  grid_power_entity_id: str
-  
-  battery_soc_entity_id: str
-  battery_stored_energy_entity_id: str
-  battery_kwh_till_full_entity_id: str
-  plant_solar_kwh_today_entity_id: str
-  plant_daily_load_kwh_entity_id: str
-  plant_daily_import_kwh_entity_id: str
-  plant_daily_export_kwh_entity_id: str
-  
-  battery_rated_capacity_entity_id: str
-  backup_soc_entity_id: str
-  charge_cutoff_soc_entity_id: str
-
-  battery_discharge_limiter_entity_id: str
-  battery_charge_limiter_entity_id: str
-  pv_limiter_entity_id: str
-  export_limiter_entity_id: str
-  import_limiter_entity_id: str
-
   log_level: list(debug|info|warning)
-
-
-
-
-
-

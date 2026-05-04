@@ -15,9 +15,10 @@ from loads.optional_loads import OptionalLoad
 import data_helpers
 
 class BasePlant(ABC):
-    def __init__(self, ha: HomeAssistantAPI, optional_loads: list[OptionalLoad]):
+    def __init__(self, ha: HomeAssistantAPI, optional_loads: list[OptionalLoad], plant_config: dict = None):
         self.ha: HomeAssistantAPI = ha
         self.optional_loads: list[OptionalLoad] = optional_loads
+        self.plant_config = plant_config or {}
         self.local_tz: ZoneInfo = ha.local_tz
         
         self.time_step_minutes = 5
@@ -204,7 +205,7 @@ class BasePlant(ABC):
 
         # Check to see if the requested amount of data was recieved, use the configured default if not
         if(not self.validate_returned_data_timedelta(data=load_power_history, requested_start=start, requested_end=end)):
-            configured_avg_load = config_manager.estimated_daily_load_energy_consumption 
+            configured_avg_load = self.plant_config.get("estimated_daily_load_energy_consumption", 24.0)
             logger.warning(f"Using default load energy of {configured_avg_load} kWh per day.")
 
             # Create a linearly spaced array climbing from 0 to the total load over a day
@@ -460,5 +461,3 @@ class BasePlant(ABC):
         solar_5min = np.interp(np.arange(N_5min), solar_30min_x, solar_30min)
         
         return solar_5min[:N_5min] # return the solar forecast but limit the list length to the requested length
-
-

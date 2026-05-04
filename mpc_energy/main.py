@@ -149,6 +149,7 @@ while(started == False):
         import ha_mqtt
         from External_Interfaces.amber_api import AmberAPI
         from PlantControl import Plant
+        from plants.sigenergy_plant import SigEnergyPlant
         from control_mode_override import ControlModeOverrideManager
 
         from External_Interfaces.flow_power import FlowPowerInterface
@@ -184,7 +185,7 @@ while(started == False):
             )
             demand_tariff = flow.demand_tarrif
         
-        plant = Plant(ha, opt_loads) 
+        plant = SigEnergyPlant(ha, opt_loads) 
         
         EC = EnergyController(
             ha=ha,

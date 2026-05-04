@@ -12,6 +12,15 @@ class BinnedStateClass:
     avg_state: Any # Avg of the states
     time: datetime # Start time of the bin
 
+import datetime
+
+def round_minutes(time: datetime.datetime, nearest_minute: int) -> datetime.datetime:
+    return time.replace(
+        minute=(time.minute // nearest_minute) * nearest_minute,
+        second=0,
+        microsecond=0
+        )  
+
 def bin_data(history, bin_period, start_bin_datetime, end_bin_datetime, string_state=False, interpolation_method="linear") -> list[BinnedStateClass]: 
     """
     Takes a list of historical state data and bins it into specified time intervals, averaging the state values within each bin. Handles both numeric and string states. Also fills in missing bins with None values and can interpolate those values if desired.
@@ -132,7 +141,6 @@ def get_time_range_from_hours(hours: float, tz) -> tuple:
     rounded to the nearest 5-minute interval.
     """
     from datetime import datetime, timedelta
-    from helper_functions import round_minutes
 
     now = datetime.now(tz)
     rounded_now = round_minutes(time=now, nearest_minute=5)

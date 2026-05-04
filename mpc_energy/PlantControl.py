@@ -11,7 +11,6 @@ import config_manager
 from mpc_logger import logger
 from exceptions import HAAPIError, SigenergyConnectionError, PlantControlError
 import data_helpers
-from helper_functions import round_minutes
 
 class Plant:
     def __init__(self, ha, optional_loads: list):
@@ -103,24 +102,6 @@ class Plant:
         except Exception:
             logger.warning(f"Unable to read optional config value '{entry_id}', defaulting to {default_value}.")
             return float(default_value)
-
-    def parse_boolean_state(self, entity_id, default=False):
-        if(entity_id is None or entity_id == ""):
-            return bool(default)
-        state_payload = self.ha.get_state(entity_id)
-        if(not isinstance(state_payload, dict)):
-            return bool(default)
-        state = str(state_payload.get("state", "")).strip().lower()
-        true_states = {"on", "true", "home", "connected", "plugged", "plugged_in", "yes"}
-        false_states = {"off", "false", "not_home", "disconnected", "unplugged", "no"}
-        if(state in true_states):
-            return True
-        if(state in false_states):
-            return False
-        try:
-            return float(state) > 0
-        except (TypeError, ValueError):
-            return bool(default)
 
     def get_plant_mode(self):
         return self.get_sigenergy_state(config_manager.ems_control_mode_entity_id)["state"]
@@ -246,8 +227,8 @@ class Plant:
         
         if(hours != None):
             now = datetime.datetime.now(self.local_tz)
-            rounded_now = round_minutes(time=now, nearest_minute=bin_period)
-            start_datetime = round_minutes(time=rounded_now - datetime.timedelta(hours=hours), nearest_minute=bin_period)
+            rounded_now = data_helpers.round_minutes(time=now, nearest_minute=bin_period)
+            start_datetime = data_helpers.round_minutes(time=rounded_now - datetime.timedelta(hours=hours), nearest_minute=bin_period)
             end_datetime = rounded_now
 
         requested_hours = (end_datetime - start_datetime).total_seconds() / 3600
@@ -320,7 +301,7 @@ class Plant:
     
     def get_profit_history(self): #Get the history required for the profit calcs and use cached data if its not too old to avoid the expensive historical data retrieval and processing if possible.
         now = datetime.datetime.now(self.local_tz)
-        rounded_now = round_minutes(time=now, nearest_minute=self.time_step_minutes)
+        rounded_now = data_helpers.round_minutes(time=now, nearest_minute=self.time_step_minutes)
         today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
 
         if self.history_since_midnight is not None and self.history_since_midnight.get("time_index"):
@@ -618,16 +599,16 @@ class Plant:
 
     def round_forecast_times(self, forecast_hours_from_now=None, forecast_till_time=None, forecast_start_time=None, forecast_end_time=None):
         if forecast_start_time is not None and forecast_end_time is not None:
-            rounded_current_time = round_minutes(forecast_start_time, nearest_minute=self.time_step_minutes)
-            rounded_forecast_time = round_minutes(forecast_end_time, nearest_minute=self.time_step_minutes)
+            rounded_current_time = data_helpers.round_minutes(forecast_start_time, nearest_minute=self.time_step_minutes)
+            rounded_forecast_time = data_helpers.round_minutes(forecast_end_time, nearest_minute=self.time_step_minutes)
             return [rounded_current_time, rounded_forecast_time]
         
-        rounded_current_time = round_minutes(datetime.datetime.now(self.local_tz), nearest_minute=self.time_step_minutes)
+        rounded_current_time = data_helpers.round_minutes(datetime.datetime.now(self.local_tz), nearest_minute=self.time_step_minutes)
         if(forecast_hours_from_now):
-            rounded_forecast_time = round_minutes(rounded_current_time + datetime.timedelta(hours=forecast_hours_from_now), nearest_minute=self.time_step_minutes)
+            rounded_forecast_time = data_helpers.round_minutes(rounded_current_time + datetime.timedelta(hours=forecast_hours_from_now), nearest_minute=self.time_step_minutes)
         elif(forecast_till_time):
             rounded_forecast_time = datetime.datetime.combine(rounded_current_time.date(), forecast_till_time, tzinfo=self.local_tz)
-            rounded_forecast_time = round_minutes(rounded_forecast_time, nearest_minute=self.time_step_minutes)
+            rounded_forecast_time = data_helpers.round_minutes(rounded_forecast_time, nearest_minute=self.time_step_minutes)
             if(rounded_forecast_time <= rounded_current_time):
                 rounded_forecast_time = rounded_forecast_time + datetime.timedelta(days=1)
         else:
@@ -722,8 +703,8 @@ class Plant:
     # returns the forecast solar power for the requested time period in 5 minute increments
     def forecast_solar_power(self, forecast_hours_from_now, forecast_start_time=None, forecast_end_time=None):
         if forecast_start_time is not None and forecast_end_time is not None:
-            rounded_start_time = round_minutes(forecast_start_time, nearest_minute=self.time_step_minutes)
-            rounded_end_time = round_minutes(forecast_end_time, nearest_minute=self.time_step_minutes)
+            rounded_start_time = data_helpers.round_minutes(forecast_start_time, nearest_minute=self.time_step_minutes)
+            rounded_end_time = data_helpers.round_minutes(forecast_end_time, nearest_minute=self.time_step_minutes)
             forecast_seconds = max((rounded_end_time - rounded_start_time).total_seconds(), 0)
             forecast_hours = forecast_seconds / 3600
             N_5min = max(0, int(forecast_seconds // (self.time_step_minutes * 60)))
@@ -755,7 +736,7 @@ class Plant:
 
         # Current time in same timezone
         if forecast_start_time is not None:
-            now = pd.Timestamp(round_minutes(forecast_start_time, nearest_minute=self.time_step_minutes))
+            now = pd.Timestamp(data_helpers.round_minutes(forecast_start_time, nearest_minute=self.time_step_minutes))
             if df["period_start"].dt.tz is not None and now.tzinfo is None:
                 now = now.tz_localize(df["period_start"].dt.tz)
             elif df["period_start"].dt.tz is not None and now.tzinfo is not None:

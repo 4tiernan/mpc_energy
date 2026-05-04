@@ -13,7 +13,7 @@ import paho.mqtt.client as mqtt
 import const
 import config_manager
 import loads.optional_loads
-from helper_functions import round_minutes
+import data_helpers
 
 mqtt_conn_result = None
 def on_connect(client, userdata, flags, rc, properties=None):
@@ -133,7 +133,7 @@ class MPC:
         
         now = datetime.now(self.local_tz).replace(second=0, microsecond=0)
 
-        sim_start = round_minutes(time=now, nearest_minute=5) # Round the sim start time to the nearest 5 minutes to ensure the time steps align with the forecast data
+        sim_start = data_helpers.round_minutes(time=now, nearest_minute=5) # Round the sim start time to the nearest 5 minutes to ensure the time steps align with the forecast data
         #morning_cutoff = sim_start.replace(hour=6, minute=0)
         #horizon_end = morning_cutoff + timedelta(days=3)  # 3 mornings from now
         horizon_end = sim_start + timedelta(hours=72) # Default to 72 hours from now
@@ -800,35 +800,3 @@ class MPC:
 
 def approx_equal(a, b, threshold = 0.2):
     return abs(a-b) < threshold
-
-'''
-from External_Interfaces.amber_api import AmberAPI  
-from ha_api import HomeAssistantAPI
-import ha_mqtt
-from energy_controller import EnergyController
-import PlantControl
-from api_token_secrets import HA_URL, HA_TOKEN, AMBER_API_TOKEN, SITE_ID
-
-
-amber = AmberAPI(AMBER_API_TOKEN, SITE_ID, errors=True)
-
-plant = PlantControl.Plant(HA_URL, HA_TOKEN, errors=True) 
-ha = HomeAssistantAPI(
-        base_url=HA_URL,
-        token=HA_TOKEN,
-        errors=True
-    )
-EC = EnergyController(
-    ha=ha,
-    ha_mqtt=ha_mqtt, 
-    plant=plant,
-)
-
-mpc = MPC(ha, plant, EC)
-
-amber_data = amber.get_data(forecast_hrs=mpc.forecast_hrs)
-
-output = mpc.run_optimisation(amber_data)
-print(mpc.determine_plan_modes(output))
-#mpc.display_results(output)
-'''

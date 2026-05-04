@@ -113,7 +113,7 @@ class EVLoad(OptionalLoad):
             mode = self.EV_MODE_SOLAR_SMART
         return mode
     
-    def update_mpc_values(self, time_index, mpc):
+    def update_mpc_values(self, mpc, time_index):
         self.update_data()
 
         # Mode detection via HA MQTT
@@ -146,7 +146,7 @@ class EVLoad(OptionalLoad):
                 ev_soc_min_required_arr = self.build_ev_min_soc_constraint(target_soc=self.max_target_kwh, p_max_arr=p_max_arr, mpc=mpc)
                 logger.debug("EV Force On Mode Active. required SOC array: " + str(ev_soc_min_required_arr))
             elif(mode == self.EV_MODE_DISABLED):  # Charging Disabled
-                p_max_arr = np.zeros(int(self.N_5min), dtype=float) # No charging allowed, set max power to 0
+                p_max_arr = np.zeros(int(mpc.N_5min), dtype=float) # No charging allowed, set max power to 0
             else:
                 logger.warning(f"Unknown EV charging mode '{mode}', defaulting to 'Solar Smart' (no minimum SOC constraint).")
                 # No minimum SOC constraint, let the optimiser decide when to charge based on the solar forecast and prices.

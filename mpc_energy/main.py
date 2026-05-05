@@ -11,6 +11,34 @@ import config_manager
 import json
 import os
 
+logger.info("------------------------  Starting MPC Energy App  ------------------------")
+
+started = False
+
+streamlit_proc = None
+
+def start_streamlit_dashboard():
+    return subprocess.Popen([
+        sys.executable,
+        "-m",
+        "streamlit",
+        "run",
+        "web_dashboard/webserver.py",
+        "--server.headless=true",
+        "--server.port=8501",
+        "--server.address=0.0.0.0",
+        "--server.enableCORS=false",
+        "--server.enableXsrfProtection=false",
+        "--server.fileWatcherType=none",
+        "--browser.gatherUsageStats=false",
+        "--theme.base=light"
+    ])
+
+# Start Streamlit dashboard
+streamlit_proc = start_streamlit_dashboard()
+logger.info("Streamlit dashboard started") 
+
+
 # Initialize globals as None so error handlers can safely check them if startup fails early
 ha = None
 EC = None
@@ -68,33 +96,6 @@ if(config_manager.energy_retailer == "amber" and config_manager.amber_site_id ==
 # systemctl status energy-manager
 # source venv/bin/activate (from within cd opt/energy-manager)
 # nano /opt/energy-manager/run.sh
-
-logger.info("------------------------  Starting MPC Energy App  ------------------------")
-
-started = False
-
-streamlit_proc = None
-
-def start_streamlit_dashboard():
-    return subprocess.Popen([
-        sys.executable,
-        "-m",
-        "streamlit",
-        "run",
-        "web_dashboard/webserver.py",
-        "--server.headless=true",
-        "--server.port=8501",
-        "--server.address=0.0.0.0",
-        "--server.enableCORS=false",
-        "--server.enableXsrfProtection=false",
-        "--server.fileWatcherType=none",
-        "--browser.gatherUsageStats=false",
-        "--theme.base=light"
-    ])
-
-# Start Streamlit dashboard
-streamlit_proc = start_streamlit_dashboard()
-logger.info("Streamlit dashboard started") 
 
 def send_mobile_notification(title, message, channel=None):
     try:

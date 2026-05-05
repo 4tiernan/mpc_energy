@@ -31,6 +31,9 @@ class EVLoad(OptionalLoad):
         charge_current_entity_id: str,
         charge_enable_entity_id: str,
     ):
+        # Optional load required params
+        super().__init__(name, load_type, reward_cents_per_kwh)
+        
         # EV specific params
         self.plugged_in_entity_id = plugged_in_entity_id
         self.power_entity_id = power_entity_id
@@ -54,8 +57,7 @@ class EVLoad(OptionalLoad):
                      f" Plugged-in entity: '{plugged_in_entity_id}', Power entity: '{power_entity_id}', Level entity: '{level_entity_id}'."
                      )
 
-        # Optional load required params
-        super().__init__(name, load_type, reward_cents_per_kwh)
+        
     
     def init_charger(self):
         """Instantiates the specific EVCharger class based on the selected model."""

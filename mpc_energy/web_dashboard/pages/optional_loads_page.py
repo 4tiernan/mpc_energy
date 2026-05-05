@@ -78,12 +78,8 @@ for idx, row in enumerate(rows):
             min_lim = c3.text_input("Min Battery SOC (%)", value=min_lim, key=f"ev_minlim_{idx}")
             max_lim = c4.text_input("Max Battery SOC (%)", value=max_lim, key=f"ev_maxlim_{idx}")
             
-            c7, c8 = st.columns(2)
-            p_ent = c7.text_input("Charger Power Entity ID (kW)", value=p_ent, key=f"ev_pent_{idx}")
-            reward = c8.text_input("Charge Reward (c/kWh)", value=reward, key=f"ev_rew_{idx}")
+            reward = st.text_input("Charge Reward (c/kWh)", value=reward, key=f"ev_rew_{idx}")
             
-            plug_ent = st.text_input("EV Plugged In Entity ID", value=plug_ent, key=f"ev_avail_{idx}")
-
             if charger_model == "Tesla API":
                 st.write("---")
                 st.caption("Tesla API Specific Configuration")
@@ -94,6 +90,10 @@ for idx, row in enumerate(rows):
                 c_t4, c_t5 = st.columns(2)
                 ev_charge_current_entity_id = c_t4.text_input("Charge Current Entity ID", value=ev_charge_current_entity_id, key=f"ev_t_cur_ent_{idx}")
                 ev_charge_enable_entity_id = c_t5.text_input("Charge Enable Entity ID", value=ev_charge_enable_entity_id, key=f"ev_t_en_ent_{idx}")
+
+                c_t6, c_t7 = st.columns(2)
+                p_ent = c_t6.text_input("Charger Power Entity ID (kW)", value=p_ent, key=f"ev_pent_{idx}")
+                plug_ent = c_t7.text_input("EV Plugged In Entity ID", value=plug_ent, key=f"ev_avail_{idx}")
 
         elif l_type == "hot_water":
             c1, c2 = st.columns(2)

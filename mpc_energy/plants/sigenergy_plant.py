@@ -101,7 +101,7 @@ class SigEnergyPlant(BasePlant):
 
     def get_plant_mode(self) -> str:
         """Returns the current control mode of the plant."""
-        return self.get_sigenergy_state(config_manager.ems_control_mode_entity_id)["state"]
+        return self.get_sigenergy_state(self.ems_control_mode_entity_id)["state"]
     
     def update_data(self) -> None:
         """Update the plant's data by fetching the latest states from Home Assistant."""

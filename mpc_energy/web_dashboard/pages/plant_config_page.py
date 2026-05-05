@@ -26,6 +26,11 @@ def plant_config_page():
     st.title("🏭 Plant Configuration")
     st.write("Configure your hardware brand, entities, and physical plant constraints.")
 
+    if st.button("Reset Configuration to Defaults", help="Deletes the saved configuration file and reloads default values."):
+        if os.path.exists(CONFIG_PATH):
+            os.remove(CONFIG_PATH)
+        st.rerun()
+
     current_config = load_config()
 
     with st.form("plant_settings"):

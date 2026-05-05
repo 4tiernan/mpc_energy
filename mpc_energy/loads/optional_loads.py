@@ -32,7 +32,7 @@ def create_load_instance(item: dict[str, Any]) -> "OptionalLoad | None":
         logger.warning(f"Unknown load_type '{l_type}' in item: {item}. Skipping.")
         return None
 
-def load_optional_load_instances(ha: HomeAssistantAPI, local_tz, ha_mqtt):
+def load_optional_load_instances(ha: HomeAssistantAPI, local_tz, ha_mqtt) -> list["OptionalLoad"]:
     """Factory function to load and initialize instances ready for use."""
     raw_configs = load_optional_loads()
     instances = []
@@ -51,7 +51,7 @@ def load_optional_load_instances(ha: HomeAssistantAPI, local_tz, ha_mqtt):
 
     return instances
 
-def get_mpc_loads(ha, local_tz, ha_mqtt):
+def get_mpc_loads(ha, local_tz, ha_mqtt) -> list["OptionalLoad"]:
     """Alias for main.py compatibility and clean MPC init."""
     return load_optional_load_instances(ha, local_tz, ha_mqtt)
 

@@ -464,7 +464,7 @@ def main_loop_code():
     run_controller() # Run the selected controller 
 
     for opt_load in opt_loads:
-        if(opt_load.type == "ev" and opt_load.charger is not None):
+        if(opt_load.load_type == "ev" and opt_load.charger is not None):
             try:
                 opt_load.charger.update() # Update the charger state and keep track of wheather a car is currently plugged in or not to feed into the optional load logic and MPC planning
             except Exception as e:

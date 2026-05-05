@@ -30,11 +30,11 @@ flow_import_price_entity_id = get_entity_id("flow_import_price_entity_id", defau
 flow_export_price_entity_id = get_entity_id("flow_export_price_entity_id", default="")
 flow_price_forecast_entity_id = get_entity_id("flow_price_forecast_entity_id", default="")
 
-#battery_discharge_cost = get_entity_id("battery_discharge_cost")
+battery_discharge_cost = get_entity_id("battery_discharge_cost")
 spike_price_warning_level = get_entity_id("spike_price_warning_level", default=25)
 notification_target = get_entity_id("notification_target", default="")
 notification_target_option = get_entity_id("notification_target_option", default="both")
-#estimated_daily_load_energy_consumption = get_entity_id("estimated_daily_load_energy_consumption")
+estimated_daily_load_energy_consumption = get_entity_id("estimated_daily_load_energy_consumption")
 
 solcast_forecast_today_entity_id = get_entity_id("solcast_forecast_today_entity_id")
 solcast_forecast_tomorrow_entity_id = get_entity_id("solcast_forecast_tomorrow_entity_id")

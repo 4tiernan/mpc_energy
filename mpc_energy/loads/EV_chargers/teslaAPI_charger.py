@@ -79,7 +79,7 @@ class TeslaAPICharger(EVCharger):
                 logger.debug(f"Calculated target charge current {target_charge_current:.2f}A is out of bounds for charger {self.name}. Setting it within the {self.min_charge_current:.2f}-{self.max_charge_current:.2f}A range limits.")
             target_charge_current = max(self.min_charge_current, min(self.max_charge_current, target_charge_current))
             
-            desired_switch_state = target_charge_current > 0
+            desired_switch_state = self.target_charge_rate > 0
             desired_current_input_state = target_charge_current if target_charge_current > 0 else 0.0
 
 

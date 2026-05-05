@@ -64,20 +64,20 @@ for idx, row in enumerate(rows):
         tmax = str(row.get("temp_max", "0.0"))
 
         if l_type == "ev":
-            charger_model = st.selectbox(
+            c1, c2, c3 = st.columns(3)
+            lvl_ent = c1.text_input("Battery SOC Entity ID (%)", value=lvl_ent, key=f"ev_soc_{idx}")
+            cap = c2.text_input("Battery Capacity (kWh)", value=cap, key=f"ev_cap_{idx}")
+
+            charger_model = c3.selectbox(
                 "Charger Model",
                 options=ev_charger.charger_models,
                 index=ev_charger.charger_models.index(charger_model) if charger_model in ev_charger.charger_models else 0,
                 key=f"ev_charger_model_{idx}"
             )
             
-            c1, c2 = st.columns(2)
-            lvl_ent = c1.text_input("Battery SOC Entity ID (%)", value=lvl_ent, key=f"ev_soc_{idx}")
-            cap = c2.text_input("Battery Capacity (kWh)", value=cap, key=f"ev_cap_{idx}")
-            
-            c3, c4 = st.columns(2)
-            min_lim = c3.text_input("Min Battery SOC (%)", value=min_lim, key=f"ev_minlim_{idx}")
-            max_lim = c4.text_input("Max Battery SOC (%)", value=max_lim, key=f"ev_maxlim_{idx}")
+            c4, c5 = st.columns(2)
+            min_lim = c4.text_input("Min Battery SOC (%)", value=min_lim, key=f"ev_minlim_{idx}")
+            max_lim = c5.text_input("Max Battery SOC (%)", value=max_lim, key=f"ev_maxlim_{idx}")
             
             reward = st.text_input("Charge Reward (c/kWh)", value=reward, key=f"ev_rew_{idx}")
             

@@ -74,7 +74,7 @@ class EVLoad(OptionalLoad):
                 charger_model=self.charger_model
             )
         else:
-            raise NotImplementedError(f"Charger model '{self.charger_model}' is not supported yet. Please implement the charger class and update the init_charger method to support it.")
+            raise NotImplementedError(f"Charger model '{self.charger_model}' is not supported yet. Please implement the charger class and update the init_charger method to support it.") from None
 
         # Use the calculated power limits from the charger class
         self.min_charge_power_kw = self.charger.min_charge_power_kw

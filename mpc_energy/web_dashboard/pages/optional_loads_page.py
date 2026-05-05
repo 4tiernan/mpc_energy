@@ -78,10 +78,6 @@ for idx, row in enumerate(rows):
             min_lim = c3.text_input("Min Battery SOC (%)", value=min_lim, key=f"ev_minlim_{idx}")
             max_lim = c4.text_input("Max Battery SOC (%)", value=max_lim, key=f"ev_maxlim_{idx}")
             
-            c5, c6 = st.columns(2)
-            min_p = c5.text_input("Charger Min Power (kW)", value=min_p, key=f"ev_minp_{idx}")
-            max_p = c6.text_input("Charger Max Power (kW)", value=max_p, key=f"ev_maxp_{idx}")
-            
             c7, c8 = st.columns(2)
             p_ent = c7.text_input("Charger Power Entity ID (kW)", value=p_ent, key=f"ev_pent_{idx}")
             reward = c8.text_input("Charge Reward (c/kWh)", value=reward, key=f"ev_rew_{idx}")

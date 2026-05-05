@@ -1,4 +1,4 @@
-from EV_chargers.EV_charger import EVCharger
+from loads.EV_chargers.EV_charger import EVCharger
 from ha_api import HomeAssistantAPI
 from mpc_logger import logger
 import time

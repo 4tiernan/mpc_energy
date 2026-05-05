@@ -10,6 +10,7 @@ import loads.optional_loads
 import config_manager
 import json
 import os
+from plants.plant_manager import load_plant_config
 
 logger.info("------------------------  Starting MPC Energy App  ------------------------")
 
@@ -62,6 +63,12 @@ def elapsed_time(code_block_name="Code Block"):
 if(not config_manager.accepted_risks):
     logger.error("You must toggle the accept risks switch to acknowledge the risks associated with use of this software before being able to use the app.")
     exit()
+
+if not load_plant_config().get("plant_brand"):
+    logger.error("Plant configuration not found! Please open the web dashboard and navigate to the 'Plant Configuration' page to set up your inverter and battery details.")
+    while True:
+        time.sleep(1) # Keep the app running so the user can access the dashboard to set up the plant configuration
+        pass
     
 if(config_manager.energy_retailer != "amber" and config_manager.energy_retailer != "flow"):
     logger.error("Invalid energy retailer selected. Please select either amber or flow as the energy retailer in the app configuration page.")

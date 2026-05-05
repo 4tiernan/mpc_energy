@@ -70,7 +70,10 @@ class TeslaAPICharger(EVCharger):
         self.update_state()
 
         if self.car_plugged_in:
-            target_charge_current = round((self.target_charge_rate * 1000) / (self.available_phases * self.nominal_ac_voltage))
+            if(self.target_charge_rate != 0):
+                target_charge_current = round((self.target_charge_rate * 1000) / (self.available_phases * self.nominal_ac_voltage))
+            else: 
+                target_charge_current = self.min_charge_current # Set to min charge current when target charge rate is 0 to avoid errors with some chargers when trying to set 0A charge current. 
 
             if(target_charge_current < self.min_charge_current or target_charge_current > self.max_charge_current):
                 logger.debug(f"Calculated target charge current {target_charge_current:.2f}A is out of bounds for charger {self.name}. Setting it within the {self.min_charge_current:.2f}-{self.max_charge_current:.2f}A range limits.")

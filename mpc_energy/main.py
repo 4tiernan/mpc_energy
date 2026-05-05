@@ -151,7 +151,7 @@ while(started == False):
         import ha_mqtt
         from External_Interfaces.amber_api import AmberAPI
         from PlantControl import Plant
-        from plants.sigenergy_plant import SigEnergyPlant
+        from plants.plant_manager import GetPlant
         from control_mode_override import ControlModeOverrideManager
 
         from External_Interfaces.flow_power import FlowPowerInterface
@@ -187,18 +187,9 @@ while(started == False):
             )
             demand_tariff = flow.demand_tarrif
         
-        plant_config = load_plant_config()
-        brand = plant_config.get("plant_brand", "Sigenergy")
+        plant = GetPlant(ha, opt_loads)
+
         
-        if brand == "Sigenergy":
-            plant = SigEnergyPlant(ha, opt_loads, plant_config)
-        elif brand == "Goodwe":
-            # Placeholder for upcoming GoodwePlant implementation
-            # from plants.goodwe_plant import GoodwePlant
-            # plant = GoodwePlant(ha, opt_loads, plant_config)
-            raise MPCEnergyError("Goodwe plant support is not yet fully implemented.")
-        else:
-            plant = SigEnergyPlant(ha, opt_loads, plant_config)
         
         EC = EnergyController(
             ha=ha,

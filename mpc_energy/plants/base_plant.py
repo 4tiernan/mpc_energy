@@ -201,11 +201,11 @@ class BasePlant(ABC):
         start = datetime.datetime.combine(start_date, datetime.time.min, tzinfo=self.local_tz)
         end = datetime.datetime.combine(end_date, datetime.time.max, tzinfo=self.local_tz)
 
-        load_power_history = self.ha.get_history(config_manager.load_power_entity_id, start_time=start, end_time=end)
+        load_power_history = self.ha.get_history(self.load_power_entity_id, start_time=start, end_time=end)
 
         # Check to see if the requested amount of data was recieved, use the configured default if not
         if(not self.validate_returned_data_timedelta(data=load_power_history, requested_start=start, requested_end=end)):
-            configured_avg_load = self.plant_config.get("estimated_daily_load_energy_consumption", 24.0)
+            configured_avg_load = config_manager.estimated_daily_load_energy_consumption
             logger.warning(f"Using default load energy of {configured_avg_load} kWh per day.")
 
             # Create a linearly spaced array climbing from 0 to the total load over a day

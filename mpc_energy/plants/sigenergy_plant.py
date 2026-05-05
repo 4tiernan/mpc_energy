@@ -76,9 +76,7 @@ class SigEnergyPlant(BasePlant):
         self.inverter_max_power_limit_entity_id = plant_config.get("inverter_max_power_limit_entity_id")
         self.pv_max_power_limit_entity_id = plant_config.get("pv_max_power_limit_entity_id")
         self.export_max_power_limit_entity_id = plant_config.get("export_max_power_limit_entity_id")
-        self.import_max_power_limit_entity_id = plant_config.get("import_max_power_limit_entity_id")
-
-        
+        self.import_max_power_limit_entity_id = plant_config.get("import_max_power_limit_entity_id")   
         
     def get_sigenergy_state(self, entity_id) -> str:
         """Fetches the state of the specified entity from Home Assistant. Raises an error if the entity is unavailable."""

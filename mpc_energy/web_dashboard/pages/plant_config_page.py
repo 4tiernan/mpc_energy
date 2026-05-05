@@ -78,8 +78,8 @@ def plant_config_page():
         with col6:
             bat_till_full = st.text_input("Battery kWh Till Full Entity", value=current_config.get("battery_kwh_till_full_entity_id", "sensor.sigen_plant_available_max_charging_capacity"))
             bat_stored = st.text_input("Battery Stored Energy Entity", value=current_config.get("battery_stored_energy_entity_id", "sensor.sigen_plant_available_max_discharging_capacity"))
-            daily_import = st.text_input("Daily Import kWh Entity", value=current_config.get("plant_daily_import_kwh_entity_id", "sensor.sigen_plant_daily_import_energy"))
-            daily_export = st.text_input("Daily Export kWh Entity", value=current_config.get("plant_daily_export_kwh_entity_id", "sensor.sigen_plant_daily_export_energy"))
+            daily_import = st.text_input("Daily Import kWh Entity", value=current_config.get("plant_daily_import_kwh_entity_id", "sensor.sigen_plant_daily_grid_import_energy"))
+            daily_export = st.text_input("Daily Export kWh Entity", value=current_config.get("plant_daily_export_kwh_entity_id", "sensor.sigen_plant_daily_grid_export_energy"))
 
         st.subheader("Control Entities & Limiters")
         col7, col8 = st.columns(2)

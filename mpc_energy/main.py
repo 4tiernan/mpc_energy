@@ -92,6 +92,10 @@ def start_streamlit_dashboard():
         "--theme.base=light"
     ])
 
+# Start Streamlit dashboard
+streamlit_proc = start_streamlit_dashboard()
+logger.info("Streamlit dashboard started") 
+
 def send_mobile_notification(title, message, channel=None):
     try:
         ha.send_notification(
@@ -189,8 +193,6 @@ while(started == False):
         
         plant = GetPlant(ha, opt_loads)
 
-        
-        
         EC = EnergyController(
             ha=ha,
             ha_mqtt=ha_mqtt,
@@ -208,13 +210,6 @@ while(started == False):
             retailer=config_manager.energy_retailer,
             optional_loads=opt_loads
         ) 
-
-        
-
-
-        # Start Streamlit dashboard
-        streamlit_proc = start_streamlit_dashboard()
-        logger.info("Streamlit dashboard started")  
 
         started = True
     except Exception as e:

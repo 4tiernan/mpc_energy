@@ -453,7 +453,8 @@ class Plant:
             logger.error(f"The required entities are not enabled or don't exist. Please check they are enabled and spelt correctly:")
             for id in unavailable_ids:
                 logger.error(id)
-            exit()
+            while True:
+                time.sleep(1)
 
     def set_control_limits(self, control_mode, discharge, charge, pv, grid_export, grid_import): # Set the control limits to the desired values
         self.ensure_remote_ems() # Make sure the EMS is able to be controlled

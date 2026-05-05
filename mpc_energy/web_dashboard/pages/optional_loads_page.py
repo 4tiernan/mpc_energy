@@ -7,6 +7,7 @@ st.set_page_config(page_title="Optional Loads", layout="wide")
 st.sidebar.page_link("webserver.py", label="Dashboard", icon="📊")
 st.sidebar.page_link("pages/optional_loads_page.py", label="Optional Loads", icon="⚙️")
 st.sidebar.page_link("pages/plant_config_page.py", label="Plant Configuration", icon="🏭")
+st.sidebar.page_link("pages/load_debugger_page.py", label="Load Debugger", icon="📈")
 
 st.title("Optional Loads Configuration")
 st.caption("Add optional loads and EV-style constraints for MPC/Plant Control integration.")

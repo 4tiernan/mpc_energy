@@ -45,9 +45,9 @@ def load_optional_load_instances(ha: HomeAssistantAPI, local_tz, ha_mqtt):
             instances.append(instance)
 
     if instances:
-        logger.debug(f"{len(instances)} Optional Loads Configured.")
+        logger.info(f"{len(instances)} Optional Loads Configured.")
     else:
-        logger.debug("No optional loads configured.")
+        logger.info("No optional loads configured.")
 
     return instances
 

@@ -15,7 +15,7 @@ class SigEnergyPlant(BasePlant):
         self.check_for_enabled_entites() # Check to make sure all the required entities are enabled before starting the app to prevent issues later on.
         
         # Initialize power limits and capacity using configuration overrides where available
-        self.rated_capacity = self.get_sigenergy_numeric_state(self.battery_rated_capacity_entity_id)
+        self.rated_capacity = self.get_config_entry_value(self.battery_rated_capacity_entity_id)
         self.max_discharge_power = self.get_config_entry_value(self.battery_max_discharge_power_limit_entity_id)
         self.max_charge_power = self.get_config_entry_value(self.battery_max_charge_power_limit_entity_id)
         self.max_pv_power = self.get_config_entry_value(self.pv_max_power_limit_entity_id)
@@ -67,16 +67,18 @@ class SigEnergyPlant(BasePlant):
         self.export_limiter_entity_id = plant_config.get("export_limiter_entity_id")
         self.import_limiter_entity_id = plant_config.get("import_limiter_entity_id")
 
+        self.plant_daily_import_kwh_entity_id = plant_config.get("plant_daily_import_kwh_entity_id")
+        self.plant_daily_export_kwh_entity_id = plant_config.get("plant_daily_export_kwh_entity_id")
+
         self.battery_rated_capacity_entity_id = plant_config.get("battery_rated_capacity_entity_id")
         self.battery_max_discharge_power_limit_entity_id = plant_config.get("battery_max_discharge_power_limit_entity_id")
         self.battery_max_charge_power_limit_entity_id = plant_config.get("battery_max_charge_power_limit_entity_id")
-        self.pv_max_power_limit_entity_id = plant_config.get("pv_max_power_limit_entity_id")
         self.inverter_max_power_limit_entity_id = plant_config.get("inverter_max_power_limit_entity_id")
+        self.pv_max_power_limit_entity_id = plant_config.get("pv_max_power_limit_entity_id")
         self.export_max_power_limit_entity_id = plant_config.get("export_max_power_limit_entity_id")
         self.import_max_power_limit_entity_id = plant_config.get("import_max_power_limit_entity_id")
 
-        self.plant_daily_import_kwh_entity_id = plant_config.get("plant_daily_import_kwh_entity_id")
-        self.plant_daily_export_kwh_entity_id = plant_config.get("plant_daily_export_kwh_entity_id")
+        
         
     def get_sigenergy_state(self, entity_id) -> str:
         """Fetches the state of the specified entity from Home Assistant. Raises an error if the entity is unavailable."""
@@ -193,19 +195,27 @@ class SigEnergyPlant(BasePlant):
     
     def check_for_enabled_entites(self) -> None:
         """Checks to make sure all the entities needed for control are available and enabled, if not it raises an error."""
+        def is_numeric(val):
+            try:
+                float(val)
+                return True
+            except (ValueError, TypeError):
+                return False
+
         entity_ids = [
             self.ha_ems_control_switch_entity_id,
+            self.battery_soc_entity_id,
             self.backup_soc_entity_id,
             self.charge_cutoff_soc_entity_id,
-            self.battery_max_discharge_power_limit_entity_id,
-            self.battery_max_charge_power_limit_entity_id,
-            self.battery_rated_capacity_entity_id,
-            self.pv_max_power_limit_entity_id,
-            self.inverter_max_power_limit_entity_id,
             self.battery_kwh_till_full_entity_id,
             self.battery_stored_energy_entity_id,
+            self.battery_rated_capacity_entity_id,
+            self.battery_max_discharge_power_limit_entity_id,
             self.battery_max_charge_power_limit_entity_id,
-            self.battery_max_discharge_power_limit_entity_id
+            self.pv_max_power_limit_entity_id,
+            self.inverter_max_power_limit_entity_id,
+            self.export_max_power_limit_entity_id,
+            self.import_max_power_limit_entity_id
         ]
 
         # Only check for the EMS control mode if the HA EMS Control switch is on as otherwise the mode controller is disabled.
@@ -214,21 +224,13 @@ class SigEnergyPlant(BasePlant):
 
         unavailable_ids = []
         for entity_id in entity_ids:
+            if is_numeric(entity_id):
+                continue # If the entity ID is actually a numeric override value, skip the check to see if the entity exists in HA as it won't.
             try:
                 self.get_sigenergy_state(entity_id)
             except:
                 unavailable_ids.append(f"{entity_id}\n")
 
-        numeric_ids = [
-            self.pv_max_power_limit_entity_id,
-            self.import_max_power_limit_entity_id,
-            self.export_max_power_limit_entity_id
-        ]
-        for config_value in numeric_ids:
-            try:
-                config_value_float = float(config_value)
-            except:
-                unavailable_ids.append(f"{entity_id}\n")
         if(len(unavailable_ids) > 0):
             logger.error(f"The required entities are not enabled or don't exist. Please check they are enabled and spelt correctly:")
             for id in unavailable_ids:
@@ -396,5 +398,3 @@ class SigEnergyPlant(BasePlant):
             "grid_export_kwh": [state.avg_state for state in binned_grid_export_kwh_state_history],
         }
         return output
-
-

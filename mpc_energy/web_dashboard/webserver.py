@@ -15,13 +15,16 @@ st.set_page_config(
     layout="wide"
 )
 
-if hasattr(st.sidebar, "page_link"):
-    st.sidebar.page_link("pages/optional_loads_page.py", label="Optional Loads", icon="⚙️")
-    st.sidebar.page_link("pages/plant_config_page.py", label="Plant Configuration", icon="🏭")
-else:
-    st.sidebar.markdown("""
-    - [Optional Loads](pages/optional_loads_page.py)
-    - [Plant Configuration](pages/plant_config_page.py)""")
+st.sidebar.page_link("pages/optional_loads_page.py", label="Optional Loads", icon="⚙️")
+st.sidebar.page_link("pages/plant_config_page.py", label="Plant Configuration", icon="🏭")
+
+# if hasattr(st.sidebar, "page_link"):
+#     st.sidebar.page_link("pages/optional_loads_page.py", label="Optional Loads", icon="⚙️")
+#     st.sidebar.page_link("pages/plant_config_page.py", label="Plant Configuration", icon="🏭")
+# else:
+#     st.sidebar.markdown("""
+#     - [Optional Loads](pages/optional_loads_page.py)
+#     - [Plant Configuration](pages/plant_config_page.py)""")
 
 
 if "mqtt_queue" not in st.session_state:

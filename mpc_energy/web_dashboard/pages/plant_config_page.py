@@ -65,7 +65,7 @@ def plant_config_page():
             bat_p = st.text_input("Battery Power Entity", value=current_config.get("battery_power_entity_id", "sensor.sigen_plant_battery_power"))
         with col4:
             grid_p = st.text_input("Grid Power Entity", value=current_config.get("grid_power_entity_id", "sensor.sigen_plant_grid_active_power"))
-            inv_p = st.text_input("Inverter Power Entity", value=current_config.get("inverter_power_entity_id", "sensor.sigen_plant_inverter_power"))
+            inv_p = st.text_input("Inverter Power Entity", value=current_config.get("inverter_power_entity_id", "sensor.sigen_plant_plant_active_power"))
             sign = st.selectbox("Battery Power Sign Convention", options=["- Charge, + Discharge", "+ Charge, - Discharge"], index=0 if current_config.get("battery_power_sign_convention", "- Charge, + Discharge") == "- Charge, + Discharge" else 1)
 
         st.subheader("Hardware Sensors (Energy & SOC)")

@@ -237,6 +237,7 @@ class EVLoad(OptionalLoad):
         
         return {
             "power": p_res,
+            "raw_power": p_ev.tolist(),
             "soc_percent": soc_pct
         }
     

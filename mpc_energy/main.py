@@ -458,7 +458,15 @@ def main_loop_code():
             logger.info("....")
     
     
-    run_controller() # Run the selected controller  
+    run_controller() # Run the selected controller 
+
+    for opt_load in opt_loads:
+        if(opt_load.type == "ev" and opt_load.charger is not None):
+            try:
+                opt_load.charger.update() # Update the charger state and keep track of wheather a car is currently plugged in or not to feed into the optional load logic and MPC planning
+            except Exception as e:
+                logger.error(f"Error updating charger state for {opt_load.name}: {e}")
+                pass
     
     if(ha.ha_api_went_down()): # If the API went offline, clear the sensor cache to force a publish of all MQTT sensor data
         logger.warning("Detected Home Assistant API recovery. Clearing MQTT sensor cache to republish states.")

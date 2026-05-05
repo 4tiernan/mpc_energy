@@ -19,34 +19,64 @@ class EVLoad(OptionalLoad):
         reward_cents_per_kwh: float,
 
         plugged_in_entity_id: str,
-        max_charge_power_kw: float,
-        min_charge_power_kw: float, 
         power_entity_id: str,
         level_entity_id: str,
         capacity_kwh: float,
         min_level_limit: float,
         max_level_limit: float,
+        charger_model: str,
+        nominal_ac_voltage: float,
+        min_charge_current: float,
+        max_charge_current: float,
+        charge_current_entity_id: str,
+        charge_enable_entity_id: str,
     ):
         # EV specific params
         self.plugged_in_entity_id = plugged_in_entity_id
-        self.max_charge_power_kw = max_charge_power_kw
-        self.min_charge_power_kw = min_charge_power_kw
         self.power_entity_id = power_entity_id
         self.level_entity_id = level_entity_id
         self.capacity_kwh = capacity_kwh
         self.min_level_limit = min_level_limit
         self.max_level_limit = max_level_limit
+        self.charger_model = charger_model
+        self.nominal_ac_voltage = nominal_ac_voltage
+        self.min_charge_current = min_charge_current
+        self.max_charge_current = max_charge_current
+        self.charge_current_entity_id = charge_current_entity_id
+        self.charge_enable_entity_id = charge_enable_entity_id
+        
+        self.init_charger()  # Initialize the specific charger implementation based on the selected model
 
         logger.debug(f"Initialized EV Load '{name}' with capacity {capacity_kwh} kWh," 
                      f" current level limits {min_level_limit}% to {max_level_limit}%,"
-                     f"max charge power {max_charge_power_kw} kW,"
-                     f"min charge power {min_charge_power_kw} kW, and reward {reward_cents_per_kwh} c/kWh."
+                     f"max charge power {self.max_charge_power_kw} kW,"
+                     f"min charge power {self.min_charge_power_kw} kW, and reward {reward_cents_per_kwh} c/kWh."
                      f" Plugged-in entity: '{plugged_in_entity_id}', Power entity: '{power_entity_id}', Level entity: '{level_entity_id}'."
                      )
 
         # Optional load required params
         super().__init__(name, load_type, reward_cents_per_kwh)
     
+    def init_charger(self):
+        """Instantiates the specific EVCharger class based on the selected model."""
+        if self.charger_model == "Tesla API":
+            from loads.EV_chargers.teslaAPI_charger import TeslaAPICharger
+            self.charger = TeslaAPICharger(
+                name=self.name,
+                ha=self.ha,
+                plugged_in_entity_id=self.plugged_in_entity_id,
+                nominal_ac_voltage=self.nominal_ac_voltage,
+                min_charge_current=self.min_charge_current,
+                max_charge_current=self.max_charge_current,
+                power_entity_id=self.power_entity_id,
+                charge_current_entity_id=self.charge_current_entity_id,
+                charge_enable_entity_id=self.charge_enable_entity_id,
+                charger_model=self.charger_model
+            )
+            # Use the calculated power limits from the charger class
+            self.min_charge_power_kw = self.charger.min_charge_power_kw
+            self.max_charge_power_kw = self.charger.max_charge_power_kw
+
     def get_historical_power(self, start=None, end=None, hours=None, bin_period=5):
         if not self.power_entity_id: return None
         
@@ -234,6 +264,8 @@ class EVLoad(OptionalLoad):
         
         self.target_charge_rate = p_res[0]
         soc_pct = [round((x / self.capacity_kwh) * 100, 2) if self.capacity_kwh > 0 else 0 for x in soc_ev.tolist()]
+
+        self.charger.set_target_charge_rate(self.target_charge_rate) # Update the charger with the new target charge rate for real-time control
         
         return {
             "power": p_res,
@@ -248,13 +280,17 @@ class EVLoad(OptionalLoad):
             "reward_cents_per_kwh": self.reward_cents_per_kwh,
 
             "plugged_in_entity_id": self.plugged_in_entity_id,
-            "max_charge_power_kw": self.max_charge_power_kw,
-            "min_charge_power_kw": self.min_charge_power_kw,
             "power_entity_id": self.power_entity_id,
             "level_entity_id": self.level_entity_id,
             "capacity_kwh": self.capacity_kwh,
             "min_level_limit": self.min_level_limit,
             "max_level_limit": self.max_level_limit,
+            "charger_model": self.charger_model,
+            "nominal_ac_voltage": self.nominal_ac_voltage,
+            "min_charge_current": self.min_charge_current,
+            "max_charge_current": self.max_charge_current,
+            "charge_current_entity_id": self.charge_current_entity_id,
+            "charge_enable_entity_id": self.charge_enable_entity_id,
             
         }
 
@@ -273,12 +309,16 @@ class EVLoad(OptionalLoad):
             reward_cents_per_kwh=float(item.get("reward_cents_per_kwh", 0.0) or 0.0),
 
             plugged_in_entity_id=str(item.get("plugged_in_entity_id", "")).strip(),
-            max_charge_power_kw=float(item.get("max_charge_power_kw", 0.0) or 0.0),
-            min_charge_power_kw=float(item.get("min_charge_power_kw", 0.0) or 0.0),
             power_entity_id=str(item.get("power_entity_id", "")).strip(),
             level_entity_id=str(item.get("level_entity_id", "")).strip(),
             capacity_kwh=float(item.get("capacity_kwh", 0.0) or 0.0),
             min_level_limit=float(item.get("min_level_limit", 0.0) or 0.0),
             max_level_limit=float(item.get("max_level_limit", 100.0) or 100.0),
+            charger_model=str(item.get("charger_model", "Generic")).strip(),
+            nominal_ac_voltage=float(item.get("nominal_ac_voltage", 230.0) or 230.0),
+            min_charge_current=float(item.get("min_charge_current", 0.0) or 0.0),
+            max_charge_current=float(item.get("max_charge_current", 0.0) or 0.0),
+            charge_current_entity_id=str(item.get("charge_current_entity_id", "")).strip(),
+            charge_enable_entity_id=str(item.get("charge_enable_entity_id", "")).strip(),
         )
     

@@ -1,6 +1,7 @@
 import streamlit as st
 
 import loads.optional_loads as optional_loads
+import loads.EV_chargers.EV_charger as ev_charger
 
 st.set_page_config(page_title="Optional Loads", layout="wide")
 
@@ -42,6 +43,12 @@ for idx, row in enumerate(rows):
         name = col_t2.text_input("Load Name", value=row.get("name", ""), key=f"name_input_{idx}")
 
         # Local state for field mapping
+        nominal_ac_voltage = str(row.get("nominal_ac_voltage", "230.0"))
+        ev_min_charge_amps = str(row.get("min_charge_current", "5.0"))
+        ev_max_charge_amps = str(row.get("max_charge_current", "32.0"))
+        ev_charge_current_entity_id = row.get("charge_current_entity_id", "")
+        ev_charge_enable_entity_id = row.get("charge_enable_entity_id", "")
+        charger_model = row.get("charger_model", "Tesla API")
         lvl_ent = row.get("level_entity_id", "")
         cap = str(row.get("capacity_kwh", "0.0"))
         min_lim = str(row.get("min_level_limit", "0.0"))
@@ -56,6 +63,13 @@ for idx, row in enumerate(rows):
         tmax = str(row.get("temp_max", "0.0"))
 
         if l_type == "ev":
+            charger_model = st.selectbox(
+                "Charger Model",
+                options=ev_charger.charger_models,
+                index=ev_charger.charger_models.index(charger_model) if charger_model in ev_charger.charger_models else 0,
+                key=f"ev_charger_model_{idx}"
+            )
+            
             c1, c2 = st.columns(2)
             lvl_ent = c1.text_input("Battery SOC Entity ID (%)", value=lvl_ent, key=f"ev_soc_{idx}")
             cap = c2.text_input("Battery Capacity (kWh)", value=cap, key=f"ev_cap_{idx}")
@@ -73,6 +87,17 @@ for idx, row in enumerate(rows):
             reward = c8.text_input("Charge Reward (c/kWh)", value=reward, key=f"ev_rew_{idx}")
             
             plug_ent = st.text_input("EV Plugged In Entity ID", value=plug_ent, key=f"ev_avail_{idx}")
+
+            if charger_model == "Tesla API":
+                st.write("---")
+                st.caption("Tesla API Specific Configuration")
+                c_t1, c_t2, c_t3 = st.columns(3)
+                nominal_ac_voltage = c_t1.text_input("Nominal AC Voltage (V)", value=nominal_ac_voltage, key=f"ev_t_volt_{idx}")
+                ev_min_charge_amps = c_t2.text_input("Min Charge Current (A)", value=ev_min_charge_amps, key=f"ev_t_min_a_{idx}")
+                ev_max_charge_amps = c_t3.text_input("Max Charge Current (A)", value=ev_max_charge_amps, key=f"ev_t_max_a_{idx}")
+                c_t4, c_t5 = st.columns(2)
+                ev_charge_current_entity_id = c_t4.text_input("Charge Current Entity ID", value=ev_charge_current_entity_id, key=f"ev_t_cur_ent_{idx}")
+                ev_charge_enable_entity_id = c_t5.text_input("Charge Enable Entity ID", value=ev_charge_enable_entity_id, key=f"ev_t_en_ent_{idx}")
 
         elif l_type == "hot_water":
             c1, c2 = st.columns(2)
@@ -96,6 +121,12 @@ for idx, row in enumerate(rows):
             "min_charge_power_kw": min_p, "min_level_limit": min_lim,
             "max_level_limit": max_lim, "reward_cents_per_kwh": reward,
             "volume_l": vol, "temp_min": tmin, "temp_max": tmax,
+            "charger_model": charger_model, 
+            "nominal_ac_voltage": nominal_ac_voltage,
+            "min_charge_current": ev_min_charge_amps,
+            "max_charge_current": ev_max_charge_amps,
+            "charge_current_entity_id": ev_charge_current_entity_id,
+            "charge_enable_entity_id": ev_charge_enable_entity_id,
         })
 
 if not edited_rows:

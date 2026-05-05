@@ -71,8 +71,8 @@ def plant_config_page():
             cutoff_soc = st.text_input("Charge Cutoff SOC Entity (%)", value=current_config.get("charge_cutoff_soc_entity_id", "number.sigen_plant_ess_charge_cut_off_state_of_charge"))
             bat_cap = st.text_input("Battery Rated Capacity Entity", value=current_config.get("battery_rated_capacity_entity_id", "sensor.sigen_plant_rated_energy_capacity"))
         with col6:
-            bat_till_full = st.text_input("Battery kWh Till Full Entity", value=current_config.get("battery_kwh_till_full_entity_id", "sensor.sigen_plant_battery_kwh_to_full"))
-            bat_stored = st.text_input("Battery Stored Energy Entity", value=current_config.get("battery_stored_energy_entity_id", "sensor.sigen_plant_battery_stored_energy"))
+            bat_till_full = st.text_input("Battery kWh Till Full Entity", value=current_config.get("battery_kwh_till_full_entity_id", "sensor.sigen_plant_available_max_charging_capacity"))
+            bat_stored = st.text_input("Battery Stored Energy Entity", value=current_config.get("battery_stored_energy_entity_id", "sensor.sigen_plant_available_max_discharging_capacity"))
             daily_import = st.text_input("Daily Import kWh Entity", value=current_config.get("plant_daily_import_kwh_entity_id", "sensor.sigen_plant_daily_import_energy"))
             daily_export = st.text_input("Daily Export kWh Entity", value=current_config.get("plant_daily_export_kwh_entity_id", "sensor.sigen_plant_daily_export_energy"))
 

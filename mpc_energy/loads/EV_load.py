@@ -73,9 +73,12 @@ class EVLoad(OptionalLoad):
                 charge_enable_entity_id=self.charge_enable_entity_id,
                 charger_model=self.charger_model
             )
-            # Use the calculated power limits from the charger class
-            self.min_charge_power_kw = self.charger.min_charge_power_kw
-            self.max_charge_power_kw = self.charger.max_charge_power_kw
+        else:
+            raise NotImplementedError(f"Charger model '{self.charger_model}' is not supported yet. Please implement the charger class and update the init_charger method to support it.")
+
+        # Use the calculated power limits from the charger class
+        self.min_charge_power_kw = self.charger.min_charge_power_kw
+        self.max_charge_power_kw = self.charger.max_charge_power_kw
 
     def get_historical_power(self, start=None, end=None, hours=None, bin_period=5):
         if not self.power_entity_id: return None

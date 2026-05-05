@@ -32,7 +32,8 @@ def start_streamlit_dashboard():
         "--server.enableXsrfProtection=false",
         "--server.fileWatcherType=none",
         "--browser.gatherUsageStats=false",
-        "--theme.base=light"
+        "--theme.base=light",
+        "--client.showSidebarNavigation=false"
     ])
 
 # Start Streamlit dashboard

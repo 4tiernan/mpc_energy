@@ -2,7 +2,7 @@ import time
 import datetime
 from plants.base_plant import BasePlant
 from mpc_logger import logger
-from exceptions import HAAPIError, SigenergyConnectionError
+from exceptions import HAAPIError, SigenergyConnectionError, MPCEnergyError
 import data_helpers, config_manager
 from ha_api import HomeAssistantAPI
 
@@ -235,7 +235,7 @@ class SigEnergyPlant(BasePlant):
             logger.error(f"The required entities are not enabled or don't exist. Please check they are enabled and spelt correctly:")
             for id in unavailable_ids:
                 logger.error(id)
-            exit()
+            raise MPCEnergyError("One or more required Home Assistant entities are unavailable.")
 
     def system_curtailing(self, derate_allowance_kw=1.0, tolerance_kw=0.1) -> dict:
         """

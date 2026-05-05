@@ -48,39 +48,21 @@ class EVLoad(OptionalLoad):
         self.charge_current_entity_id = charge_current_entity_id
         self.charge_enable_entity_id = charge_enable_entity_id
         
-        self.init_charger()  # Initialize the specific charger implementation based on the selected model
+        self.charger = None
+        self.min_charge_power_kw = 0.0
+        self.max_charge_power_kw = 0.0
 
         logger.debug(f"Initialized EV Load '{name}' with capacity {capacity_kwh} kWh," 
                      f" current level limits {min_level_limit}% to {max_level_limit}%,"
-                     f"max charge power {self.max_charge_power_kw} kW,"
-                     f"min charge power {self.min_charge_power_kw} kW, and reward {reward_cents_per_kwh} c/kWh."
                      f" Plugged-in entity: '{plugged_in_entity_id}', Power entity: '{power_entity_id}', Level entity: '{level_entity_id}'."
                      )
 
-        
-    
-    def init_charger(self):
-        """Instantiates the specific EVCharger class based on the selected model."""
-        if self.charger_model == "Tesla API":
-            from loads.EV_chargers.teslaAPI_charger import TeslaAPICharger
-            self.charger = TeslaAPICharger(
-                name=self.name,
-                ha=self.ha,
-                plugged_in_entity_id=self.plugged_in_entity_id,
-                nominal_ac_voltage=self.nominal_ac_voltage,
-                min_charge_current=self.min_charge_current,
-                max_charge_current=self.max_charge_current,
-                power_entity_id=self.power_entity_id,
-                charge_current_entity_id=self.charge_current_entity_id,
-                charge_enable_entity_id=self.charge_enable_entity_id,
-                charger_model=self.charger_model
-            )
-        else:
-            raise NotImplementedError(f"Charger model '{self.charger_model}' is not supported yet. Please implement the charger class and update the init_charger method to support it.") from None
-
-        # Use the calculated power limits from the charger class
-        self.min_charge_power_kw = self.charger.min_charge_power_kw
-        self.max_charge_power_kw = self.charger.max_charge_power_kw
+    def set_charger(self, charger):
+        """Sets the specific EVCharger object and updates power limits."""
+        self.charger = charger
+        if self.charger:
+            self.min_charge_power_kw = self.charger.min_charge_power_kw
+            self.max_charge_power_kw = self.charger.max_charge_power_kw
 
     def get_historical_power(self, start=None, end=None, hours=None, bin_period=5):
         if not self.power_entity_id: return None
@@ -209,11 +191,17 @@ class EVLoad(OptionalLoad):
         else:
             self.current_ev_soc_kWh = None
         
-        if self.plugged_in_entity_id:
-            self.is_plugged_in = self.ha.get_boolean_state(self.plugged_in_entity_id)
+        if self.charger:
+            self.charger.update_state()
+            self.min_charge_power_kw = self.charger.min_charge_power_kw
+            self.max_charge_power_kw = self.charger.max_charge_power_kw
+            self.is_plugged_in = getattr(self.charger, 'car_plugged_in', True)
         else:
-            self.is_plugged_in = True  # Assume always plugged in if no sensor provided
-            
+            if self.plugged_in_entity_id:
+                self.is_plugged_in = self.ha.get_boolean_state(self.plugged_in_entity_id)
+            else:
+                self.is_plugged_in = True  # Assume always plugged in if no sensor provided
+
     def build_ev_min_soc_constraint(self, target_soc, p_max_arr, mpc):
         target_soc = max(min(target_soc, self.capacity_kwh), 0.0)
         ev_soc_min_required_arr = [min(self.current_ev_soc_kWh + i*p_max_arr[i]*0.95 * mpc.dt_5min, target_soc) for i in range(int(mpc.N_5min))] *np.ones(int(mpc.N_5min), dtype=float) # Force minimum SOC constraint based on max charge rate but allow a slight reductuion to ensure feasibility

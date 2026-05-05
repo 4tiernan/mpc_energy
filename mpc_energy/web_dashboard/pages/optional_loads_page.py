@@ -57,6 +57,7 @@ for idx, row in enumerate(rows):
         max_p = str(row.get("max_charge_power_kw", "0.0"))
         p_ent = row.get("power_entity_id", "")
         plug_ent = row.get("plugged_in_entity_id", "")
+        three_phase_available = row.get("three_phase_available_entity_id", "")
         reward = str(row.get("reward_cents_per_kwh", "0.0"))
         vol = str(row.get("volume_l", "0.0"))
         tmin = str(row.get("temp_min", "0.0"))
@@ -95,6 +96,10 @@ for idx, row in enumerate(rows):
                 p_ent = c_t6.text_input("Charger Power Entity ID (kW)", value=p_ent, key=f"ev_pent_{idx}")
                 plug_ent = c_t7.text_input("EV Plugged In Entity ID", value=plug_ent, key=f"ev_avail_{idx}")
 
+                c_t8, c_t9 = st.columns(2)
+                three_phase_available = c_t8.text_input("Three Phase Available Entity ID", value=three_phase_available, key=f"ev_t_3ph_{idx}")
+
+
         elif l_type == "hot_water":
             c1, c2 = st.columns(2)
             tmin = c1.text_input("Min Tank Temp (C)", value=tmin, key=f"hw_tmin_{idx}")
@@ -111,18 +116,27 @@ for idx, row in enumerate(rows):
             reward = st.text_input("Charge Reward (c/kWh)", value=reward, key=f"hw_rew_{idx}")
 
         edited_rows.append({
-            "name": name, "power_entity_id": p_ent, "load_type": l_type,
-            "plugged_in_entity_id": plug_ent, "level_entity_id": lvl_ent,
-            "capacity_kwh": cap, "max_charge_power_kw": max_p,
-            "min_charge_power_kw": min_p, "min_level_limit": min_lim,
-            "max_level_limit": max_lim, "reward_cents_per_kwh": reward,
-            "volume_l": vol, "temp_min": tmin, "temp_max": tmax,
+            "name": name, 
+            "power_entity_id": p_ent, 
+            "load_type": l_type,
+            "plugged_in_entity_id": plug_ent, 
+            "level_entity_id": lvl_ent,
+            "capacity_kwh": cap, 
+            "max_charge_power_kw": max_p,
+            "min_charge_power_kw": min_p, 
+            "min_level_limit": min_lim,
+            "max_level_limit": max_lim, 
+            "reward_cents_per_kwh": reward,
+            "volume_l": vol, 
+            "temp_min": tmin, 
+            "temp_max": tmax,
             "charger_model": charger_model, 
             "nominal_ac_voltage": nominal_ac_voltage,
             "min_charge_current": ev_min_charge_amps,
             "max_charge_current": ev_max_charge_amps,
             "charge_current_entity_id": ev_charge_current_entity_id,
             "charge_enable_entity_id": ev_charge_enable_entity_id,
+            "three_phase_available_entity_id": three_phase_available,
         })
 
 if not edited_rows:

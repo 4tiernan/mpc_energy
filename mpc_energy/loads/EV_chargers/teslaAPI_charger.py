@@ -18,6 +18,7 @@ class TeslaAPICharger(EVCharger):
             max_charge_current: float,
 
             power_entity_id: str,
+            three_phase_available_entity_id: str,
 
             charge_current_entity_id: str,
             charge_enable_entity_id: str,
@@ -35,6 +36,7 @@ class TeslaAPICharger(EVCharger):
 
         super().__init__(name, ha, self.min_charge_power_kw, self.max_charge_power_kw)
 
+        self.three_phase_available_entity_id = three_phase_available_entity_id
         self.power_entity_id = power_entity_id
         self.charge_current_entity_id = charge_current_entity_id
         self.charge_enable_entity_id = charge_enable_entity_id
@@ -49,14 +51,26 @@ class TeslaAPICharger(EVCharger):
         """
         self.target_charge_rate = kw
     
+    def update_state(self):
+        """
+        Update the charger state by fetching the latest data from Home Assistant and checking whether a car is plugged in and adapting power limits.
+        """
+        self.car_plugged_in = self.ha.get_boolean_state(self.plugged_in_entity_id)
+
+        self.three_phase_available = self.ha.get_boolean_state(self.three_phase_available_entity_id) if self.three_phase_available_entity_id else False
+        self.available_phases = 3 if self.three_phase_available else 1
+
+        self.min_charge_power_kw = (self.available_phases * self.nominal_ac_voltage * self.min_charge_current) / 1000.0
+        self.max_charge_power_kw = (self.available_phases * self.nominal_ac_voltage * self.max_charge_current) / 1000.0
+
     def update(self):
         """
         Update the charger state by fetching the latest data from Home Assistant and checking wheather a car is plugged in and adapting charge rate as needed.
         """
-        car_plugged_in = self.ha.get_boolean_state(self.plugged_in_entity_id)
+        self.update_state()
 
-        if car_plugged_in:
-            target_charge_current = round((self.target_charge_rate * 1000) / self.nominal_ac_voltage)
+        if self.car_plugged_in:
+            target_charge_current = round((self.target_charge_rate * 1000) / (self.available_phases * self.nominal_ac_voltage))
 
             if(target_charge_current < self.min_charge_current or target_charge_current > self.max_charge_current):
                 logger.debug(f"Calculated target charge current {target_charge_current:.2f}A is out of bounds for charger {self.name}. Setting it within the {self.min_charge_current:.2f}-{self.max_charge_current:.2f}A range limits.")
@@ -88,4 +102,3 @@ class TeslaAPICharger(EVCharger):
             logger.debug(f"Set charge current for {self.name} to {desired_current_input_state:.2f} A as the car is currently plugged in and target charge rate is {self.target_charge_rate:.2f} kW.")
             self.last_control_entity_update_time = time.time()
         
-

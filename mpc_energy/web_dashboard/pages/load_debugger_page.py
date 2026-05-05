@@ -55,18 +55,24 @@ if st.button("Fetch and Analyze Data"):
         binned_load = data_helpers.bin_data(load_power_history, bin_size, start, end)
         
         # Debiasing
-        debiased_data = [b.avg_state for b in binned_load]
+        total_load_data = [b.avg_state if b.avg_state is not None else 0.0 for b in binned_load]
+        debiased_data = list(total_load_data)
+        optional_load_data = [0.0] * len(total_load_data)
+
         if opt_loads:
             for load in opt_loads:
                 opt_history = load.get_historical_power(start=start, end=end, bin_period=bin_size)
                 if opt_history:
                     for i in range(min(len(debiased_data), len(opt_history))):
-                        opt_val = opt_history[i].avg_state or 0.0
+                        opt_val = opt_history[i].avg_state if opt_history[i].avg_state is not None else 0.0
+                        optional_load_data[i] += opt_val
                         debiased_data[i] = max(debiased_data[i] - opt_val, 0.0)
 
         # Reconstruct into Days
         fig = go.Figure()
         all_days_matrix = []
+        all_opt_matrix = []
+        all_total_matrix = []
         
         # Calculate bins per day
         bins_per_day = int(24 * 60 / bin_size)
@@ -78,6 +84,8 @@ if st.button("Fetch and Analyze Data"):
             
             if len(day_slice) == bins_per_day:
                 all_days_matrix.append(day_slice)
+                all_opt_matrix.append(optional_load_data[start_idx:end_idx])
+                all_total_matrix.append(total_load_data[start_idx:end_idx])
                 # Plot individual day
                 x_time = [datetime.time(hour=m // 60, minute=m % 60) for m in range(0, 1440, bin_size)]
                 fig.add_trace(go.Scatter(
@@ -91,12 +99,28 @@ if st.button("Fetch and Analyze Data"):
         # Calculate Average
         if all_days_matrix:
             avg_day = np.mean(all_days_matrix, axis=0)
+            avg_opt = np.mean(all_opt_matrix, axis=0)
+            avg_total = np.mean(all_total_matrix, axis=0)
             x_time = [datetime.time(hour=m // 60, minute=m % 60) for m in range(0, 1440, bin_size)]
             
             fig.add_trace(go.Scatter(
+                x=x_time, y=avg_total,
+                mode='lines',
+                name='Average Total Load',
+                line=dict(color='blue', width=2, dash='dot')
+            ))
+
+            fig.add_trace(go.Scatter(
+                x=x_time, y=avg_opt,
+                mode='lines',
+                name='Average Optional Load',
+                line=dict(color='orange', width=2)
+            ))
+
+            fig.add_trace(go.Scatter(
                 x=x_time, y=avg_day,
                 mode='lines',
-                name='Calculated Average Day',
+                name='Average Base Load (Debiased)',
                 line=dict(color='green', width=4)
             ))
 
@@ -112,4 +136,5 @@ if st.button("Fetch and Analyze Data"):
             
             st.subheader("Statistical Summary")
             st.write(f"Average Daily Energy Consumption (Base Load): **{round(sum(avg_day) * (bin_size/60), 2)} kWh**")
-            st.write(f"Peak Load: **{round(max(avg_day), 2)} kW** at {x_time[np.argmax(avg_day)]}")
+            st.write(f"Average Daily Energy Consumption (Optional Loads): **{round(sum(avg_opt) * (bin_size/60), 2)} kWh**")
+            st.write(f"Peak Base Load: **{round(max(avg_day), 2)} kW** at {x_time[np.argmax(avg_day)]}")

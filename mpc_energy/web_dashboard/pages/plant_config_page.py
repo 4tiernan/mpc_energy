@@ -43,7 +43,7 @@ def plant_config_page():
         st.subheader("General Settings")
         col_gen1, col_gen2 = st.columns(2)
         with col_gen1:
-            daily_load = st.number_input("Estimated Daily Load (kWh)", value=float(current_config.get("estimated_daily_load_energy_consumption", 24.0)))
+            daily_load = st.number_input("Estimated Daily Load (kWh) - Only used as a backup if load prediction fails.", value=float(current_config.get("estimated_daily_load_energy_consumption", 24.0)))
         with col_gen2:
             discharge_cost = st.number_input("Battery Discharge Cost (c/kWh)", value=float(current_config.get("battery_discharge_cost", 7.0)))
 

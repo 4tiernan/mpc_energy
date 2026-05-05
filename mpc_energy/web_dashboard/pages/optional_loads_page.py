@@ -160,4 +160,4 @@ if save:
     else:
         optional_loads.save_optional_loads(edited_rows)
         st.session_state.optional_load_rows = optional_loads.load_optional_loads()
-        st.success("Optional loads saved. These are stored under /data so they persist across add-on updates.")
+        st.success("Optional loads saved. Please restart MPC to take effect. These are stored under /data so they persist across add-on updates.")

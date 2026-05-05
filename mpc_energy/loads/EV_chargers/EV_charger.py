@@ -18,12 +18,12 @@ class EVCharger(ABC):
         self.target_charge_rate = 0.0 # Current target charge rate in kW
 
     @abstractmethod
-    def set_charge_rate(self, kw: float):
+    def set_target_charge_rate(self, kw: float):
         """
         Sets the charging rate of the EV charger in kW.
         This method should be overridden by specific charger implementations.
         """
-        raise NotImplementedError("Subclasses must implement set_charge_rate")
+        raise NotImplementedError("Subclasses must implement set_target_charge_rate")
     
     @abstractmethod
     def update_state(self):

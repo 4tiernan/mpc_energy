@@ -19,6 +19,10 @@ def save_config(config):
     st.success("Plant configuration saved! Please restart the Add-on for changes to take full effect.")
 
 def plant_config_page():
+    st.sidebar.page_link("webserver.py", label="Dashboard", icon="📊")
+    st.sidebar.page_link("pages/optional_loads_page.py", label="Optional Loads", icon="⚙️")
+    st.sidebar.page_link("pages/plant_config_page.py", label="Plant Configuration", icon="🏭")
+
     st.title("🏭 Plant Configuration")
     st.write("Configure your hardware brand, entities, and physical plant constraints.")
 

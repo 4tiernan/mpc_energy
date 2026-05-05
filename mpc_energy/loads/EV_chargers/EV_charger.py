@@ -57,6 +57,7 @@ def create_charger_instance(config: dict[str, Any], ha: HomeAssistantAPI) -> "EV
             min_charge_current=float(config.get("min_charge_current", 0.0) or 0.0),
             max_charge_current=float(config.get("max_charge_current", 0.0) or 0.0),
             power_entity_id=config.get("power_entity_id", ""),
+            three_phase_available_entity_id=config.get("three_phase_available_entity_id", ""),
             charge_current_entity_id=config.get("charge_current_entity_id", ""),
             charge_enable_entity_id=config.get("charge_enable_entity_id", ""),
             charger_model=charger_model

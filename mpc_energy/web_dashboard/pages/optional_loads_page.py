@@ -99,6 +99,8 @@ for idx, row in enumerate(rows):
                 c_t8, c_t9 = st.columns(2)
                 three_phase_available = c_t8.text_input("Three Phase Available Entity ID", value=three_phase_available, key=f"ev_t_3ph_{idx}")
 
+            else:
+                st.warning(f"Charger model '{charger_model}' is not yet implemented. Please ensure that you have a compatible charger model selected.")
 
         elif l_type == "hot_water":
             c1, c2 = st.columns(2)

@@ -3,7 +3,7 @@ from ha_api import HomeAssistantAPI
 from mpc_logger import logger
 from typing import Any
 
-charger_models = ["Tesla API", "SigEnergy AC Charger", "GoodWe"]
+charger_models = ["Tesla API", "SigEnergy AC Charger"]#, "GoodWe"]
 
 class EVCharger(ABC):
     """

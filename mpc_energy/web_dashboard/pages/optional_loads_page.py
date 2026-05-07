@@ -57,7 +57,9 @@ for idx, row in enumerate(rows):
         max_p = str(row.get("max_charge_power_kw", "0.0"))
         p_ent = row.get("power_entity_id", "")
         plug_ent = row.get("plugged_in_entity_id", "")
-        three_phase_available = row.get("three_phase_available_entity_id", "")
+        three_phase_available_entity_id = row.get("three_phase_available_entity_id", "")
+        three_phase_available = row.get("three_phase_available", False)
+        debias_load = row.get("debias_load", True)
         reward = str(row.get("reward_cents_per_kwh", "0.0"))
         vol = str(row.get("volume_l", "0.0"))
         tmin = str(row.get("temp_min", "0.0"))
@@ -97,7 +99,29 @@ for idx, row in enumerate(rows):
                 plug_ent = c_t7.text_input("EV Plugged In Entity ID", value=plug_ent, key=f"ev_avail_{idx}")
 
                 c_t8, c_t9 = st.columns(2)
-                three_phase_available = c_t8.text_input("Three Phase Available Entity ID", value=three_phase_available, key=f"ev_t_3ph_{idx}")
+                three_phase_available_entity_id = c_t8.text_input("Three Phase Available Entity ID", value=three_phase_available_entity_id, key=f"ev_t_3ph_ent_{idx}")
+            
+            if charger_model == "SigEnergy AC Charger":
+                st.write("---")
+                st.caption("SigEnergy AC Charger Specific Configuration")
+                c_t1, c_t2, c_t3 = st.columns(3)
+                nominal_ac_voltage = c_t1.text_input("Nominal AC Voltage (V)", value=nominal_ac_voltage, key=f"ev_t_volt_{idx}")
+                ev_min_charge_amps = c_t2.text_input("Min Charge Current (A)", value=ev_min_charge_amps, key=f"ev_t_min_a_{idx}")
+                ev_max_charge_amps = c_t3.text_input("Max Charge Current (A)", value=ev_max_charge_amps, key=f"ev_t_max_a_{idx}")
+                c_t4, c_t5 = st.columns(2)
+                ev_charge_current_entity_id = c_t4.text_input("Charge Current Entity ID", value=ev_charge_current_entity_id, key=f"ev_t_cur_ent_{idx}")
+                ev_charge_enable_entity_id = c_t5.text_input("Charge Enable Entity ID", value=ev_charge_enable_entity_id, key=f"ev_t_en_ent_{idx}")
+
+                c_t6, c_t7 = st.columns(2)
+                p_ent = c_t6.text_input("Charger Power Entity ID (kW)", value=p_ent, key=f"ev_pent_{idx}")
+                plug_ent = c_t7.text_input("EV Plugged In Entity ID", value=plug_ent, key=f"ev_avail_{idx}")
+
+
+                c_t8, c_t9 = st.columns(2)
+                three_phase_available = c_t8.checkbox("Three Phase Available", value=three_phase_available if isinstance(three_phase_available, bool) else str(three_phase_available).lower() == "true", key=f"ev_t_3ph_{idx}")
+                debias_load = c_t9.checkbox("Debias Load (kW)", value=debias_load if isinstance(debias_load, bool) else str(debias_load).lower() == "true", key=f"ev_debias_{idx}")
+
+
 
             else:
                 st.warning(f"Charger model '{charger_model}' is not yet implemented. Please ensure that you have a compatible charger model selected.")
@@ -138,7 +162,9 @@ for idx, row in enumerate(rows):
             "max_charge_current": ev_max_charge_amps,
             "charge_current_entity_id": ev_charge_current_entity_id,
             "charge_enable_entity_id": ev_charge_enable_entity_id,
-            "three_phase_available_entity_id": three_phase_available,
+            "three_phase_available_entity_id": three_phase_available_entity_id,
+            "three_phase_available": three_phase_available,
+            "debias_load": debias_load
         })
 
 if not edited_rows:

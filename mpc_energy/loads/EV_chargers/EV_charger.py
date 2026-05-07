@@ -63,8 +63,20 @@ def create_charger_instance(config: dict[str, Any], ha: HomeAssistantAPI) -> "EV
             charger_model=charger_model
         )
     elif charger_model == "SigEnergy AC Charger":
-        logger.warning(f"Charger model '{charger_model}' is not yet implemented.")
-        return None
+        from loads.EV_chargers.sigenergy_ac_charger import SigEnergyACCharger
+        return SigEnergyACCharger(
+            name=config.get("name", ""),
+            ha=ha,
+            plugged_in_entity_id=config.get("plugged_in_entity_id", ""),
+            nominal_ac_voltage=float(config.get("nominal_ac_voltage", 230.0) or 230.0),
+            min_charge_current=float(config.get("min_charge_current", 0.0) or 0.0),
+            max_charge_current=float(config.get("max_charge_current", 0.0) or 0.0),
+            power_entity_id=config.get("power_entity_id", ""),
+            three_phase_available=config.get("three_phase_available", False),
+            charge_current_entity_id=config.get("charge_current_entity_id", ""),
+            charge_enable_entity_id=config.get("charge_enable_entity_id", ""),
+            charger_model=charger_model
+        )
     else:
         logger.warning(f"Unknown charger model '{charger_model}' for load '{config.get('name', 'Unknown')}'. Skipping charger instantiation.")
         return None

@@ -61,7 +61,6 @@ def create_charger_instance(config: dict[str, Any], ha: HomeAssistantAPI) -> "EV
             three_phase_available_entity_id=config.get("three_phase_available_entity_id", ""),
             charge_current_entity_id=config.get("charge_current_entity_id", ""),
             charge_enable_entity_id=config.get("charge_enable_entity_id", ""),
-            three_phase_available_entity_id=config.get("three_phase_available_entity_id", ""),
             charger_model=charger_model,
             debias_load=config.get("debias_load", True)
         )
@@ -79,7 +78,6 @@ def create_charger_instance(config: dict[str, Any], ha: HomeAssistantAPI) -> "EV
             charge_current_entity_id=config.get("charge_current_entity_id", ""),
             charge_enable_entity_id=config.get("charge_enable_entity_id", ""),
             charger_model=charger_model,
-            three_phase_available = config.get("three_phase_available", False),
             debias_load=config.get("debias_load", False)
         )
     else:

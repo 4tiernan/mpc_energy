@@ -329,3 +329,93 @@ class GoodWePlant(BasePlant):
             "plan_modes": [state.avg_state for state in binned_working_mode_state_history],
         }
         return output
+
+
+    def dispatch(self, grid_export_limit=None):
+        if(grid_export_limit == None):
+            grid_export_limit = self.max_export_power
+        else:
+            grid_export_limit = min(max(grid_export_limit, 0), self.max_export_power)
+
+        self.working_mode = self.ControlMode.DISPATCH
+        self.check_control_limits(
+            working_mode=self.working_mode,
+            control_mode="Sell Power",
+            ems_limit=self.max_inverter_power,
+            export_limit=grid_export_limit
+        )
+        
+    def export_all_solar(self):
+        self.working_mode = self.ControlMode.EXPORT_ALL_SOLAR
+        self.check_control_limits(
+            working_mode=self.working_mode,
+            control_mode="Discharge PV",
+            ems_limit=0, # Battery Discharge Power
+            export_limit=self.max_export_power
+        )
+
+    def export_excess_solar(self, battery_charge_limit=None):
+        if(battery_charge_limit == None):
+            battery_charge_limit = self.max_charge_power
+        else:
+            battery_charge_limit = min(max(battery_charge_limit, 0), self.max_charge_power)
+
+        self.working_mode = self.ControlMode.EXPORT_EXCESS_SOLAR
+        self.check_control_limits(
+            working_mode=self.working_mode,
+            control_mode="Auto",
+            ems_limit=0, 
+            export_limit=self.max_export_power
+        )
+        
+    def solar_to_load(self):
+        self.working_mode = self.ControlMode.SOLAR_TO_LOAD
+        self.check_control_limits(
+            working_mode=self.working_mode,
+            control_mode="Auto",
+            ems_limit=0, 
+            export_limit=self.max_export_power
+        )
+        
+    def import_power(self, battery_charge_limit = None, pv_limit = None, grid_import_limit = None):
+        if(battery_charge_limit == None):
+            battery_charge_limit = self.max_charge_power
+        else:
+            battery_charge_limit = min(max(battery_charge_limit, 0), self.max_charge_power)
+
+        if(pv_limit == None):
+            pv_limit = self.max_pv_power
+        else:
+            pv_limit = min(max(pv_limit, 0), self.max_pv_power)
+
+        if(grid_import_limit == None):
+            grid_import_limit = self.max_import_power
+        else:
+            grid_import_limit = min(max(grid_import_limit, 0), self.max_import_power)
+
+        self.working_mode = self.ControlMode.GRID_IMPORT
+        self.check_control_limits(
+            working_mode=self.working_mode,
+            control_mode="Import AC",
+            ems_limit=battery_charge_limit, # Battery Charge Power
+            export_limit=self.max_export_power
+        )
+
+
+    def self_consumption(self, pv_limit = None):
+        if(pv_limit == None):
+            pv_limit = self.max_pv_power
+        self.working_mode = self.ControlMode.SELF_CONSUMPTION
+        self.check_control_limits(
+            working_mode=self.working_mode,
+            control_mode="Auto",
+            ems_limit=0,
+            export_limit=self.max_export_power
+        )
+    
+    def run(self):
+        self.maintain_control_mode()
+
+    def maintain_control_mode(self): # Maintain the current control mode (mainly export all solar)
+        if(self.working_mode == self.ControlMode.EXPORT_ALL_SOLAR):
+            self.export_all_solar()

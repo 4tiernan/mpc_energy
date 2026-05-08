@@ -32,8 +32,9 @@ class SigEnergyACCharger(EVCharger):
         self.min_charge_current = min_charge_current
         self.max_charge_current = max_charge_current
 
-        self.min_charge_power_kw = (self.nominal_ac_voltage * self.min_charge_current) / 1000.0
-        self.max_charge_power_kw = (self.nominal_ac_voltage * self.max_charge_current) / 1000.0
+        self.available_phases = 3 if self.three_phase_available else 1
+        self.min_charge_power_kw = self.available_phases * (self.nominal_ac_voltage * self.min_charge_current) / 1000.0
+        self.max_charge_power_kw = self.available_phases * (self.nominal_ac_voltage * self.max_charge_current) / 1000.0
 
         super().__init__(name, ha, self.min_charge_power_kw, self.max_charge_power_kw, debias_load)
 

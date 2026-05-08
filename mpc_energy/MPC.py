@@ -153,7 +153,7 @@ class MPC:
     def update_limits(self):
         # Battery Settings
         self.battery_capacity = self.plant.rated_capacity  # kWh
-        self.soc_min = self.plant.kwh_backup_buffer
+        self.soc_min = self.plant.backup_buffer_kwh
         self.soc_max = self.battery_capacity
         
         self.solar_dc_max = self.plant.max_pv_power             # kW (DC limit for MPPTs)

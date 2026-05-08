@@ -102,6 +102,22 @@ class BasePlant(ABC):
     def maintain_control_mode(self):
         """Maintain the current control mode (mainly export all solar)"""
         raise NotImplementedError("Maintain control mode method not implemented for this plant.")
+    
+    def get_safe_state(self, entity_id) -> str:
+        """Fetches the state of the specified entity from Home Assistant. Raises an error if the entity is unavailable."""
+        state_payload = self.ha.get_state(entity_id)
+        if isinstance(state_payload, dict) and state_payload.get("state") == "unavailable":
+            raise PlantControlError(f"Plant control error (entity: '{entity_id}') unavailable. Either the Plant is offline or there is a misconfiguration with the entity ids.") from None
+        return state_payload
+
+    def get_safe_numeric_state(self, entity_id) -> float:
+        """Fetches the state of the specified entity from Home Assistant and converts it to a float. Raises an error if the entity is unavailable or the state cannot be converted to a float."""
+        state_payload = self.get_safe_state(entity_id)
+        state = state_payload.get("state") if isinstance(state_payload, dict) else None
+        try:
+            return float(state)
+        except (TypeError, ValueError):
+            raise HAAPIError(f"Unable to convert state '{state}' for entity '{entity_id}' to float.") from None
         
 
     def get_config_entry_value(self, entry_id) -> Any:
@@ -115,7 +131,7 @@ class BasePlant(ABC):
         except (ValueError, TypeError):
             try:
                 # If the config entry id cannot be parsed as a float it should be the entity_id
-                val = self.get_sigenergy_numeric_state(entry_id)
+                val = self.get_safe_numeric_state(entry_id)
                 return val  
             except Exception as e:
                 logger.error(f"Unable to get entity id or float from config entry '{entry_id}'. Please check the entity id or ensure it is a float. Exception: {e}")

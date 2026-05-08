@@ -2,7 +2,7 @@ import time
 import datetime
 from plants.base_plant import BasePlant
 from mpc_logger import logger
-from exceptions import HAAPIError, SigenergyConnectionError, MPCEnergyError
+from exceptions import HAAPIError, GoodWeConnectionError, MPCEnergyError
 import data_helpers, config_manager
 from ha_api import HomeAssistantAPI
 
@@ -15,27 +15,34 @@ class GoodWePlant(BasePlant):
         self.check_for_enabled_entites() # Check to make sure all the required entities are enabled before starting the app to prevent issues later on.
         
         # Initialize power limits and capacity using configuration overrides where available
-        self.rated_capacity = self.get_config_entry_value(self.battery_rated_capacity_entity_id)
-        self.max_discharge_power = self.get_config_entry_value(self.battery_max_discharge_power_limit_entity_id)
-        self.max_charge_power = self.get_config_entry_value(self.battery_max_charge_power_limit_entity_id)
-        self.max_pv_power = self.get_config_entry_value(self.pv_max_power_limit_entity_id)
-        self.max_inverter_power = self.get_config_entry_value(self.inverter_max_power_limit_entity_id)
-        self.max_export_power = self.get_config_entry_value(self.export_max_power_limit_entity_id)
-        self.max_import_power = self.get_config_entry_value(self.import_max_power_limit_entity_id)
+        self.rated_capacity = self.get_config_entry_value(self.battery_rated_capacity_entry)
+        self.max_discharge_power = self.get_config_entry_value(self.battery_max_discharge_power_limit_entry)
+        self.max_charge_power = self.get_config_entry_value(self.battery_max_charge_power_limit_entry)
+        self.max_pv_power = self.get_config_entry_value(self.pv_max_power_limit_entry)
+        self.max_inverter_power = self.get_config_entry_value(self.inverter_max_power_limit_entry)
+        self.max_export_power = self.get_config_entry_value(self.export_max_power_limit_entry)
+        self.max_import_power = self.get_config_entry_value(self.import_max_power_limit_entry)       
 
         
         self.control_mode_options = [
-            "Standby",
-            "Maximum Self Consumption",
-            "Command Charging (PV First)",
-            "Command Charging (Grid First)",
-            "Command Discharging (PV First)",
-            "Command Discharging (ESS First)"]
+            "Auto",
+            "Charge PV",
+            "Discharge PV",
+            "Import AC",
+            "Export AC",
+            "Conserve",
+            "Off-grid",
+            "Battery Standby",
+            "Buy Power",
+            "Sell Power",
+            "Charge Battery",
+            "Discharge Battery"
+        ]
 
         self.update_data()
 
         logger.debug(
-                    f"Initialized SigEnergyPlant with the following parameters: | "
+                    f"Initialized GoodWePlant with the following parameters: | "
                     f"Battery Capacity: {self.rated_capacity} kWh | "
                     f"Max Discharge: {self.max_discharge_power} kW | "
                     f"Max Charge: {self.max_charge_power} kW | "
@@ -43,71 +50,51 @@ class GoodWePlant(BasePlant):
                     f"Max Inverter: {self.max_inverter_power} kW | "
                     f"Max Export: {self.max_export_power} kW | "
                     f"Max Import: {self.max_import_power} kW | "
-                    f"Backup Buffer: {self.kwh_backup_buffer} kWh"
+                    f"Backup SOC: {self.backup_soc_entry} kWh"
+                    f"Charge Cutoff SOC: {self.charge_cutoff_soc_entry}%"
                 )
 
     def get_config(self, plant_config: dict) -> None:
+        self.battery_rated_capacity_entry = plant_config.get("battery_rated_capacity_entry")
+        self.battery_max_discharge_power_limit_entry = plant_config.get("battery_max_discharge_power_limit_entry")
+        self.battery_max_charge_power_limit_entry = plant_config.get("battery_max_charge_power_limit_entry")
+        self.pv_max_power_limit_entry = plant_config.get("pv_max_power_limit_entry")
+        self.inverter_max_power_limit_entry = plant_config.get("inverter_max_power_limit_entry")
+        self.export_max_power_limit_entry = plant_config.get("export_max_power_limit_entry")
+        self.import_max_power_limit_entry = plant_config.get("import_max_power_limit_entry")   
+        self.backup_soc_entry = plant_config.get("backup_soc_entry")
+        self.charge_cutoff_soc_entry = plant_config.get("charge_cutoff_soc_entry")
+
         self.battery_soc_entity_id = plant_config.get("battery_soc_entity_id")
-        self.backup_soc_entity_id = plant_config.get("backup_soc_entity_id")
-        self.charge_cutoff_soc_entity_id = plant_config.get("charge_cutoff_soc_entity_id")
-        self.battery_kwh_till_full_entity_id = plant_config.get("battery_kwh_till_full_entity_id")
-        self.battery_stored_energy_entity_id = plant_config.get("battery_stored_energy_entity_id")
         self.battery_power_entity_id = plant_config.get("battery_power_entity_id")
         self.solar_power_entity_id = plant_config.get("solar_power_entity_id")
-        self.inverter_power_entity_id = plant_config.get("inverter_power_entity_id")
         self.load_power_entity_id = plant_config.get("load_power_entity_id")
         self.battery_power_sign_convention = plant_config.get("battery_power_sign_convention")
-        
-        self.ha_ems_control_switch_entity_id = plant_config.get("ha_ems_control_switch_entity_id")
+
+        self.grid_export_limit_switch_entity_id = plant_config.get("grid_export_limit_switch_entity_id")
+        self.grid_export_limit_entity_id = plant_config.get("grid_export_limit_entity_id")
+        self.ems_power_limit_entity_id = plant_config.get("ems_power_limit_entity_id")
         self.ems_control_mode_entity_id = plant_config.get("ems_control_mode_entity_id")
-        self.battery_discharge_limiter_entity_id = plant_config.get("battery_discharge_limiter_entity_id")
-        self.battery_charge_limiter_entity_id = plant_config.get("battery_charge_limiter_entity_id")
-        self.pv_limiter_entity_id = plant_config.get("pv_limiter_entity_id")
-        self.export_limiter_entity_id = plant_config.get("export_limiter_entity_id")
-        self.import_limiter_entity_id = plant_config.get("import_limiter_entity_id")
-
-        self.battery_rated_capacity_entity_id = plant_config.get("battery_rated_capacity_entity_id")
-        self.battery_max_discharge_power_limit_entity_id = plant_config.get("battery_max_discharge_power_limit_entity_id")
-        self.battery_max_charge_power_limit_entity_id = plant_config.get("battery_max_charge_power_limit_entity_id")
-        self.inverter_max_power_limit_entity_id = plant_config.get("inverter_max_power_limit_entity_id")
-        self.pv_max_power_limit_entity_id = plant_config.get("pv_max_power_limit_entity_id")
-        self.export_max_power_limit_entity_id = plant_config.get("export_max_power_limit_entity_id")
-        self.import_max_power_limit_entity_id = plant_config.get("import_max_power_limit_entity_id")   
-        
-    def get_sigenergy_state(self, entity_id) -> str:
-        """Fetches the state of the specified entity from Home Assistant. Raises an error if the entity is unavailable."""
-        state_payload = self.ha.get_state(entity_id)
-        if isinstance(state_payload, dict) and state_payload.get("state") == "unavailable":
-            raise SigenergyConnectionError(
-                f"Sigenergy system is unavailable (entity: '{entity_id}'). "
-                "It is likely offline or has a bad connection."
-            ) from None
-        return state_payload
-
-    def get_sigenergy_numeric_state(self, entity_id) -> float:
-        """Fetches the state of the specified entity from Home Assistant and converts it to a float. Raises an error if the entity is unavailable or the state cannot be converted to a float."""
-        state_payload = self.get_sigenergy_state(entity_id)
-        state = state_payload.get("state") if isinstance(state_payload, dict) else None
-        try:
-            return float(state)
-        except (TypeError, ValueError):
-            raise HAAPIError(
-                f"Unable to convert state '{state}' for entity '{entity_id}' to float."
-            ) from None
 
     def get_plant_mode(self) -> str:
         """Returns the current control mode of the plant."""
-        return self.get_sigenergy_state(self.ems_control_mode_entity_id)["state"]
-    
+        return self.get_safe_state(self.ems_control_mode_entity_id)["state"]
+
     def update_data(self) -> None:
         """Update the plant's data by fetching the latest states from Home Assistant."""
-        self.battery_soc = self.get_sigenergy_numeric_state(self.battery_soc_entity_id)
-        self.kwh_backup_buffer = (self.get_sigenergy_numeric_state(self.backup_soc_entity_id)/100.0) * self.rated_capacity
-        self.kwh_stored_energy = self.get_sigenergy_numeric_state(self.battery_stored_energy_entity_id)
-        self.kwh_stored_available = self.kwh_stored_energy - self.kwh_backup_buffer
-        self.kwh_charge_unusable = (1-(self.get_sigenergy_numeric_state(self.charge_cutoff_soc_entity_id)/100.0)) * self.rated_capacity # kWh of buffer to 100% IE the charge limit 
-        self.kwh_till_full = self.get_sigenergy_numeric_state(self.battery_kwh_till_full_entity_id) - self.kwh_charge_unusable
-        self.battery_kw = self.get_sigenergy_numeric_state(self.battery_power_entity_id)
+        self.battery_soc_percent = self.get_safe_numeric_state(self.battery_soc_entity_id)
+
+        self.backup_soc_percent_entry = self.get_config_entry_value(self.backup_soc_entry)
+        self.charge_cutoff_soc_percent_entry = self.get_config_entry_value(self.charge_cutoff_soc_entry)
+
+        self.total_energy_stored_kwh = (self.battery_soc_percent/100.0) * self.rated_capacity
+        self.backup_buffer_kwh = (self.backup_soc_percent_entry/100.0) * self.rated_capacity
+        self.stored_available_kwh = self.total_energy_stored_kwh - self.backup_buffer_kwh
+        self.charge_unusable_kwh = (1-(self.charge_cutoff_soc_percent_entry/100.0)) * self.rated_capacity # kWh of buffer to 100% IE the charge limit
+
+        self.kwh_till_full = self.rated_capacity - self.stored_available_kwh - self.charge_unusable_kwh
+
+        self.battery_kw = self.get_safe_numeric_state(self.battery_power_entity_id)
         if(self.battery_power_sign_convention == "+ Charge, - Discharge"): # If battery power is the wrong way around, flip it
             self.battery_kw = -self.battery_kw
         elif(self.battery_power_sign_convention == "- Charge, + Discharge"):
@@ -118,69 +105,49 @@ class GoodWePlant(BasePlant):
         #   +kW = discharging (battery supplying power)
         #   -kW = charging (battery absorbing power)
 
-        self.solar_kw = self.get_sigenergy_numeric_state(self.solar_power_entity_id)
-        self.solar_kw_remaining_today = self.get_sigenergy_numeric_state(config_manager.solcast_solar_kwh_remaining_today_entity_id)
-        self.load_power = self.get_sigenergy_numeric_state(self.load_power_entity_id)
+        self.solar_kw = self.get_safe_numeric_state(self.solar_power_entity_id)
+        self.solar_kw_remaining_today = self.get_safe_numeric_state(config_manager.solcast_solar_kwh_remaining_today_entity_id)
+        self.load_power = self.get_safe_numeric_state(self.load_power_entity_id)
         self.avg_daily_load = sum(bin.avg_state*(self.time_step_minutes/60) for bin in self.get_load_avg(days_ago=self.load_avg_days))
         
-
         self.calculate_today_profit_cost()
-        
-        self.hours_till_full = 0
-        self.hours_till_empty = 0
-        if(self.battery_kw < 0):
-            self.hours_till_full = round(self.kwh_till_full / abs(self.battery_kw), 2)
-        elif(self.battery_kw > 0):
-            self.hours_till_empty = round(self.kwh_stored_available / abs(self.battery_kw), 2)
 
-    def ensure_remote_ems(self) -> None: 
-        """Ensures the remote EMS switch is on provided the automatic control switch is on"""
-        if(self.get_sigenergy_state(self.ha_ems_control_switch_entity_id)['state'] != "on"):
-                logger.warning(f"Remote EMS switch is '{self.get_sigenergy_state(self.ha_ems_control_switch_entity_id)['state']}', turning on to allow control.")
-                self.ha.set_switch_state(self.ha_ems_control_switch_entity_id, True)
-                time.sleep(10) # delay to ensure the change has time to become effective
+    def set_export_limit_switch(self, state: bool = True) -> None:
+        """Ensure the grid export limit switch is on to allow control."""
+        switch_state = self.get_safe_state(self.grid_export_limit_switch_entity_id)
+        if(switch_state['state'] != "on"):
+            logger.debug(f"Grid export limit switch '{self.grid_export_limit_switch_entity_id}' is off, turning on to allow control.")
+            self.ha.set_switch_state(self.grid_export_limit_switch_entity_id, state)
+            time.sleep(2) # Allow time for HA to update
 
-    def set_control_limits(self, control_mode: str, discharge: float, charge: float, pv: float, grid_export: float, grid_import: float) -> None:
+    def set_control_limits(self, control_mode: str, ems_limit: float, export_limit: float) -> None:
         """Set the control limits to the desired values."""
 
-        self.ensure_remote_ems() # Make sure the EMS is able to be controlled
+        self.set_export_limit_switch()
+        self.ha.set_number(self.ems_power_limit_entity_id, ems_limit)
+        self.ha.set_number(self.grid_export_limit_entity_id, export_limit)
 
-        self.ha.set_number(self.battery_discharge_limiter_entity_id, discharge)
-        self.ha.set_number(self.battery_charge_limiter_entity_id, charge)
-        self.ha.set_number(self.pv_limiter_entity_id, pv)
-        self.ha.set_number(self.export_limiter_entity_id, grid_export)
-        self.ha.set_number(self.import_limiter_entity_id, grid_import)
-        
         if(control_mode in self.control_mode_options):
             self.ha.set_select(self.ems_control_mode_entity_id, control_mode)
         else:
             raise ValueError(f"Requested control mode '{control_mode}' is not a valid control mode!")
     
-    def check_control_limits(self, working_mode: str, control_mode: str, discharge: float, charge: float, pv: float, grid_export: float, grid_import: float) -> None:
+    def check_control_limits(self, working_mode: str, control_mode: str, ems_limit: float, export_limit: float) -> None:
         """Check if control limits match desired values and change them if required."""
-        self.ensure_remote_ems() # Make sure the EMS is able to be controlled
 
         current_control_mode = self.get_plant_mode()
-        curent_discharge_limit = self.get_sigenergy_numeric_state(self.battery_discharge_limiter_entity_id)
-        curent_charge_limit = self.get_sigenergy_numeric_state(self.battery_charge_limiter_entity_id)
-        curent_pv_limit = self.get_sigenergy_numeric_state(self.pv_limiter_entity_id)
-        curent_export_limit = self.get_sigenergy_numeric_state(self.export_limiter_entity_id)
-        curent_import_limit = self.get_sigenergy_numeric_state(self.import_limiter_entity_id)
-
-        a = current_control_mode != control_mode or curent_discharge_limit != discharge or curent_charge_limit != charge
-        b = curent_pv_limit != pv or curent_export_limit != grid_export or curent_import_limit != grid_import
+        current_ems_limit = self.get_safe_numeric_state(self.ems_power_limit_entity_id)
+        current_export_limit = self.get_safe_numeric_state(self.grid_export_limit_entity_id)
+        
 
         wrong_control_mode = current_control_mode != control_mode
-        wrong_discharge_limit = curent_discharge_limit != discharge
-        wrong_charge_limit = curent_charge_limit != charge
-        wrong_pv_limit = curent_pv_limit != pv
-        wrong_export_limit = curent_export_limit != grid_export
-        wrong_import_limit = curent_import_limit != grid_import
+        wrong_ems_limit = current_ems_limit != ems_limit
+        wrong_export_limit = current_export_limit != export_limit
 
-        any_limits_wrong = wrong_control_mode or wrong_discharge_limit or wrong_charge_limit or wrong_pv_limit or wrong_export_limit or wrong_import_limit
+        any_limits_wrong = wrong_control_mode or wrong_ems_limit or wrong_export_limit
 
         if any_limits_wrong:          
-            self.set_control_limits(control_mode, discharge, charge, pv, grid_export, grid_import)
+            self.set_control_limits(control_mode, ems_limit, export_limit)
             logger.info(f"Changing control entities for mode: {working_mode}")
             time.sleep(5) # Allow time for HA to update
     
@@ -194,31 +161,22 @@ class GoodWePlant(BasePlant):
                 return False
 
         entity_ids = [
-            self.ha_ems_control_switch_entity_id,
+            self.ems_control_mode_entity_id,
             self.battery_soc_entity_id,
-            self.backup_soc_entity_id,
-            self.charge_cutoff_soc_entity_id,
-            self.battery_kwh_till_full_entity_id,
-            self.battery_stored_energy_entity_id,
-            self.battery_rated_capacity_entity_id,
-            self.battery_max_discharge_power_limit_entity_id,
-            self.battery_max_charge_power_limit_entity_id,
-            self.pv_max_power_limit_entity_id,
-            self.inverter_max_power_limit_entity_id,
-            self.export_max_power_limit_entity_id,
-            self.import_max_power_limit_entity_id
+            self.battery_power_entity_id,
+            self.solar_power_entity_id,
+            self.load_power_entity_id,
+            self.grid_export_limit_switch_entity_id,
+            self.grid_export_limit_entity_id,
+            self.ems_power_limit_entity_id
         ]
-
-        # Only check for the EMS control mode if the HA EMS Control switch is on as otherwise the mode controller is disabled.
-        if(self.get_sigenergy_state(self.ha_ems_control_switch_entity_id)['state'] == "on"):
-            entity_ids.append(self.ems_control_mode_entity_id)
 
         unavailable_ids = []
         for entity_id in entity_ids:
             if is_numeric(entity_id):
                 continue # If the entity ID is actually a numeric override value, skip the check to see if the entity exists in HA as it won't.
             try:
-                self.get_sigenergy_state(entity_id)
+                self.get_safe_state(entity_id)
             except:
                 unavailable_ids.append(f"{entity_id}\n")
 
@@ -235,58 +193,56 @@ class GoodWePlant(BasePlant):
         Battery SOC >= 97% is treated as a charging constraint because near-full
         batteries commonly trigger charge tapering/curtailment behaviour.
         """
-        if(self.get_sigenergy_state(self.ha_ems_control_switch_entity_id)['state'] != "on"):
-            return {
-                "curtailing": False,
-                "reason": "Remote EMS Switch Off, unable to determine curtailment status",
-            }
 
-        control_mode = self.get_plant_mode()
+        # control_mode = self.get_plant_mode()
 
-        inverter_limit_kw = self.get_sigenergy_numeric_state(self.inverter_max_power_limit_entity_id)
-        charge_limit_kw = self.get_sigenergy_numeric_state(self.battery_charge_limiter_entity_id)
-        pv_limit_kw = self.get_sigenergy_numeric_state(self.pv_limiter_entity_id)
-        export_limit_kw = self.get_sigenergy_numeric_state(self.export_limiter_entity_id)
+        # inverter_limit_kw = self.get_safe_numeric_state(self.inverter_max_power_limit_entity_id)
+        # charge_limit_kw = self.get_safe_numeric_state(self.battery_charge_limiter_entity_id)
+        # pv_limit_kw = self.get_safe_numeric_state(self.pv_limiter_entity_id)
+        # export_limit_kw = self.get_safe_numeric_state(self.export_limiter_entity_id)
 
-        charge_disabled_modes = {
-            "Standby",
-            "Command Discharging (PV First)",
-            "Command Discharging (ESS First)",
-        }
-        high_soc_curtailment = self.battery_soc >= 97
-        charging_disabled = control_mode in charge_disabled_modes or high_soc_curtailment
-        effective_charge_limit_kw = 0 if charging_disabled else max(charge_limit_kw, 0)
+        # charge_disabled_modes = {
+        #     "Standby",
+        #     "Command Discharging (PV First)",
+        #     "Command Discharging (ESS First)",
+        # }
+        # high_soc_curtailment = self.battery_soc >= 97
+        # charging_disabled = control_mode in charge_disabled_modes or high_soc_curtailment
+        # effective_charge_limit_kw = 0 if charging_disabled else max(charge_limit_kw, 0)
 
-        ac_sink_limit_kw = max(self.load_power, 0) + max(export_limit_kw, 0)
-        configured_inverter_headroom_kw = min(max(inverter_limit_kw, 0), ac_sink_limit_kw)
-        derated_inverter_headroom_kw = min(max(inverter_limit_kw - derate_allowance_kw, 0), ac_sink_limit_kw)
+        # ac_sink_limit_kw = max(self.load_power, 0) + max(export_limit_kw, 0)
+        # configured_inverter_headroom_kw = min(max(inverter_limit_kw, 0), ac_sink_limit_kw)
+        # derated_inverter_headroom_kw = min(max(inverter_limit_kw - derate_allowance_kw, 0), ac_sink_limit_kw)
 
-        configured_ceiling_kw = min(max(pv_limit_kw, 0), configured_inverter_headroom_kw + effective_charge_limit_kw)
-        derated_ceiling_kw = min(max(pv_limit_kw, 0), derated_inverter_headroom_kw + effective_charge_limit_kw)
+        # configured_ceiling_kw = min(max(pv_limit_kw, 0), configured_inverter_headroom_kw + effective_charge_limit_kw)
+        # derated_ceiling_kw = min(max(pv_limit_kw, 0), derated_inverter_headroom_kw + effective_charge_limit_kw)
 
-        curtailing_configured = self.solar_kw >= configured_ceiling_kw - tolerance_kw
-        curtailing_derated = self.solar_kw >= derated_ceiling_kw - tolerance_kw
-        curtailing = curtailing_configured or curtailing_derated
+        # curtailing_configured = self.solar_kw >= configured_ceiling_kw - tolerance_kw
+        # curtailing_derated = self.solar_kw >= derated_ceiling_kw - tolerance_kw
+        # curtailing = curtailing_configured or curtailing_derated
 
-        limiting_components = {
-            "pv_limit": pv_limit_kw,
-            "derated_inverter_limit": derated_inverter_headroom_kw + effective_charge_limit_kw,
-            "ac_sink_limit": ac_sink_limit_kw + effective_charge_limit_kw,
-        }
-        limiting_reason = min(limiting_components, key=limiting_components.get)
+        # limiting_components = {
+        #     "pv_limit": pv_limit_kw,
+        #     "derated_inverter_limit": derated_inverter_headroom_kw + effective_charge_limit_kw,
+        #     "ac_sink_limit": ac_sink_limit_kw + effective_charge_limit_kw,
+        # }
+        # limiting_reason = min(limiting_components, key=limiting_components.get)
 
-        reason_text_map = {
-            "pv_limit": f"PV limit ({round(pv_limit_kw, 2)} kW)",
-            "derated_inverter_limit": f"Inverter + Charge Limit ({round(derated_inverter_headroom_kw + effective_charge_limit_kw, 2)} kW)",
-            "ac_sink_limit": f"Load + export sink limit ({round(ac_sink_limit_kw + effective_charge_limit_kw, 2)} kW)",
-        }
+        # reason_text_map = {
+        #     "pv_limit": f"PV limit ({round(pv_limit_kw, 2)} kW)",
+        #     "derated_inverter_limit": f"Inverter + Charge Limit ({round(derated_inverter_headroom_kw + effective_charge_limit_kw, 2)} kW)",
+        #     "ac_sink_limit": f"Load + export sink limit ({round(ac_sink_limit_kw + effective_charge_limit_kw, 2)} kW)",
+        # }
 
-        reason = reason_text_map[limiting_reason]
-        '''
-        if control_mode in charge_disabled_modes:
-            reason_parts.append("battery charging disabled by mode")
-        if high_soc_curtailment:
-            reason_parts.append(f"battery SOC high ({round(self.battery_soc, 1)}%)")'''
+        # reason = reason_text_map[limiting_reason]
+        # '''
+        # if control_mode in charge_disabled_modes:
+        #     reason_parts.append("battery charging disabled by mode")
+        # if high_soc_curtailment:
+        #     reason_parts.append(f"battery SOC high ({round(self.battery_soc, 1)}%)")'''
+
+        curtailing = False
+        reason = "Not Implemented Yet"
 
         return {
             "curtailing": curtailing,
@@ -295,7 +251,7 @@ class GoodWePlant(BasePlant):
 
     def historical_data(self, start_datetime=None, end_datetime=None, hours=None, bin_period=5) -> list[data_helpers.BinnedStateClass]:
         """
-        Get the requested hours of historical data for the plant being (SOC, battery power, inverter power, solar power, grid power, load power and prices.) in order oldest to newest
+        Get the requested hours of historical data for the plant being (SOC, battery power, solar power, grid power, load power and prices.) in order oldest to newest
         hours  -> hours of historical data to retreive
         bin_period -> bin size in minutes to average data across
 
@@ -337,7 +293,6 @@ class GoodWePlant(BasePlant):
         #   +kW = discharging (battery supplying power)
         #   -kW = charging (battery absorbing power)
 
-        inverter_power_state_history = self.ha.get_history(self.inverter_power_entity_id, start_time=start_datetime, end_time=end_datetime)
         solar_power_state_history = self.ha.get_history(self.solar_power_entity_id, start_time=start_datetime, end_time=end_datetime)
         load_power_state_history = self.ha.get_history(self.load_power_entity_id, start_time=start_datetime, end_time=end_datetime)
 
@@ -345,20 +300,13 @@ class GoodWePlant(BasePlant):
         general_price_state_history = self.ha.get_history("sensor.mpc_energy_manager_device_general_price", start_time=start_datetime, end_time=end_datetime)
         working_mode_state_history = self.ha.get_history("sensor.mpc_energy_manager_device_working_mode", start_time=start_datetime, end_time=end_datetime, type=str)
 
-        #requested_data_received = self.validate_returned_data_timedelta(inverter_power_state_history, start_datetime, end_datetime)
 
 
         binned_battery_soc_state_history = data_helpers.bin_data(battery_soc_state_history, bin_period=bin_period, start_bin_datetime=start_datetime, end_bin_datetime=end_datetime)
         binned_battery_power_state_history = data_helpers.bin_data(battery_power_state_history, bin_period=bin_period, start_bin_datetime=start_datetime, end_bin_datetime=end_datetime)
-        binned_inverter_power_state_history = data_helpers.bin_data(inverter_power_state_history, bin_period=bin_period, start_bin_datetime=start_datetime, end_bin_datetime=end_datetime)
         binned_load_power_state_history = data_helpers.bin_data(load_power_state_history, bin_period=bin_period, start_bin_datetime=start_datetime, end_bin_datetime=end_datetime)
         
         binned_solar_power_state_history = data_helpers.bin_data(solar_power_state_history, bin_period=bin_period, start_bin_datetime=start_datetime, end_bin_datetime=end_datetime)
-        binned_grid_power_state_history = data_helpers.bin_data(grid_power_state_history, bin_period=bin_period, start_bin_datetime=start_datetime, end_bin_datetime=end_datetime)
-
-        binned_grid_import_kwh_state_history = data_helpers.bin_data(grid_import_kwh_state_history, bin_period=bin_period, start_bin_datetime=start_datetime, end_bin_datetime=end_datetime)
-        binned_grid_export_kwh_state_history = data_helpers.bin_data(grid_export_kwh_state_history, bin_period=bin_period, start_bin_datetime=start_datetime, end_bin_datetime=end_datetime)
-
         
         binned_feed_in_state_history = data_helpers.bin_data(feed_in_state_history, bin_period=bin_period, start_bin_datetime=start_datetime, end_bin_datetime=end_datetime, interpolation_method="step")
         binned_general_price_state_history = data_helpers.bin_data(general_price_state_history, bin_period=bin_period, start_bin_datetime=start_datetime, end_bin_datetime=end_datetime, interpolation_method="step")# Step Interpolation as prices dont gradually change
@@ -374,14 +322,10 @@ class GoodWePlant(BasePlant):
             "time_index": history_time_index,
             "soc": binned_battery_soc_kwh_history,
             "battery_power": [state.avg_state for state in binned_battery_power_state_history],
-            "inverter_power": [state.avg_state for state in binned_inverter_power_state_history],
             "solar_power": [state.avg_state for state in binned_solar_power_state_history],
             "load_power": [state.avg_state for state in binned_load_power_state_history],
-            "grid_power": [state.avg_state for state in binned_grid_power_state_history],
             "prices_sell": [state.avg_state/100.0 for state in binned_feed_in_state_history], # Converted to dollars from cents
             "prices_buy": [state.avg_state/100.0 for state in binned_general_price_state_history],
             "plan_modes": [state.avg_state for state in binned_working_mode_state_history],
-            "grid_import_kwh": [state.avg_state for state in binned_grid_import_kwh_state_history],
-            "grid_export_kwh": [state.avg_state for state in binned_grid_export_kwh_state_history],
         }
         return output

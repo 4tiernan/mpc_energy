@@ -79,40 +79,19 @@ class SigEnergyPlant(BasePlant):
         self.export_max_power_limit_entity_id = plant_config.get("export_max_power_limit_entity_id")
         self.import_max_power_limit_entity_id = plant_config.get("import_max_power_limit_entity_id")   
         
-    def get_sigenergy_state(self, entity_id) -> str:
-        """Fetches the state of the specified entity from Home Assistant. Raises an error if the entity is unavailable."""
-        state_payload = self.ha.get_state(entity_id)
-        if isinstance(state_payload, dict) and state_payload.get("state") == "unavailable":
-            raise SigenergyConnectionError(
-                f"Sigenergy system is unavailable (entity: '{entity_id}'). "
-                "It is likely offline or has a bad connection."
-            ) from None
-        return state_payload
-
-    def get_sigenergy_numeric_state(self, entity_id) -> float:
-        """Fetches the state of the specified entity from Home Assistant and converts it to a float. Raises an error if the entity is unavailable or the state cannot be converted to a float."""
-        state_payload = self.get_sigenergy_state(entity_id)
-        state = state_payload.get("state") if isinstance(state_payload, dict) else None
-        try:
-            return float(state)
-        except (TypeError, ValueError):
-            raise HAAPIError(
-                f"Unable to convert state '{state}' for entity '{entity_id}' to float."
-            ) from None
-
     def get_plant_mode(self) -> str:
         """Returns the current control mode of the plant."""
-        return self.get_sigenergy_state(self.ems_control_mode_entity_id)["state"]
+        return self.get_safe_state(self.ems_control_mode_entity_id)["state"]
     
     def update_data(self) -> None:
         """Update the plant's data by fetching the latest states from Home Assistant."""
-        self.battery_soc = self.get_sigenergy_numeric_state(self.battery_soc_entity_id)
-        self.kwh_backup_buffer = (self.get_sigenergy_numeric_state(self.backup_soc_entity_id)/100.0) * self.rated_capacity
-        self.kwh_stored_energy = self.get_sigenergy_numeric_state(self.battery_stored_energy_entity_id)
+        self.battery_soc = self.get_safe_numeric_state(self.battery_soc_entity_id)
+        self.kwh_backup_buffer = (self.get_safe_numeric_state(self.backup_soc_entity_id)/100.0) * self.rated_capacity
+        self.kwh_stored_energy = self.get_safe_numeric_state(self.battery_stored_energy_entity_id)
         self.kwh_stored_available = self.kwh_stored_energy - self.kwh_backup_buffer
-        self.kwh_charge_unusable = (1-(self.get_sigenergy_numeric_state(self.charge_cutoff_soc_entity_id)/100.0)) * self.rated_capacity # kWh of buffer to 100% IE the charge limit 
-        self.kwh_till_full = self.get_sigenergy_numeric_state(self.battery_kwh_till_full_entity_id) - self.kwh_charge_unusable
-        self.battery_kw = self.get_sigenergy_numeric_state(self.battery_power_entity_id)
+        self.kwh_charge_unusable = (1-(self.get_safe_numeric_state(self.charge_cutoff_soc_entity_id)/100.0)) * self.rated_capacity # kWh of buffer to 100% IE the charge limit 
+        self.kwh_till_full = self.get_safe_numeric_state(self.battery_kwh_till_full_entity_id) - self.kwh_charge_unusable
+        self.battery_kw = self.get_safe_numeric_state(self.battery_power_entity_id)
         if(self.battery_power_sign_convention == "+ Charge, - Discharge"): # If battery power is the wrong way around, flip it
             self.battery_kw = -self.battery_kw
         elif(self.battery_power_sign_convention == "- Charge, + Discharge"):
@@ -123,12 +102,12 @@ class SigEnergyPlant(BasePlant):
         #   +kW = discharging (battery supplying power)
         #   -kW = charging (battery absorbing power)
 
-        self.solar_kw = self.get_sigenergy_numeric_state(self.solar_power_entity_id)
-        #self.solar_kwh_today = self.get_sigenergy_numeric_state(self.plant_solar_kwh_today_entity_id) # Commented out as it is not used in current implementation.
-        self.solar_kw_remaining_today = self.get_sigenergy_numeric_state(config_manager.solcast_solar_kwh_remaining_today_entity_id)
-        self.inverter_power = self.get_sigenergy_numeric_state(self.inverter_power_entity_id)
-        self.grid_power = self.get_sigenergy_numeric_state(self.grid_power_entity_id)
-        self.load_power = self.get_sigenergy_numeric_state(self.load_power_entity_id)
+        self.solar_kw = self.get_safe_numeric_state(self.solar_power_entity_id)
+        #self.solar_kwh_today = self.get_safe_numeric_state(self.plant_solar_kwh_today_entity_id) # Commented out as it is not used in current implementation.
+        self.solar_kw_remaining_today = self.get_safe_numeric_state(config_manager.solcast_solar_kwh_remaining_today_entity_id)
+        self.inverter_power = self.get_safe_numeric_state(self.inverter_power_entity_id)
+        self.grid_power = self.get_safe_numeric_state(self.grid_power_entity_id)
+        self.load_power = self.get_safe_numeric_state(self.load_power_entity_id)
         self.avg_daily_load = sum(bin.avg_state*(self.time_step_minutes/60) for bin in self.get_load_avg(days_ago=self.load_avg_days))
         
 
@@ -143,8 +122,8 @@ class SigEnergyPlant(BasePlant):
 
     def ensure_remote_ems(self) -> None: 
         """Ensures the remote EMS switch is on provided the automatic control switch is on"""
-        if(self.get_sigenergy_state(self.ha_ems_control_switch_entity_id)['state'] != "on"):
-                logger.warning(f"Remote EMS switch is '{self.get_sigenergy_state(self.ha_ems_control_switch_entity_id)['state']}', turning on to allow control.")
+        if(self.get_safe_state(self.ha_ems_control_switch_entity_id)['state'] != "on"):
+                logger.warning(f"Remote EMS switch is '{self.get_safe_state(self.ha_ems_control_switch_entity_id)['state']}', turning on to allow control.")
                 self.ha.set_switch_state(self.ha_ems_control_switch_entity_id, True)
                 time.sleep(10) # delay to ensure the change has time to become effective
 
@@ -169,14 +148,11 @@ class SigEnergyPlant(BasePlant):
         self.ensure_remote_ems() # Make sure the EMS is able to be controlled
 
         current_control_mode = self.get_plant_mode()
-        curent_discharge_limit = self.get_sigenergy_numeric_state(self.battery_discharge_limiter_entity_id)
-        curent_charge_limit = self.get_sigenergy_numeric_state(self.battery_charge_limiter_entity_id)
-        curent_pv_limit = self.get_sigenergy_numeric_state(self.pv_limiter_entity_id)
-        curent_export_limit = self.get_sigenergy_numeric_state(self.export_limiter_entity_id)
-        curent_import_limit = self.get_sigenergy_numeric_state(self.import_limiter_entity_id)
-
-        a = current_control_mode != control_mode or curent_discharge_limit != discharge or curent_charge_limit != charge
-        b = curent_pv_limit != pv or curent_export_limit != grid_export or curent_import_limit != grid_import
+        curent_discharge_limit = self.get_safe_numeric_state(self.battery_discharge_limiter_entity_id)
+        curent_charge_limit = self.get_safe_numeric_state(self.battery_charge_limiter_entity_id)
+        curent_pv_limit = self.get_safe_numeric_state(self.pv_limiter_entity_id)
+        curent_export_limit = self.get_safe_numeric_state(self.export_limiter_entity_id)
+        curent_import_limit = self.get_safe_numeric_state(self.import_limiter_entity_id)
 
         wrong_control_mode = current_control_mode != control_mode
         wrong_discharge_limit = curent_discharge_limit != discharge
@@ -218,7 +194,7 @@ class SigEnergyPlant(BasePlant):
         ]
 
         # Only check for the EMS control mode if the HA EMS Control switch is on as otherwise the mode controller is disabled.
-        if(self.get_sigenergy_state(self.ha_ems_control_switch_entity_id)['state'] == "on"):
+        if(self.get_safe_state(self.ha_ems_control_switch_entity_id)['state'] == "on"):
             entity_ids.append(self.ems_control_mode_entity_id)
 
         unavailable_ids = []
@@ -226,7 +202,7 @@ class SigEnergyPlant(BasePlant):
             if is_numeric(entity_id):
                 continue # If the entity ID is actually a numeric override value, skip the check to see if the entity exists in HA as it won't.
             try:
-                self.get_sigenergy_state(entity_id)
+                self.get_safe_state(entity_id)
             except:
                 unavailable_ids.append(f"{entity_id}\n")
 
@@ -243,7 +219,7 @@ class SigEnergyPlant(BasePlant):
         Battery SOC >= 97% is treated as a charging constraint because near-full
         batteries commonly trigger charge tapering/curtailment behaviour.
         """
-        if(self.get_sigenergy_state(self.ha_ems_control_switch_entity_id)['state'] != "on"):
+        if(self.get_safe_state(self.ha_ems_control_switch_entity_id)['state'] != "on"):
             return {
                 "curtailing": False,
                 "reason": "Remote EMS Switch Off, unable to determine curtailment status",
@@ -251,10 +227,10 @@ class SigEnergyPlant(BasePlant):
 
         control_mode = self.get_plant_mode()
 
-        inverter_limit_kw = self.get_sigenergy_numeric_state(self.inverter_max_power_limit_entity_id)
-        charge_limit_kw = self.get_sigenergy_numeric_state(self.battery_charge_limiter_entity_id)
-        pv_limit_kw = self.get_sigenergy_numeric_state(self.pv_limiter_entity_id)
-        export_limit_kw = self.get_sigenergy_numeric_state(self.export_limiter_entity_id)
+        inverter_limit_kw = self.get_safe_numeric_state(self.inverter_max_power_limit_entity_id)
+        charge_limit_kw = self.get_safe_numeric_state(self.battery_charge_limiter_entity_id)
+        pv_limit_kw = self.get_safe_numeric_state(self.pv_limiter_entity_id)
+        export_limit_kw = self.get_safe_numeric_state(self.export_limiter_entity_id)
 
         charge_disabled_modes = {
             "Standby",

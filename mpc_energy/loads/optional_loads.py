@@ -42,6 +42,15 @@ def load_optional_load_instances(ha: HomeAssistantAPI, local_tz, ha_mqtt) -> lis
             instance.ha = ha
             instance.local_tz = local_tz
             instance.ha_mqtt = ha_mqtt
+
+            # Initialize chargers for EV loads directly from JSON config
+            from loads.EV_load import EVLoad
+            if isinstance(instance, EVLoad):
+                from loads.EV_chargers.EV_charger import create_charger_instance
+                charger = create_charger_instance(cfg, ha)
+                if charger:
+                    instance.set_charger(charger)
+
             instances.append(instance)
 
     if instances:

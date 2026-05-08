@@ -83,15 +83,3 @@ def create_charger_instance(config: dict[str, Any], ha: HomeAssistantAPI) -> "EV
     else:
         logger.warning(f"Unknown charger model '{charger_model}' for load '{config.get('name', 'Unknown')}'. Skipping charger instantiation.")
         return None
-
-def init_chargers(opt_loads: list, ha: HomeAssistantAPI):
-    """
-    Iterates through optional loads and initializes chargers for EV loads.
-    """
-    from loads.EV_load import EVLoad
-    for load in opt_loads:
-        if isinstance(load, EVLoad):
-            # Pass the configuration dict to separate charger init from the EVLoad instance
-            charger = create_charger_instance(load.to_dict(), ha)
-            if charger:
-                load.set_charger(charger)

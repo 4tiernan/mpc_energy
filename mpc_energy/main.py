@@ -179,9 +179,6 @@ while(started == False):
 
         opt_loads = loads.optional_loads.load_optional_load_instances(ha, ha.local_tz, ha_mqtt)
 
-        from loads.EV_chargers.EV_charger import init_chargers
-        init_chargers(opt_loads, ha)
-
         demand_tariff = None
 
         if(config_manager.energy_retailer == "amber"):

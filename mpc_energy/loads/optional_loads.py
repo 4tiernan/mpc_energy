@@ -60,13 +60,15 @@ class OptionalLoad:
         self,
         name: str,
         load_type: str,
-        reward_cents_per_kwh: float
+        reward_cents_per_kwh: float,
+        debias_load: bool
     ):
         # Configuration parameters
         self.name = name
         self.load_type = load_type
         self.reward_cents_per_kwh = reward_cents_per_kwh
-        
+        self.debias_load = debias_load
+
         # MPC References
         self.ha: HomeAssistantAPI = None
         self.ha_mqtt = None

@@ -23,6 +23,7 @@ class TeslaAPICharger(EVCharger):
             charge_current_entity_id: str,
             charge_enable_entity_id: str,
             charger_model: str,
+            debias_load: bool
             ):
         
         
@@ -34,7 +35,7 @@ class TeslaAPICharger(EVCharger):
         self.min_charge_power_kw = (self.nominal_ac_voltage * self.min_charge_current) / 1000.0
         self.max_charge_power_kw = (self.nominal_ac_voltage * self.max_charge_current) / 1000.0
 
-        super().__init__(name, ha, self.min_charge_power_kw, self.max_charge_power_kw)
+        super().__init__(name, ha, self.min_charge_power_kw, self.max_charge_power_kw, debias_load)
 
         self.three_phase_available_entity_id = three_phase_available_entity_id
         self.power_entity_id = power_entity_id

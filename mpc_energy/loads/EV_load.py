@@ -30,9 +30,10 @@ class EVLoad(OptionalLoad):
         max_charge_current: float,
         charge_current_entity_id: str,
         charge_enable_entity_id: str,
+        debias_load: bool
     ):
         # Optional load required params
-        super().__init__(name, load_type, reward_cents_per_kwh)
+        super().__init__(name, load_type, reward_cents_per_kwh, debias_load)
         
         # EV specific params
         self.plugged_in_entity_id = plugged_in_entity_id

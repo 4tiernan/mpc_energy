@@ -10,12 +10,13 @@ class EVCharger(ABC):
     Base class for EV Chargers. 
     Specific charger models should inherit from this class.
     """
-    def __init__(self, name: str, ha: HomeAssistantAPI, min_charge_power_kw: float, max_charge_power_kw: float):
+    def __init__(self, name: str, ha: HomeAssistantAPI, min_charge_power_kw: float, max_charge_power_kw: float, debias_load: bool):
         self.name = name
         self.ha: HomeAssistantAPI = ha
         self.min_charge_power_kw = min_charge_power_kw
         self.max_charge_power_kw = max_charge_power_kw
         self.target_charge_rate = 0.0 # Current target charge rate in kW
+        self.debias_load = debias_load # Whether to debias the home load history to the EV charger load history, IE is the charger power counted in the home load power. 
 
     @abstractmethod
     def set_target_charge_rate(self, kw: float):
@@ -60,7 +61,8 @@ def create_charger_instance(config: dict[str, Any], ha: HomeAssistantAPI) -> "EV
             three_phase_available_entity_id=config.get("three_phase_available_entity_id", ""),
             charge_current_entity_id=config.get("charge_current_entity_id", ""),
             charge_enable_entity_id=config.get("charge_enable_entity_id", ""),
-            charger_model=charger_model
+            charger_model=charger_model,
+            debias_load=config.get("debias_load", True)
         )
     elif charger_model == "SigEnergy AC Charger":
         from loads.EV_chargers.sigenergy_ac_charger import SigEnergyACCharger
@@ -75,7 +77,8 @@ def create_charger_instance(config: dict[str, Any], ha: HomeAssistantAPI) -> "EV
             three_phase_available=config.get("three_phase_available", False),
             charge_current_entity_id=config.get("charge_current_entity_id", ""),
             charge_enable_entity_id=config.get("charge_enable_entity_id", ""),
-            charger_model=charger_model
+            charger_model=charger_model,
+            debias_load=config.get("debias_load", False)
         )
     else:
         logger.warning(f"Unknown charger model '{charger_model}' for load '{config.get('name', 'Unknown')}'. Skipping charger instantiation.")

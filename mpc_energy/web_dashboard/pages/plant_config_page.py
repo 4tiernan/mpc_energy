@@ -221,8 +221,8 @@ def plant_config_page():
                 "import_limiter_entity_id": imp_limiter if plant_brand == "Sigenergy" else "",
                 "grid_export_limit_switch_entity_id": grid_export_switch if plant_brand == "Goodwe" else "",
                 "ems_power_limit_entity_id": ems_power_limit if plant_brand == "Goodwe" else "",
-                "plant_daily_import_kwh_entity_id": daily_import if plant_brand == "Sigenergy" else "",
-                "plant_daily_export_kwh_entity_id": daily_export if plant_brand == "Sigenergy" else "",
+                "plant_daily_import_kwh_entity_id": daily_import,
+                "plant_daily_export_kwh_entity_id": daily_export,
             }
             save_config(new_config)
 

@@ -47,8 +47,6 @@ class SigEnergyPlant(BasePlant):
                     f"Backup Buffer: {self.kwh_backup_buffer} kWh"
                 )
         
-        self.controller = SigEnergyPlantController(self)
-
     def get_config(self, plant_config: dict) -> None:
         self.battery_soc_entity_id = plant_config.get("battery_soc_entity_id")
         self.backup_soc_entity_id = plant_config.get("backup_soc_entity_id")

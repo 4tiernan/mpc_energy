@@ -29,9 +29,9 @@ def GetPlant(ha, opt_loads) -> BasePlant:
     plant_config = load_plant_config()
     brand = plant_config.get("plant_brand", "Sigenergy")
     
-    if brand == "Sigenergy":
+    if brand == "Sigenergy" or brand == "SigEnergy":
         plant = SigEnergyPlant(ha, opt_loads, plant_config)
-    elif brand == "Goodwe":
+    elif brand == "Goodwe" or brand == "GoodWe":
         plant = GoodWePlant(ha, opt_loads, plant_config)
     else:
         logger.warning(f"Unknown plant brand '{brand}' selected in configuration. Defaulting to SigenergyPlant.")

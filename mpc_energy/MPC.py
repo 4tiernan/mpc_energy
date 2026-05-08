@@ -8,6 +8,7 @@ from mpc_logger import logger
 import warnings
 
 import json
+from plants.base_plant import BasePlant
 from exceptions import MPCEnergyError, MQTTAuthenticationError, MQTTConnectionError
 import paho.mqtt.client as mqtt
 import const
@@ -49,7 +50,7 @@ except Exception as e:
                          f"Please ensure the Mosquitto broker is running and the hostname is correct. Error: {e}") from e
 
 class MPC:
-    def __init__(self, ha, plant, local_tz, demand_tarrif, retailer, optional_loads: list[loads.optional_loads.OptionalLoad]):
+    def __init__(self, ha, plant: BasePlant, local_tz, demand_tarrif, retailer, optional_loads: list[loads.optional_loads.OptionalLoad]):
         self.plant = plant
         self.ha = ha
         self.local_tz = local_tz
@@ -387,61 +388,6 @@ class MPC:
         )
 
         self.prob = cp.Problem(cp.Minimize(self.objective_expression), constraints)
-   
-    def update_ev_values(self, time_index):
-        #self.ev_plugged_in = bool(getattr(self.plant, "ev_plugged_in", False))
-        self.ev_plugged_in = True # Assume the EV is always plugged in for the moment
-
-        self.ev_max_charge_power = max(float(getattr(self.plant, "ev_max_charge_power", 0.0)), 0.0)
-        self.ev_min_charge_power = max(float(getattr(self.plant, "ev_min_charge_power", 0.0)), 0.0)
-        ev_soc_percent = min(max(float(getattr(self.plant, "ev_soc", 0.0) or 0.0), 0.0), 100.0)
-        self.ev_soc_init = (ev_soc_percent / 100.0) * self.ev_battery_capacity_kwh # Set the EV SOC in kWh based on the percentage SOC and battery capacity, default to 0 if not available or invalid
-        self.ev_charge_remaining_kwh = 0.0
-
-        if(self.ev_plugged_in and self.ev_soc_init is not None and self.ev_battery_capacity_kwh > 0 and self.ev_max_charge_power > 0):
-            self.ev_charge_remaining_kwh = max(self.ev_max_soc_target - self.ev_soc_init, 0.0)
-
-        elif(self.ev_plugged_in and self.ev_max_charge_power <= 0):
-            logger.warning("EV is marked as plugged in but EV max charge power is 0. EV charging optimisation will be disabled.")
-        
-        self.ev_soc_init_param.value = float(self.ev_soc_init) if self.ev_soc_init is not None else 0.0
-        ev_charge_mode = self._normalise_ev_mode()
-
-        logger.debug(f"EV Soc: {ev_soc_percent}% Charge Remaining: {self.ev_charge_remaining_kwh} kWh, Charge Mode: {ev_charge_mode}")
-        
-        ev_soc_min_required_arr = np.zeros(int(self.N_5min), dtype=float)
-
-        ev_p_max_arr = np.zeros(int(self.N_5min), dtype=float)
-        if(self.ev_plugged_in and self.ev_max_charge_power > 0):
-            for i, load in enumerate(self.load_5min):
-                max_power = self.grid_import_limit - load # Limit the EV charge rate to ensure the home gateway power limits are not exceeded.
-                min_power = 0.0
-                ev_p_max_arr[i] = max(min_power, min(self.ev_max_charge_power, max_power)) # EV Charge power cannot exceed 70% of the grid import limit + inverter power minus the load to ensure we don't exceed limits when charging at high load times.
-        
-        # If the EV soc is below the minimum soc target, charge asap reguardless of the selected mode. 
-        if(self.ev_soc_init < self.ev_min_soc_target):
-            logger.debug(f"EV SOC of {self.ev_soc_init:.2f} kWh is below the minimum SOC target of {self.ev_min_soc_target:.2f} kWh. The MPC will attempt to charge the EV as soon as possible to reach the minimum SOC target.")
-            ev_soc_min_required_arr = self.build_ev_min_soc_constraint(target_soc=self.ev_min_soc_target, ev_p_max_array=ev_p_max_arr)
-        else:
-            if(ev_charge_mode == self.EV_MODE_SOLAR_SMART):
-                pass # No minimum SOC constraint, let the optimiser decide when to charge based on the solar forecast and prices.
-            elif(ev_charge_mode == self.EV_MODE_READY_BY_TIME):
-                ev_soc_min_required_arr = self.build_ev_ready_by_time_min_soc_mask(time_index)
-            elif(ev_charge_mode == self.EV_MODE_FORCE_ON):
-                ev_soc_min_required_arr = self.build_ev_min_soc_constraint(target_soc=self.ev_max_soc_target, ev_p_max_array=ev_p_max_arr)
-                logger.debug("EV Force On Mode Active. required SOC array: " + str(ev_soc_min_required_arr))
-            else:  # Charging Disabled
-                ev_p_max_arr = np.zeros(int(self.N_5min), dtype=float) # No charging allowed, set max power to 0
-        
-        # NOTE:
-        # A strict per-interval "p_ev == 0 OR p_ev >= min" rule is non-convex and would
-        # require mixed-integer optimisation for every 5-minute step.
-        # Keep optimisation convex by using [0, max] in normal modes and an explicit
-        # force-on mask for modes that should pin EV charging to maximum.
-
-        self.ev_p_max_param.value = ev_p_max_arr
-        self.ev_soc_upper_limit_param.value = max(float(self.ev_max_soc_target), 0.0)
-        self.ev_soc_min_required_param.value = ev_soc_min_required_arr
 
     def run_optimisation(self, amber_data):
         start_optimisation = time.time()

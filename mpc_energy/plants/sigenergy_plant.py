@@ -16,13 +16,13 @@ class SigEnergyPlant(BasePlant):
         self.check_for_enabled_entites() # Check to make sure all the required entities are enabled before starting the app to prevent issues later on.
         
         # Initialize power limits and capacity using configuration overrides where available
-        self.rated_capacity = self.get_config_entry_value(self.battery_rated_capacity_entity_id)
-        self.max_discharge_power = self.get_config_entry_value(self.battery_max_discharge_power_limit_entity_id)
-        self.max_charge_power = self.get_config_entry_value(self.battery_max_charge_power_limit_entity_id)
-        self.max_pv_power = self.get_config_entry_value(self.pv_max_power_limit_entity_id)
-        self.max_inverter_power = self.get_config_entry_value(self.inverter_max_power_limit_entity_id)
-        self.max_export_power = self.get_config_entry_value(self.export_max_power_limit_entity_id)
-        self.max_import_power = self.get_config_entry_value(self.import_max_power_limit_entity_id)
+        self.rated_capacity = self.get_config_entry_value(self.battery_rated_capacity_entry)
+        self.max_discharge_power = self.get_config_entry_value(self.battery_max_discharge_power_limit_entry)
+        self.max_charge_power = self.get_config_entry_value(self.battery_max_charge_power_limit_entry)
+        self.max_pv_power = self.get_config_entry_value(self.pv_max_power_limit_entry)
+        self.max_inverter_power = self.get_config_entry_value(self.inverter_max_power_limit_entry)
+        self.max_export_power = self.get_config_entry_value(self.export_max_power_limit_entry)
+        self.max_import_power = self.get_config_entry_value(self.import_max_power_limit_entry)
 
         
         self.control_mode_options = [
@@ -49,8 +49,8 @@ class SigEnergyPlant(BasePlant):
         
     def get_config(self, plant_config: dict) -> None:
         self.battery_soc_entity_id = plant_config.get("battery_soc_entity_id")
-        self.backup_soc_entity_id = plant_config.get("backup_soc_entity_id")
-        self.charge_cutoff_soc_entity_id = plant_config.get("charge_cutoff_soc_entity_id")
+        self.backup_soc_entry = plant_config.get("backup_soc_entry")
+        self.charge_cutoff_soc_entry = plant_config.get("charge_cutoff_soc_entry")
         self.battery_kwh_till_full_entity_id = plant_config.get("battery_kwh_till_full_entity_id")
         self.battery_stored_energy_entity_id = plant_config.get("battery_stored_energy_entity_id")
         self.battery_power_entity_id = plant_config.get("battery_power_entity_id")
@@ -71,13 +71,13 @@ class SigEnergyPlant(BasePlant):
         self.plant_daily_import_kwh_entity_id = plant_config.get("plant_daily_import_kwh_entity_id")
         self.plant_daily_export_kwh_entity_id = plant_config.get("plant_daily_export_kwh_entity_id")
 
-        self.battery_rated_capacity_entity_id = plant_config.get("battery_rated_capacity_entity_id")
-        self.battery_max_discharge_power_limit_entity_id = plant_config.get("battery_max_discharge_power_limit_entity_id")
-        self.battery_max_charge_power_limit_entity_id = plant_config.get("battery_max_charge_power_limit_entity_id")
-        self.inverter_max_power_limit_entity_id = plant_config.get("inverter_max_power_limit_entity_id")
-        self.pv_max_power_limit_entity_id = plant_config.get("pv_max_power_limit_entity_id")
-        self.export_max_power_limit_entity_id = plant_config.get("export_max_power_limit_entity_id")
-        self.import_max_power_limit_entity_id = plant_config.get("import_max_power_limit_entity_id")   
+        self.battery_rated_capacity_entry = plant_config.get("battery_rated_capacity_entry")
+        self.battery_max_discharge_power_limit_entry = plant_config.get("battery_max_discharge_power_limit_entry")
+        self.battery_max_charge_power_limit_entry = plant_config.get("battery_max_charge_power_limit_entry")
+        self.inverter_max_power_limit_entry = plant_config.get("inverter_max_power_limit_entry")
+        self.pv_max_power_limit_entry = plant_config.get("pv_max_power_limit_entry")
+        self.export_max_power_limit_entry = plant_config.get("export_max_power_limit_entry")
+        self.import_max_power_limit_entry = plant_config.get("import_max_power_limit_entry")   
         
     def get_plant_mode(self) -> str:
         """Returns the current control mode of the plant."""
@@ -86,10 +86,10 @@ class SigEnergyPlant(BasePlant):
     def update_data(self) -> None:
         """Update the plant's data by fetching the latest states from Home Assistant."""
         self.battery_soc = self.get_safe_numeric_state(self.battery_soc_entity_id)
-        self.kwh_backup_buffer = (self.get_safe_numeric_state(self.backup_soc_entity_id)/100.0) * self.rated_capacity
+        self.kwh_backup_buffer = (self.get_config_entry_value(self.backup_soc_entry)/100.0) * self.rated_capacity
         self.kwh_stored_energy = self.get_safe_numeric_state(self.battery_stored_energy_entity_id)
         self.kwh_stored_available = self.kwh_stored_energy - self.kwh_backup_buffer
-        self.kwh_charge_unusable = (1-(self.get_safe_numeric_state(self.charge_cutoff_soc_entity_id)/100.0)) * self.rated_capacity # kWh of buffer to 100% IE the charge limit 
+        self.kwh_charge_unusable = (1-(self.get_config_entry_value(self.charge_cutoff_soc_entry)/100.0)) * self.rated_capacity # kWh of buffer to 100% IE the charge limit 
         self.kwh_till_full = self.get_safe_numeric_state(self.battery_kwh_till_full_entity_id) - self.kwh_charge_unusable
         self.battery_kw = self.get_safe_numeric_state(self.battery_power_entity_id)
         if(self.battery_power_sign_convention == "+ Charge, - Discharge"): # If battery power is the wrong way around, flip it
@@ -180,17 +180,17 @@ class SigEnergyPlant(BasePlant):
         entity_ids = [
             self.ha_ems_control_switch_entity_id,
             self.battery_soc_entity_id,
-            self.backup_soc_entity_id,
-            self.charge_cutoff_soc_entity_id,
+            self.backup_soc_entry,
+            self.charge_cutoff_soc_entry,
             self.battery_kwh_till_full_entity_id,
             self.battery_stored_energy_entity_id,
-            self.battery_rated_capacity_entity_id,
-            self.battery_max_discharge_power_limit_entity_id,
-            self.battery_max_charge_power_limit_entity_id,
-            self.pv_max_power_limit_entity_id,
-            self.inverter_max_power_limit_entity_id,
-            self.export_max_power_limit_entity_id,
-            self.import_max_power_limit_entity_id
+            self.battery_rated_capacity_entry,
+            self.battery_max_discharge_power_limit_entry,
+            self.battery_max_charge_power_limit_entry,
+            self.pv_max_power_limit_entry,
+            self.inverter_max_power_limit_entry,
+            self.export_max_power_limit_entry,
+            self.import_max_power_limit_entry
         ]
 
         # Only check for the EMS control mode if the HA EMS Control switch is on as otherwise the mode controller is disabled.

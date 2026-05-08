@@ -50,13 +50,13 @@ def plant_config_page():
         st.subheader("Physical Power Limits (Entities or Values)")
         col1, col2 = st.columns(2)
         with col1:
-            pv_limit = st.text_input("PV Max Power Limit Entity/kW", value=current_config.get("pv_max_power_limit_entity_id", ""))
-            import_limit = st.text_input("Import Max Power Limit Entity/kW", value=current_config.get("import_max_power_limit_entity_id", ""))
-            export_limit = st.text_input("Export Max Power Limit Entity/kW", value=current_config.get("export_max_power_limit_entity_id", ""))
+            pv_limit = st.text_input("PV Max Power Limit Entity/kW", value=current_config.get("pv_max_power_limit_entry", ""))
+            import_limit = st.text_input("Import Max Power Limit Entity/kW", value=current_config.get("import_max_power_limit_entry", ""))
+            export_limit = st.text_input("Export Max Power Limit Entity/kW", value=current_config.get("export_max_power_limit_entry", ""))
         with col2:
-            bat_dis_max = st.text_input("Battery Max Discharge Entity/kW", value=current_config.get("battery_max_discharge_power_limit_entity_id", "sensor.sigen_plant_ess_rated_discharging_power"))
-            bat_chg_max = st.text_input("Battery Max Charge Entity/kW", value=current_config.get("battery_max_charge_power_limit_entity_id", "sensor.sigen_plant_ess_rated_charging_power"))
-            inv_limit_max = st.text_input("Inverter Max Power Entity/kW", value=current_config.get("inverter_max_power_limit_entity_id", "sensor.sigen_plant_max_active_power"))
+            bat_dis_max = st.text_input("Battery Max Discharge Entity/kW", value=current_config.get("battery_max_discharge_power_limit_entry", "sensor.sigen_plant_ess_rated_discharging_power"))
+            bat_chg_max = st.text_input("Battery Max Charge Entity/kW", value=current_config.get("battery_max_charge_power_limit_entry", "sensor.sigen_plant_ess_rated_charging_power"))
+            inv_limit_max = st.text_input("Inverter Max Power Entity/kW", value=current_config.get("inverter_max_power_limit_entry", "sensor.sigen_plant_max_active_power"))
 
         st.subheader("Hardware Sensors (Power)")
         col3, col4 = st.columns(2)
@@ -73,26 +73,36 @@ def plant_config_page():
         col5, col6 = st.columns(2)
         with col5:
             bat_soc = st.text_input("Battery SOC Entity (%)", value=current_config.get("battery_soc_entity_id", "sensor.sigen_plant_battery_state_of_charge"))
-            backup_soc = st.text_input("Backup SOC Entity (%)", value=current_config.get("backup_soc_entity_id", "number.sigen_plant_ess_backup_state_of_charge"))
-            cutoff_soc = st.text_input("Charge Cutoff SOC Entity (%)", value=current_config.get("charge_cutoff_soc_entity_id", "number.sigen_plant_ess_charge_cut_off_state_of_charge"))
-            bat_cap = st.text_input("Battery Rated Capacity Entity", value=current_config.get("battery_rated_capacity_entity_id", "sensor.sigen_plant_rated_energy_capacity"))
+            backup_soc = st.text_input("Backup SOC Entity (%)", value=current_config.get("backup_soc_entry", "number.sigen_plant_ess_backup_state_of_charge"))
+            cutoff_soc = st.text_input("Charge Cutoff SOC Entity (%)", value=current_config.get("charge_cutoff_soc_entry", "number.sigen_plant_ess_charge_cut_off_state_of_charge"))
+            bat_cap = st.text_input("Battery Rated Capacity Entity", value=current_config.get("battery_rated_capacity_entry", "sensor.sigen_plant_rated_energy_capacity"))
         with col6:
             bat_till_full = st.text_input("Battery kWh Till Full Entity", value=current_config.get("battery_kwh_till_full_entity_id", "sensor.sigen_plant_available_max_charging_capacity"))
             bat_stored = st.text_input("Battery Stored Energy Entity", value=current_config.get("battery_stored_energy_entity_id", "sensor.sigen_plant_available_max_discharging_capacity"))
             daily_import = st.text_input("Daily Import kWh Entity", value=current_config.get("plant_daily_import_kwh_entity_id", "sensor.sigen_plant_daily_grid_import_energy"))
             daily_export = st.text_input("Daily Export kWh Entity", value=current_config.get("plant_daily_export_kwh_entity_id", "sensor.sigen_plant_daily_grid_export_energy"))
 
-        st.subheader("Control Entities & Limiters")
-        col7, col8 = st.columns(2)
-        with col7:
-            ems_switch = st.text_input("EMS Control Switch", value=current_config.get("ha_ems_control_switch_entity_id", "switch.sigen_plant_remote_ems_controlled_by_home_assistant"))
-            ems_mode = st.text_input("EMS Control Mode Select", value=current_config.get("ems_control_mode_entity_id", "select.sigen_plant_remote_ems_control_mode"))
-            pv_limit_id = st.text_input("PV Limiter Entity", value=current_config.get("pv_limiter_entity_id", "number.sigen_plant_pv_max_power_limit"))
-        with col8:
-            dis_limiter = st.text_input("Battery Discharge Limiter", value=current_config.get("battery_discharge_limiter_entity_id", "number.sigen_plant_ess_max_discharging_limit"))
-            chg_limiter = st.text_input("Battery Charge Limiter", value=current_config.get("battery_charge_limiter_entity_id", "number.sigen_plant_ess_max_charging_limit"))
-            exp_limiter = st.text_input("Export Limiter Entity", value=current_config.get("export_limiter_entity_id", "number.sigen_plant_grid_export_limitation"))
-            imp_limiter = st.text_input("Import Limiter Entity", value=current_config.get("import_limiter_entity_id", "number.sigen_plant_grid_import_limitation"))
+        if plant_brand == "Sigenergy":
+            st.subheader("Sigenergy Control Entities & Limiters")
+            col7, col8 = st.columns(2)
+            with col7:
+                ems_switch = st.text_input("EMS Control Switch", value=current_config.get("ha_ems_control_switch_entity_id", "switch.sigen_plant_remote_ems_controlled_by_home_assistant"))
+                ems_mode = st.text_input("EMS Control Mode Select", value=current_config.get("ems_control_mode_entity_id", "select.sigen_plant_remote_ems_control_mode"))
+                pv_limit_id = st.text_input("PV Limiter Entity", value=current_config.get("pv_limiter_entity_id", "number.sigen_plant_pv_max_power_limit"))
+            with col8:
+                dis_limiter = st.text_input("Battery Discharge Limiter", value=current_config.get("battery_discharge_limiter_entity_id", "number.sigen_plant_ess_max_discharging_limit"))
+                chg_limiter = st.text_input("Battery Charge Limiter", value=current_config.get("battery_charge_limiter_entity_id", "number.sigen_plant_ess_max_charging_limit"))
+                exp_limiter = st.text_input("Export Limiter Entity", value=current_config.get("export_limiter_entity_id", "number.sigen_plant_grid_export_limitation"))
+                imp_limiter = st.text_input("Import Limiter Entity", value=current_config.get("import_limiter_entity_id", "number.sigen_plant_grid_import_limitation"))
+        elif plant_brand == "Goodwe":
+            st.subheader("GoodWe Control Entities & Limiters")
+            col7, col8 = st.columns(2)
+            with col7:
+                ems_mode = st.text_input("EMS Control Mode Select", value=current_config.get("ems_control_mode_entity_id", "select.ems_mode"))
+                ems_power_limit = st.text_input("EMS Power Limit Entity", value=current_config.get("ems_power_limit_entity_id", "number.ems_power_limit"))
+            with col8:
+                grid_export_switch = st.text_input("Grid Export Limit Switch", value=current_config.get("grid_export_limit_switch_entity_id", "switch.grid_export_limit_switch"))
+                exp_limiter = st.text_input("Grid Export Limit Entity", value=current_config.get("export_limiter_entity_id", "number.grid_export_limit"))
 
         submitted = st.form_submit_button("Save Configuration")
         if submitted:
@@ -100,31 +110,33 @@ def plant_config_page():
                 "plant_brand": plant_brand,
                 "estimated_daily_load_energy_consumption": daily_load,
                 "battery_discharge_cost": discharge_cost,
-                "pv_max_power_limit_entity_id": pv_limit,
-                "import_max_power_limit_entity_id": import_limit,
-                "export_max_power_limit_entity_id": export_limit,
-                "battery_max_discharge_power_limit_entity_id": bat_dis_max,
-                "battery_max_charge_power_limit_entity_id": bat_chg_max,
-                "inverter_max_power_limit_entity_id": inv_limit_max,
+                "pv_max_power_limit_entry": pv_limit,
+                "import_max_power_limit_entry": import_limit,
+                "export_max_power_limit_entry": export_limit,
+                "battery_max_discharge_power_limit_entry": bat_dis_max,
+                "battery_max_charge_power_limit_entry": bat_chg_max,
+                "inverter_max_power_limit_entry": inv_limit_max,
                 "load_power_entity_id": load_p,
                 "solar_power_entity_id": solar_p,
                 "battery_power_entity_id": bat_p,
                 "inverter_power_entity_id": inv_p,
                 "grid_power_entity_id": grid_p,
                 "battery_soc_entity_id": bat_soc,
-                "backup_soc_entity_id": backup_soc,
-                "charge_cutoff_soc_entity_id": cutoff_soc,
+                "backup_soc_entry": backup_soc,
+                "charge_cutoff_soc_entry": cutoff_soc,
                 "battery_kwh_till_full_entity_id": bat_till_full,
                 "battery_stored_energy_entity_id": bat_stored,
-                "battery_rated_capacity_entity_id": bat_cap,
+                "battery_rated_capacity_entry": bat_cap,
                 "battery_power_sign_convention": sign,
-                "ha_ems_control_switch_entity_id": ems_switch,
+                "ha_ems_control_switch_entity_id": ems_switch if plant_brand == "Sigenergy" else "",
                 "ems_control_mode_entity_id": ems_mode,
-                "battery_discharge_limiter_entity_id": dis_limiter,
-                "battery_charge_limiter_entity_id": chg_limiter,
-                "pv_limiter_entity_id": pv_limit_id,
+                "battery_discharge_limiter_entity_id": dis_limiter if plant_brand == "Sigenergy" else "",
+                "battery_charge_limiter_entity_id": chg_limiter if plant_brand == "Sigenergy" else "",
+                "pv_limiter_entity_id": pv_limit_id if plant_brand == "Sigenergy" else "",
                 "export_limiter_entity_id": exp_limiter,
-                "import_limiter_entity_id": imp_limiter,
+                "import_limiter_entity_id": imp_limiter if plant_brand == "Sigenergy" else "",
+                "grid_export_limit_switch_entity_id": grid_export_switch if plant_brand == "Goodwe" else "",
+                "ems_power_limit_entity_id": ems_power_limit if plant_brand == "Goodwe" else "",
                 "plant_daily_import_kwh_entity_id": daily_import,
                 "plant_daily_export_kwh_entity_id": daily_export,
             }

@@ -12,7 +12,7 @@ class GoodWePlant(BasePlant):
 
         self.get_config(plant_config)
 
-        self.check_for_enabled_entites() # Check to make sure all the required entities are enabled before starting the app to prevent issues later on.
+        self.check_for_enabled_entities() # Check to make sure all the required entities are enabled before starting the app to prevent issues later on.
         
         # Initialize power limits and capacity using configuration overrides where available
         self.rated_capacity = self.get_config_entry_value(self.battery_rated_capacity_entry)
@@ -72,7 +72,7 @@ class GoodWePlant(BasePlant):
         self.battery_power_sign_convention = plant_config.get("battery_power_sign_convention")
 
         self.grid_export_limit_switch_entity_id = plant_config.get("grid_export_limit_switch_entity_id")
-        self.grid_export_limit_entity_id = plant_config.get("grid_export_limit_entity_id")
+        self.export_limiter_entity_id = plant_config.get("export_limiter_entity_id")
         self.ems_power_limit_entity_id = plant_config.get("ems_power_limit_entity_id")
         self.ems_control_mode_entity_id = plant_config.get("ems_control_mode_entity_id")
 
@@ -125,7 +125,7 @@ class GoodWePlant(BasePlant):
 
         self.set_export_limit_switch()
         self.ha.set_number(self.ems_power_limit_entity_id, ems_limit)
-        self.ha.set_number(self.grid_export_limit_entity_id, export_limit)
+        self.ha.set_number(self.export_limiter_entity_id, export_limit)
 
         if(control_mode in self.control_mode_options):
             self.ha.set_select(self.ems_control_mode_entity_id, control_mode)
@@ -137,7 +137,7 @@ class GoodWePlant(BasePlant):
 
         current_control_mode = self.get_plant_mode()
         current_ems_limit = self.get_safe_numeric_state(self.ems_power_limit_entity_id)
-        current_export_limit = self.get_safe_numeric_state(self.grid_export_limit_entity_id)
+        current_export_limit = self.get_safe_numeric_state(self.export_limiter_entity_id)
         
 
         wrong_control_mode = current_control_mode != control_mode
@@ -151,7 +151,7 @@ class GoodWePlant(BasePlant):
             logger.info(f"Changing control entities for mode: {working_mode}")
             time.sleep(5) # Allow time for HA to update
     
-    def check_for_enabled_entites(self) -> None:
+    def check_for_enabled_entities(self) -> None:
         """Checks to make sure all the entities needed for control are available and enabled, if not it raises an error."""
         def is_numeric(val):
             try:
@@ -167,7 +167,7 @@ class GoodWePlant(BasePlant):
             self.solar_power_entity_id,
             self.load_power_entity_id,
             self.grid_export_limit_switch_entity_id,
-            self.grid_export_limit_entity_id,
+            self.export_limiter_entity_id,
             self.ems_power_limit_entity_id
         ]
 

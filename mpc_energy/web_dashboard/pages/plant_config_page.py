@@ -65,8 +65,9 @@ def plant_config_page():
             solar_p = st.text_input("Solar Power Entity", value=current_config.get("solar_power_entity_id", "sensor.sigen_plant_pv_power"))
             bat_p = st.text_input("Battery Power Entity", value=current_config.get("battery_power_entity_id", "sensor.sigen_plant_battery_power"))
         with col4:
-            grid_p = st.text_input("Grid Power Entity", value=current_config.get("grid_power_entity_id", "sensor.sigen_plant_grid_active_power"))
-            inv_p = st.text_input("Inverter Power Entity", value=current_config.get("inverter_power_entity_id", "sensor.sigen_plant_plant_active_power"))
+            if plant_brand == "Sigenergy":
+                grid_p = st.text_input("Grid Power Entity", value=current_config.get("grid_power_entity_id", "sensor.sigen_plant_grid_active_power"))
+                inv_p = st.text_input("Inverter Power Entity", value=current_config.get("inverter_power_entity_id", "sensor.sigen_plant_plant_active_power"))
             sign = st.selectbox("Battery Power Sign Convention", options=["- Charge, + Discharge", "+ Charge, - Discharge"], index=0 if current_config.get("battery_power_sign_convention", "- Charge, + Discharge") == "- Charge, + Discharge" else 1)
 
         st.subheader("Hardware Sensors (Energy & SOC)")
@@ -77,10 +78,13 @@ def plant_config_page():
             cutoff_soc = st.text_input("Charge Cutoff SOC Entity (%)", value=current_config.get("charge_cutoff_soc_entry", "number.sigen_plant_ess_charge_cut_off_state_of_charge"))
             bat_cap = st.text_input("Battery Rated Capacity Entity", value=current_config.get("battery_rated_capacity_entry", "sensor.sigen_plant_rated_energy_capacity"))
         with col6:
-            bat_till_full = st.text_input("Battery kWh Till Full Entity", value=current_config.get("battery_kwh_till_full_entity_id", "sensor.sigen_plant_available_max_charging_capacity"))
-            bat_stored = st.text_input("Battery Stored Energy Entity", value=current_config.get("battery_stored_energy_entity_id", "sensor.sigen_plant_available_max_discharging_capacity"))
-            daily_import = st.text_input("Daily Import kWh Entity", value=current_config.get("plant_daily_import_kwh_entity_id", "sensor.sigen_plant_daily_grid_import_energy"))
-            daily_export = st.text_input("Daily Export kWh Entity", value=current_config.get("plant_daily_export_kwh_entity_id", "sensor.sigen_plant_daily_grid_export_energy"))
+            if plant_brand == "Sigenergy":
+                bat_till_full = st.text_input("Battery kWh Till Full Entity", value=current_config.get("battery_kwh_till_full_entity_id", "sensor.sigen_plant_available_max_charging_capacity"))
+                bat_stored = st.text_input("Battery Stored Energy Entity", value=current_config.get("battery_stored_energy_entity_id", "sensor.sigen_plant_available_max_discharging_capacity"))
+                daily_import = st.text_input("Daily Import kWh Entity", value=current_config.get("plant_daily_import_kwh_entity_id", "sensor.sigen_plant_daily_grid_import_energy"))
+                daily_export = st.text_input("Daily Export kWh Entity", value=current_config.get("plant_daily_export_kwh_entity_id", "sensor.sigen_plant_daily_grid_export_energy"))
+            else:
+                bat_till_full = bat_stored = daily_import = daily_export = ""
 
         if plant_brand == "Sigenergy":
             st.subheader("Sigenergy Control Entities & Limiters")
@@ -119,13 +123,13 @@ def plant_config_page():
                 "load_power_entity_id": load_p,
                 "solar_power_entity_id": solar_p,
                 "battery_power_entity_id": bat_p,
-                "inverter_power_entity_id": inv_p,
-                "grid_power_entity_id": grid_p,
+                "inverter_power_entity_id": inv_p if plant_brand == "Sigenergy" else "",
+                "grid_power_entity_id": grid_p if plant_brand == "Sigenergy" else "",
                 "battery_soc_entity_id": bat_soc,
                 "backup_soc_entry": backup_soc,
                 "charge_cutoff_soc_entry": cutoff_soc,
-                "battery_kwh_till_full_entity_id": bat_till_full,
-                "battery_stored_energy_entity_id": bat_stored,
+                "battery_kwh_till_full_entity_id": bat_till_full if plant_brand == "Sigenergy" else "",
+                "battery_stored_energy_entity_id": bat_stored if plant_brand == "Sigenergy" else "",
                 "battery_rated_capacity_entry": bat_cap,
                 "battery_power_sign_convention": sign,
                 "ha_ems_control_switch_entity_id": ems_switch if plant_brand == "Sigenergy" else "",
@@ -137,8 +141,8 @@ def plant_config_page():
                 "import_limiter_entity_id": imp_limiter if plant_brand == "Sigenergy" else "",
                 "grid_export_limit_switch_entity_id": grid_export_switch if plant_brand == "Goodwe" else "",
                 "ems_power_limit_entity_id": ems_power_limit if plant_brand == "Goodwe" else "",
-                "plant_daily_import_kwh_entity_id": daily_import,
-                "plant_daily_export_kwh_entity_id": daily_export,
+                "plant_daily_import_kwh_entity_id": daily_import if plant_brand == "Sigenergy" else "",
+                "plant_daily_export_kwh_entity_id": daily_export if plant_brand == "Sigenergy" else "",
             }
             save_config(new_config)
 

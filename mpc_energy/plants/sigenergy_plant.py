@@ -85,7 +85,7 @@ class SigEnergyPlant(BasePlant):
     
     def update_data(self) -> None:
         """Update the plant's data by fetching the latest states from Home Assistant."""
-        self.battery_soc = self.get_safe_numeric_state(self.battery_soc_entity_id)
+        self.battery_soc_percent = self.get_safe_numeric_state(self.battery_soc_entity_id)
         self.kwh_backup_buffer = (self.get_config_entry_value(self.backup_soc_entry)/100.0) * self.rated_capacity
         self.kwh_stored_energy = self.get_safe_numeric_state(self.battery_stored_energy_entity_id)
         self.kwh_stored_available = self.kwh_stored_energy - self.kwh_backup_buffer
@@ -237,7 +237,7 @@ class SigEnergyPlant(BasePlant):
             "Command Discharging (PV First)",
             "Command Discharging (ESS First)",
         }
-        high_soc_curtailment = self.battery_soc >= 97
+        high_soc_curtailment = self.battery_soc_percent >= 97
         charging_disabled = control_mode in charge_disabled_modes or high_soc_curtailment
         effective_charge_limit_kw = 0 if charging_disabled else max(charge_limit_kw, 0)
 

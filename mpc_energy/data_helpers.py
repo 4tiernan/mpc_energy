@@ -116,6 +116,9 @@ def bin_data(history, bin_period, start_bin_datetime, end_bin_datetime, string_s
 def interpolate_values(values, method="linear"):
     '''takes a list of numeric values with possible None values to interpolate and interpolates the None values using the specified method. Returns a list of the same length with no None values.'''
     s = pd.Series(values)
+    # Ensure the series is numeric to avoid "Series cannot interpolate with object dtype" 
+    # which occurs when the list contains only None values or mixed types.
+    s = pd.to_numeric(s, errors='coerce')
 
     if method == "linear":
         # 5, None, None, None, 6 → 5, 5.25, 5.5, 5.75, 6

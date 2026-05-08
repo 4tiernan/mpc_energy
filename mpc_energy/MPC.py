@@ -629,7 +629,7 @@ class MPC:
                 "optional_loads": optional_loads_results,
             }
             output = self.convert_to_python(output) # Ensure all arrays and data is in the plain python format, ie no numpy
-            plan_modes = self.plant.determine_plan_modes(output) # Determine the control mode for each time period
+            plan_modes = self.determine_plan_modes(output) # Determine the control mode for each time period
             output.update({"plan_modes": plan_modes}) # Add the control modes to the output to be plotted
 
             if(self.demand_tarrif):

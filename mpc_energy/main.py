@@ -43,7 +43,6 @@ logger.info("Streamlit dashboard started")
 
 # Initialize globals as None so error handlers can safely check them if startup fails early
 ha = None
-EC = None
 ha_mqtt = None
 plant = None
 mpc = None
@@ -147,10 +146,10 @@ def FailSafe(e):
     PrintError(e)
     
     # Only attempt safe mode if the Energy Controller and MQTT objects are actually loaded
-    if EC is not None and ha_mqtt is not None:
+    if plant is not None and ha_mqtt is not None:
         try:
             if(ha_mqtt.automatic_control_switch.state == True):
-                EC.self_consumption()
+                plant.self_consumption()
                 logger.warning("Succsessfully put system into safe mode after detecting an error.")        
         except Exception as failsafe_error:
             logger.error(f"Failed to put system into safe mode after detecting an error: {failsafe_error}")   
@@ -205,18 +204,14 @@ while(started == False):
         
         plant = GetPlant(ha, opt_loads)
 
-        EC = EnergyController(
-            ha=ha,
-            ha_mqtt=ha_mqtt,
-            plant=plant
-        )
+        if(ha_mqtt.automatic_control_switch.state == True):
+            plant.self_consumption() # Start in self consumption mode for safety until the main loop runs to set the correct mode based on the selected controller
 
-        control_mode_override_manager = ControlModeOverrideManager(ha_mqtt=ha_mqtt, energy_controller=EC, plant=plant)
+        control_mode_override_manager = ControlModeOverrideManager(ha_mqtt=ha_mqtt, plant=plant)
 
         mpc = MPC(
             ha=ha,
             plant=plant,
-            EC=EC, 
             local_tz=ha.local_tz,
             demand_tarrif=demand_tariff,
             retailer=config_manager.energy_retailer,
@@ -250,7 +245,7 @@ def set_sensor_if_changed(sensor, value):
 def update_sensors(price_data):
     override_status = control_mode_override_manager.state['active']
     override_mode = control_mode_override_manager.state['mode']
-    opperating_mode = override_mode if override_status else EC.working_mode
+    opperating_mode = override_mode if override_status else plant.working_mode
 
     set_sensor_if_changed(ha_mqtt.max_feedIn_sensor, round(price_data.feedIn_max_forecast_price))
     set_sensor_if_changed(ha_mqtt.current_feedIn_sensor, round(price_data.feedIn_price))
@@ -354,13 +349,13 @@ def run_controller(price_update=False):
             if(selected_controller == "MPC"):
                 mpc.run(price_data)
             else:
-                EC.self_consumption()
+                plant.self_consumption()
 
             last_control_mode = selected_controller
 
         else: # If automatic control is off, turn back to safe mode
             logger.warning(f"Manual override finished. Returning control to Safe Mode.")
-            EC.self_consumption()
+            plant.self_consumption()
 
 
     if(ha_mqtt.automatic_control_switch.state == True):
@@ -374,19 +369,18 @@ def run_controller(price_update=False):
                 mpc.run(price_data) # Run the MPC Controller if the price updates (every 5 min) or if it was just selected as the new controller
 
         else: # Selected Controller must be safe mode
-            EC.self_consumption()
+            plant.self_consumption()
 
         if(last_control_mode != selected_controller and last_control_mode != "" and automatic_control == True):
             logger.warning(f"Controller changed from {last_control_mode} to {selected_controller}")
             
         last_control_mode = selected_controller # Reset the controller tracker
  
-        # If auto control is on, run the energy controller and RBC (every 2 seconds as we need to keep track of some things)
-        EC.run(amber_data=price_data)
+        # If auto control is on, run the plant controller to maintain the current control mode
+        plant.run()
 
     else: # Automatic Control Turned off
         if(automatic_control == True):
-            #EC.self_consumption()
             automatic_control = False
             logger.warning(f"Automatic Control turned off.")
 
@@ -438,7 +432,7 @@ def main_loop_code():
 
             if(time.time() - last_real_price_timestamp > 600): # If it's been more than 10 minutes since we've received a real price update, trigger safe mode
                 logger.warning("Putting system in safe mode due to lack of real price updates.")
-                EC.self_consumption() # Put the system into safe mode
+                plant.self_consumption() # Put the system into safe mode
                 
         else: # If prices are real, use them
             last_real_price_timestamp = time.time() # Update the last real price timestamp to prevent false triggering of safe mode

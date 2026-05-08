@@ -49,10 +49,9 @@ except Exception as e:
                          f"Please ensure the Mosquitto broker is running and the hostname is correct. Error: {e}") from e
 
 class MPC:
-    def __init__(self, ha, plant, EC, local_tz, demand_tarrif, retailer, optional_loads: list[loads.optional_loads.OptionalLoad]):
+    def __init__(self, ha, plant, local_tz, demand_tarrif, retailer, optional_loads: list[loads.optional_loads.OptionalLoad]):
         self.plant = plant
         self.ha = ha
-        self.EC = EC
         self.local_tz = local_tz
         self.retailer = retailer
         self.optional_loads = optional_loads
@@ -630,7 +629,7 @@ class MPC:
                 "optional_loads": optional_loads_results,
             }
             output = self.convert_to_python(output) # Ensure all arrays and data is in the plain python format, ie no numpy
-            plan_modes = self.determine_plan_modes(output) # Determine the control mode for each time period
+            plan_modes = self.plant.determine_plan_modes(output) # Determine the control mode for each time period
             output.update({"plan_modes": plan_modes}) # Add the control modes to the output to be plotted
 
             if(self.demand_tarrif):
@@ -679,7 +678,7 @@ class MPC:
             return [self.convert_to_python(v) for v in obj]
         return obj
     
-    def determine_control_mode(self, data, increment=0, control_active=True):
+    def determine_control_mode(self, data, increment=0, control_active=True, power_threshold=0.2) -> str:
         inverter_power = data["inverter_power"][increment]
         used_solar_power = data["solar_used"][increment]
         solar_available = data["solar_forecast"][increment]
@@ -687,53 +686,53 @@ class MPC:
         grid_net = data["grid_net"][increment] # if grid_net is positive we are importing power 
         battery_power = data["battery_power"][increment]
 
-        if((approx_equal(inverter_power, used_solar_power) and used_solar_power > load_power + self.power_threshold and grid_net < -self.power_threshold) or (approx_equal(inverter_power, self.plant.max_inverter_power) and used_solar_power > self.plant.max_inverter_power)):
+        if((data_helpers.approx_equal(inverter_power, used_solar_power) and used_solar_power > load_power + power_threshold and grid_net < -power_threshold) or (data_helpers.approx_equal(inverter_power, self.plant.max_inverter_power) and used_solar_power > self.plant.max_inverter_power)):
             if(control_active):
-                self.EC.export_all_solar() # Export if all solar is being exported or > max inverter and charging bat with excess
-            return ControlMode.EXPORT_ALL_SOLAR.value
+                self.plant.export_all_solar() # Export if all solar is being exported or > max inverter and charging bat with excess
+            return self.plant.ControlMode.EXPORT_ALL_SOLAR
         
-        elif(approx_equal(inverter_power, load_power) and approx_equal(load_power, used_solar_power) and used_solar_power + self.power_threshold < solar_available):
+        elif(data_helpers.approx_equal(inverter_power, load_power) and data_helpers.approx_equal(load_power, used_solar_power) and used_solar_power + power_threshold < solar_available):
             if(control_active):
-                self.EC.solar_to_load() # If battery is not charging and solar is being curtailed, send solar straight to load
-            return ControlMode.SOLAR_TO_LOAD.value
+                self.plant.solar_to_load() # If battery is not charging and solar is being curtailed, send solar straight to load
+            return self.plant.ControlMode.SOLAR_TO_LOAD
         
-        elif(approx_equal(inverter_power, load_power) and approx_equal(used_solar_power+battery_power, load_power)):
+        elif(data_helpers.approx_equal(inverter_power, load_power) and data_helpers.approx_equal(used_solar_power+battery_power, load_power)):
             if(control_active):
-                self.EC.self_consumption()
-            return ControlMode.SELF_CONSUMPTION.value                
+                self.plant.self_consumption()
+            return self.plant.ControlMode.SELF_CONSUMPTION                
         
-        elif(inverter_power > used_solar_power + self.power_threshold and inverter_power > load_power + self.power_threshold):
+        elif(inverter_power > used_solar_power + power_threshold and inverter_power > load_power + power_threshold):
             if(control_active):
                 export_limit = abs(grid_net)
-                if(approx_equal(inverter_power, self.inverter_p_max)): # If Inverter is at 100% in the plan make sure it is in reality
+                if(data_helpers.approx_equal(inverter_power, self.inverter_p_max)): # If Inverter is at 100% in the plan make sure it is in reality
                     export_limit = self.grid_export_limit
                 
-                self.EC.dispatch(grid_export_limit = export_limit)
-            return ControlMode.DISPATCH.value
+                self.plant.dispatch(grid_export_limit = export_limit)
+            return self.plant.ControlMode.DISPATCH
         
-        elif(grid_net < -self.power_threshold and used_solar_power > inverter_power + self.power_threshold):
+        elif(grid_net < -power_threshold and used_solar_power > inverter_power + power_threshold):
             if(control_active):
-                self.EC.export_excess_solar(battery_charge_limit = abs(battery_power))
-            return ControlMode.EXPORT_EXCESS_SOLAR.value
+                self.plant.export_excess_solar(battery_charge_limit = abs(battery_power))
+            return self.plant.ControlMode.EXPORT_EXCESS_SOLAR
         
-        elif(grid_net > self.power_threshold): # if grid_net is positive we are importing power
+        elif(grid_net > power_threshold): # if grid_net is positive we are importing power
             if(control_active):
-                if(approx_equal(abs(grid_net), load_power)):
-                    self.EC.import_power(battery_charge_limit = max(-battery_power, 0))
-                elif(approx_equal(-inverter_power, self.inverter_p_max)): # If the plan calls for max charging, set the battery charge limit to the max.
-                    self.EC.import_power(battery_charge_limit = self.p_max_charge, grid_import_limit = self.grid_import_limit)
+                if(data_helpers.approx_equal(abs(grid_net), load_power)):
+                    self.plant.import_power(battery_charge_limit = max(-battery_power, 0))
+                elif(data_helpers.approx_equal(-inverter_power, self.inverter_p_max)): # If the plan calls for max charging, set the battery charge limit to the max.
+                    self.plant.import_power(battery_charge_limit = self.p_max_charge, grid_import_limit = self.grid_import_limit)
                 else:   
-                    self.EC.import_power(battery_charge_limit = max(-battery_power, 0), grid_import_limit = abs(grid_net)) # Battery power (- = Charge, + = Discharge)
-            return ControlMode.GRID_IMPORT.value
+                    self.plant.import_power(battery_charge_limit = max(-battery_power, 0), grid_import_limit = abs(grid_net)) # Battery power (- = Charge, + = Discharge)
+            return self.plant.ControlMode.GRID_IMPORT
         
-        elif(inverter_power < 0 and battery_power < self.power_threshold):
+        elif(inverter_power < 0 and battery_power < power_threshold):
             if(control_active):
-                self.EC.import_power(battery_charge_limit = max(-battery_power, 0), pv_limit = used_solar_power)
-            return ControlMode.GRID_IMPORT.value
+                self.plant.import_power(battery_charge_limit = max(-battery_power, 0), pv_limit = used_solar_power)
+            return self.plant.ControlMode.GRID_IMPORT
 
         else:
             if(control_active):
-                self.EC.self_consumption()
+                self.plant.self_consumption()
                 error_msg = f"Unable to determine control mode from MPC plan at increment {increment}, time: {data['time_index'][increment]}. Defaulting to self consumption mode. Plan values: inverter_power: {inverter_power}, used_solar_power: {used_solar_power}, solar_available: {solar_available}, load_power: {load_power}, grid_net: {grid_net}, battery_power: {battery_power}, self.plant.max_inverter_power: {self.plant.max_inverter_power}"
                 raise Exception(error_msg) from None
             return "Unable to determine"
@@ -798,6 +797,5 @@ class MPC:
                     return 0
                 
         return general_price_list[0] # Default to current grid price if no significant import or export is occouring
-
-def approx_equal(a, b, threshold = 0.2):
-    return abs(a-b) < threshold
+    
+    

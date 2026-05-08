@@ -21,6 +21,9 @@ def round_minutes(time: datetime.datetime, nearest_minute: int) -> datetime.date
         microsecond=0
         )  
 
+def approx_equal(a, b, threshold = 0.2):
+    return abs(a-b) < threshold
+
 def bin_data(history, bin_period, start_bin_datetime, end_bin_datetime, string_state=False, interpolation_method="linear") -> list[BinnedStateClass]: 
     """
     Takes a list of historical state data and bins it into specified time intervals, averaging the state values within each bin. Handles both numeric and string states. Also fills in missing bins with None values and can interpolate those values if desired.

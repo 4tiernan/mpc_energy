@@ -14,7 +14,16 @@ from ha_api import HomeAssistantAPI
 from loads.optional_loads import OptionalLoad
 import data_helpers
 
+
 class BasePlant(ABC):
+    class ControlMode():
+        SELF_CONSUMPTION = "Self Consumption"
+        EXPORT_EXCESS_SOLAR = "Exporting Excess Solar"
+        EXPORT_ALL_SOLAR = "Exporting All Solar"
+        DISPATCH = "Dispatching"
+        GRID_IMPORT = "Grid Import"
+        SOLAR_TO_LOAD = "Solar To Load"
+
     def __init__(self, ha: HomeAssistantAPI, optional_loads: list[OptionalLoad], plant_config: dict = None):
         self.ha: HomeAssistantAPI = ha
         self.optional_loads: list[OptionalLoad] = optional_loads
@@ -28,6 +37,8 @@ class BasePlant(ABC):
         self.avg_load_day = None
 
         self.history_since_midnight = None
+        
+        self.working_mode = None
     
     @abstractmethod
     def check_for_enabled_entites(self) -> None:
@@ -52,6 +63,47 @@ class BasePlant(ABC):
             "reason": None
         }
         
+    @abstractmethod
+    def dispatch(self, grid_export_limit=None):
+        """Dispatch the battery with the goal of maximizing self consumption while discharging excess solar to the grid up to the provided export limit."""
+        raise NotImplementedError("Dispatch method not implemented for this plant.")
+
+    @abstractmethod
+    def export_all_solar(self):
+        """Export all solar to the grid while discharging the battery as needed to maximize solar export."""
+        raise NotImplementedError("Export all solar method not implemented for this plant.")
+
+    @abstractmethod
+    def export_excess_solar(self, battery_charge_limit=None):
+        """Export excess solar to the grid while charging the battery with excess solar as needed to maximize self consumption. The battery_charge_limit can be used to limit how much the battery is allowed to charge in order to prioritize exporting excess solar."""
+        raise NotImplementedError("Export excess solar method not implemented for this plant.")
+    
+    @abstractmethod
+    def solar_to_load(self):
+        """Use solar to directly supply the load as much as possible while discharging the battery as needed to maximize solar to load."""
+        raise NotImplementedError("Solar to load method not implemented for this plant.")
+    
+    @abstractmethod
+    def import_power(self, battery_charge_limit = None, pv_limit = None, grid_import_limit = None):
+        """Import power from the grid to charge the battery and supply the load as needed. The pv_limit can be used to limit how much solar is used to supply the load in order to prioritize importing from the grid, and the battery_charge_limit can be used to limit how much the battery is allowed to charge from the grid."""
+        raise NotImplementedError("Grid import method not implemented for this plant.")
+
+    @abstractmethod
+    def self_consumption(self, pv_limit = None):
+        """Use solar to supply the load as much as possible while charging the battery with excess solar as needed to maximize self consumption. The pv_limit can be used to limit how much solar is used to supply the load in order to prioritize charging the battery with excess solar."""
+        raise NotImplementedError("Self consumption method not implemented for this plant.")
+    
+    @abstractmethod
+    def run(self):
+        """Run the plant controller to maintain the current control mode."""
+        raise NotImplementedError("Run method not implemented for this plant.")
+        
+    @abstractmethod
+    def maintain_control_mode(self):
+        """Maintain the current control mode (mainly export all solar)"""
+        raise NotImplementedError("Maintain control mode method not implemented for this plant.")
+        
+
     def get_config_entry_value(self, entry_id) -> Any:
         """Try to get the value from a config entry that is either a string float or an entity id."""
         try:

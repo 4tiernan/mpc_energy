@@ -5,6 +5,7 @@ from mpc_logger import logger
 from exceptions import HAAPIError, SigenergyConnectionError, MPCEnergyError
 import data_helpers, config_manager
 from ha_api import HomeAssistantAPI
+import data_helpers
 
 class SigEnergyPlant(BasePlant):
     def __init__(self, ha: HomeAssistantAPI, optional_loads: list, plant_config: dict = None):
@@ -45,6 +46,8 @@ class SigEnergyPlant(BasePlant):
                     f"Max Import: {self.max_import_power} kW | "
                     f"Backup Buffer: {self.kwh_backup_buffer} kWh"
                 )
+        
+        self.controller = SigEnergyPlantController(self)
 
     def get_config(self, plant_config: dict) -> None:
         self.battery_soc_entity_id = plant_config.get("battery_soc_entity_id")
@@ -396,3 +399,116 @@ class SigEnergyPlant(BasePlant):
             "grid_export_kwh": [state.avg_state for state in binned_grid_export_kwh_state_history],
         }
         return output
+
+    def dispatch(self, grid_export_limit=None):
+        if(grid_export_limit == None):
+            grid_export_limit = self.max_export_power
+        else:
+            grid_export_limit = min(max(grid_export_limit, 0), self.max_export_power)
+
+        self.working_mode = self.ControlMode.DISPATCH
+        self.check_control_limits(
+            working_mode=self.working_mode,
+            control_mode="Command Discharging (PV First)",
+            discharge=self.max_discharge_power,
+            charge=0,
+            pv=self.max_pv_power,
+            grid_export=grid_export_limit,
+            grid_import=0)
+        
+    def export_all_solar(self):
+        self.working_mode = self.ControlMode.EXPORT_ALL_SOLAR
+
+        solar_buffer = 2 # Buffer to ensure load is covered by battery or solar
+        if(self.load_power + solar_buffer < self.solar_kw): # Let the battery charge with excess DC power available
+            self.check_control_limits(
+                working_mode=self.working_mode,
+                control_mode="Command Discharging (PV First)",
+                discharge=0,
+                charge=self.max_charge_power,
+                pv=self.max_pv_power,
+                grid_export=self.max_export_power,
+                grid_import=0)
+        else: # Make sure the battery supplies the load if solar power is minimal
+            self.check_control_limits(
+                working_mode=self.working_mode,
+                control_mode="Command Charging (PV First)",
+                discharge=self.max_discharge_power,
+                charge=0,
+                pv=self.max_pv_power,
+                grid_export=self.max_export_power,
+                grid_import=0)
+
+    def export_excess_solar(self, battery_charge_limit=None):
+        if(battery_charge_limit == None):
+            battery_charge_limit = self.max_charge_power
+        else:
+            battery_charge_limit = min(max(battery_charge_limit, 0), self.max_charge_power)
+
+        self.working_mode = self.ControlMode.EXPORT_EXCESS_SOLAR
+        self.check_control_limits(
+            working_mode=self.working_mode,
+            control_mode="Command Charging (PV First)",
+            discharge=self.max_discharge_power,
+            charge=battery_charge_limit,
+            pv=self.max_pv_power,
+            grid_export=self.max_export_power,
+            grid_import=0)
+        
+    def solar_to_load(self):
+        self.working_mode = self.ControlMode.SOLAR_TO_LOAD
+        self.check_control_limits(
+            working_mode=self.working_mode,
+            control_mode="Command Charging (PV First)",
+            discharge=self.max_discharge_power,
+            charge=0,
+            pv=self.max_pv_power,
+            grid_export=0,
+            grid_import=0)
+        
+    def import_power(self, battery_charge_limit = None, pv_limit = None, grid_import_limit = None):
+        if(battery_charge_limit == None):
+            battery_charge_limit = self.max_charge_power
+        else:
+            battery_charge_limit = min(max(battery_charge_limit, 0), self.max_charge_power)
+
+        if(pv_limit == None):
+            pv_limit = self.max_pv_power
+        else:
+            pv_limit = min(max(pv_limit, 0), self.max_pv_power)
+
+        if(grid_import_limit == None):
+            grid_import_limit = self.max_import_power
+        else:
+            grid_import_limit = min(max(grid_import_limit, 0), self.max_import_power)
+
+        self.working_mode = self.ControlMode.GRID_IMPORT
+        self.check_control_limits(
+            working_mode=self.working_mode,
+            control_mode="Command Charging (PV First)",
+            discharge=self.max_discharge_power,
+            charge=battery_charge_limit,
+            pv=pv_limit,
+            grid_export=0,
+            grid_import=grid_import_limit)
+
+
+    def self_consumption(self, pv_limit = None):
+        if(pv_limit == None):
+            pv_limit = self.max_pv_power
+        self.working_mode = self.ControlMode.SELF_CONSUMPTION
+        self.check_control_limits(
+            working_mode=self.working_mode,
+            control_mode="Maximum Self Consumption",
+            discharge=self.max_discharge_power,
+            charge=self.max_charge_power,
+            pv=pv_limit,
+            grid_export=0,
+            grid_import=0)
+    
+    def run(self):
+        self.maintain_control_mode()
+
+    def maintain_control_mode(self): # Maintain the current control mode (mainly export all solar)
+        if(self.working_mode == self.ControlMode.EXPORT_ALL_SOLAR):
+            self.export_all_solar()

@@ -6,7 +6,7 @@ from exceptions import HAAPIError, SigenergyConnectionError, MPCEnergyError
 import data_helpers, config_manager
 from ha_api import HomeAssistantAPI
 
-class GoodWePlant(BasePlant):
+class SigEnergyPlant(BasePlant):
     def __init__(self, ha: HomeAssistantAPI, optional_loads: list, plant_config: dict = None):
         super().__init__(ha, optional_loads, plant_config)
 
@@ -55,7 +55,6 @@ class GoodWePlant(BasePlant):
         self.battery_power_entity_id = plant_config.get("battery_power_entity_id")
         self.solar_power_entity_id = plant_config.get("solar_power_entity_id")
         self.inverter_power_entity_id = plant_config.get("inverter_power_entity_id")
-        self.grid_power_entity_id = plant_config.get("grid_power_entity_id")
         self.load_power_entity_id = plant_config.get("load_power_entity_id")
         self.battery_power_sign_convention = plant_config.get("battery_power_sign_convention")
         
@@ -67,18 +66,13 @@ class GoodWePlant(BasePlant):
         self.export_limiter_entity_id = plant_config.get("export_limiter_entity_id")
         self.import_limiter_entity_id = plant_config.get("import_limiter_entity_id")
 
-        self.plant_daily_import_kwh_entity_id = plant_config.get("plant_daily_import_kwh_entity_id")
-        self.plant_daily_export_kwh_entity_id = plant_config.get("plant_daily_export_kwh_entity_id")
-
         self.battery_rated_capacity_entity_id = plant_config.get("battery_rated_capacity_entity_id")
         self.battery_max_discharge_power_limit_entity_id = plant_config.get("battery_max_discharge_power_limit_entity_id")
         self.battery_max_charge_power_limit_entity_id = plant_config.get("battery_max_charge_power_limit_entity_id")
         self.inverter_max_power_limit_entity_id = plant_config.get("inverter_max_power_limit_entity_id")
         self.pv_max_power_limit_entity_id = plant_config.get("pv_max_power_limit_entity_id")
         self.export_max_power_limit_entity_id = plant_config.get("export_max_power_limit_entity_id")
-        self.import_max_power_limit_entity_id = plant_config.get("import_max_power_limit_entity_id")
-
-        
+        self.import_max_power_limit_entity_id = plant_config.get("import_max_power_limit_entity_id")   
         
     def get_sigenergy_state(self, entity_id) -> str:
         """Fetches the state of the specified entity from Home Assistant. Raises an error if the entity is unavailable."""
@@ -125,10 +119,7 @@ class GoodWePlant(BasePlant):
         #   -kW = charging (battery absorbing power)
 
         self.solar_kw = self.get_sigenergy_numeric_state(self.solar_power_entity_id)
-        #self.solar_kwh_today = self.get_sigenergy_numeric_state(self.plant_solar_kwh_today_entity_id) # Commented out as it is not used in current implementation.
         self.solar_kw_remaining_today = self.get_sigenergy_numeric_state(config_manager.solcast_solar_kwh_remaining_today_entity_id)
-        self.inverter_power = self.get_sigenergy_numeric_state(self.inverter_power_entity_id)
-        self.grid_power = self.get_sigenergy_numeric_state(self.grid_power_entity_id)
         self.load_power = self.get_sigenergy_numeric_state(self.load_power_entity_id)
         self.avg_daily_load = sum(bin.avg_state*(self.time_step_minutes/60) for bin in self.get_load_avg(days_ago=self.load_avg_days))
         
@@ -349,10 +340,6 @@ class GoodWePlant(BasePlant):
         inverter_power_state_history = self.ha.get_history(self.inverter_power_entity_id, start_time=start_datetime, end_time=end_datetime)
         solar_power_state_history = self.ha.get_history(self.solar_power_entity_id, start_time=start_datetime, end_time=end_datetime)
         load_power_state_history = self.ha.get_history(self.load_power_entity_id, start_time=start_datetime, end_time=end_datetime)
-
-        grid_power_state_history = self.ha.get_history(self.grid_power_entity_id, start_time=start_datetime, end_time=end_datetime)
-        grid_import_kwh_state_history = self.ha.get_history(self.plant_daily_import_kwh_entity_id, start_time=start_datetime, end_time=end_datetime)
-        grid_export_kwh_state_history = self.ha.get_history(self.plant_daily_export_kwh_entity_id, start_time=start_datetime, end_time=end_datetime)
 
         feed_in_state_history = self.ha.get_history("sensor.mpc_energy_manager_device_feed_in_price", start_time=start_datetime, end_time=end_datetime) 
         general_price_state_history = self.ha.get_history("sensor.mpc_energy_manager_device_general_price", start_time=start_datetime, end_time=end_datetime)

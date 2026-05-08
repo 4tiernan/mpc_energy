@@ -3,9 +3,8 @@ from mpc_logger import logger
 
 
 class ControlModeOverrideManager:
-    def __init__(self, ha_mqtt, energy_controller, plant):
+    def __init__(self, ha_mqtt, plant):
         self.ha_mqtt = ha_mqtt
-        self.energy_controller = energy_controller
         self.plant = plant
         self.reset()
 
@@ -36,17 +35,17 @@ class ControlModeOverrideManager:
 
     def apply_override_mode(self, mode):
         if(mode == "Dispatching"):
-            self.energy_controller.dispatch()
+            self.plant.dispatch()
         elif(mode == "Exporting All Solar"):
-            self.energy_controller.export_all_solar()
+            self.plant.export_all_solar()
         elif(mode == "Exporting Excess Solar"):
-            self.energy_controller.export_excess_solar()
+            self.plant.export_excess_solar()
         elif(mode == "Self Consumption"):
-            self.energy_controller.self_consumption()
+            self.plant.self_consumption()
         elif(mode == "Grid Import"):
-            self.energy_controller.import_power()
+            self.plant.import_power()
         elif(mode == "Solar To Load"):
-            self.energy_controller.solar_to_load()
+            self.plant.solar_to_load()
         else:
             raise Exception(f"Unsupported control mode override '{mode}'")
 

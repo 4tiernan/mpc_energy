@@ -597,11 +597,12 @@ class MPC:
             
             optional_loads_results = {}
             for load in self.optional_loads:
-                res = load.get_results(self.dt_5min)
-                if "raw_power" in res:
-                    # Aggregating power for the total site load forecast, using the raw load power that hasn't been clipped
-                    load_power = [round(lp + p, 2) for lp, p in zip(load_power, res["raw_power"])]
-                optional_loads_results[load.name] = res
+                if load.debias_load:
+                    res = load.get_results(self.dt_5min)
+                    if "raw_power" in res:
+                        # Aggregating power for the total site load forecast, using the raw load power that hasn't been clipped
+                        load_power = [round(lp + p, 2) for lp, p in zip(load_power, res["raw_power"])]
+                    optional_loads_results[load.name] = res
 
             self.profit_remaining_today = round(float(forecast_profit_today), 2)
             self.profit_tomorrow = round(float(forecast_profit_tomorrow), 2)

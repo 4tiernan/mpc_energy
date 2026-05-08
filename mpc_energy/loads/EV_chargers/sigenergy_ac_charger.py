@@ -72,7 +72,7 @@ class SigEnergyACCharger(EVCharger):
 
         if self.car_plugged_in:
             if(self.target_charge_rate != 0):
-                target_charge_current = round((self.target_charge_rate * 1000) / (self.available_phases * self.nominal_ac_voltage))
+                target_charge_current = int((self.target_charge_rate * 1000) / (self.available_phases * self.nominal_ac_voltage))
             else: 
                 target_charge_current = self.min_charge_current # Set to min charge current when target charge rate is 0 to avoid errors with some chargers when trying to set 0A charge current. 
 

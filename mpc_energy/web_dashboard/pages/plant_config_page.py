@@ -160,8 +160,8 @@ def plant_config_page():
             if plant_brand == "Sigenergy":
                 bat_till_full = st.text_input("Battery kWh Till Full Entity", value=get_val("battery_kwh_till_full_entity_id"))
                 bat_stored = st.text_input("Battery Stored Energy Entity", value=get_val("battery_stored_energy_entity_id"))
-                daily_import = st.text_input("Daily Import kWh Entity", value=get_val("plant_daily_import_kwh_entity_id"))
-                daily_export = st.text_input("Daily Export kWh Entity", value=get_val("plant_daily_export_kwh_entity_id"))
+            daily_import = st.text_input("Daily Import kWh Entity", value=get_val("plant_daily_import_kwh_entity_id"))
+            daily_export = st.text_input("Daily Export kWh Entity", value=get_val("plant_daily_export_kwh_entity_id"))
 
         ems_switch = ems_mode = pv_limit_id = dis_limiter = chg_limiter = exp_limiter = imp_limiter = ""
         grid_export_switch = ems_power_limit = ""

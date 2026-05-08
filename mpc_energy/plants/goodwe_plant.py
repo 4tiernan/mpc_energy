@@ -71,6 +71,9 @@ class GoodWePlant(BasePlant):
         self.load_power_entity_id = plant_config.get("load_power_entity_id")
         self.battery_power_sign_convention = plant_config.get("battery_power_sign_convention")
 
+        self.grid_power_entity_id = plant_config.get("grid_power_entity_id")
+        self.plant_daily_import_kwh_entity_id = plant_config.get("plant_daily_import_kwh_entity_id")
+        self.plant_daily_export_kwh_entity_id = plant_config.get("plant_daily_export_kwh_entity_id")
         self.grid_export_limit_switch_entity_id = plant_config.get("grid_export_limit_switch_entity_id")
         self.export_limiter_entity_id = plant_config.get("export_limiter_entity_id")
         self.ems_power_limit_entity_id = plant_config.get("ems_power_limit_entity_id")
@@ -108,6 +111,8 @@ class GoodWePlant(BasePlant):
         self.solar_kw = self.get_safe_numeric_state(self.solar_power_entity_id)
         self.solar_kw_remaining_today = self.get_safe_numeric_state(config_manager.solcast_solar_kwh_remaining_today_entity_id)
         self.load_power = self.get_safe_numeric_state(self.load_power_entity_id)
+        self.grid_power = self.get_safe_numeric_state(self.grid_power_entity_id)
+
         self.avg_daily_load = sum(bin.avg_state*(self.time_step_minutes/60) for bin in self.get_load_avg(days_ago=self.load_avg_days))
         
         self.calculate_today_profit_cost()
@@ -166,6 +171,9 @@ class GoodWePlant(BasePlant):
             self.battery_power_entity_id,
             self.solar_power_entity_id,
             self.load_power_entity_id,
+            self.grid_power_entity_id,
+            self.plant_daily_import_kwh_entity_id,
+            self.plant_daily_export_kwh_entity_id,
             self.grid_export_limit_switch_entity_id,
             self.export_limiter_entity_id,
             self.ems_power_limit_entity_id
@@ -295,21 +303,33 @@ class GoodWePlant(BasePlant):
 
         solar_power_state_history = self.ha.get_history(self.solar_power_entity_id, start_time=start_datetime, end_time=end_datetime)
         load_power_state_history = self.ha.get_history(self.load_power_entity_id, start_time=start_datetime, end_time=end_datetime)
+        grid_power_state_history = self.ha.get_history(self.grid_power_entity_id, start_time=start_datetime, end_time=end_datetime)
+        grid_import_kwh_state_history = self.ha.get_history(self.plant_daily_import_kwh_entity_id, start_time=start_datetime, end_time=end_datetime)
+        grid_export_kwh_state_history = self.ha.get_history(self.plant_daily_export_kwh_entity_id, start_time=start_datetime, end_time=end_datetime)
 
         feed_in_state_history = self.ha.get_history("sensor.mpc_energy_manager_device_feed_in_price", start_time=start_datetime, end_time=end_datetime) 
         general_price_state_history = self.ha.get_history("sensor.mpc_energy_manager_device_general_price", start_time=start_datetime, end_time=end_datetime)
         working_mode_state_history = self.ha.get_history("sensor.mpc_energy_manager_device_working_mode", start_time=start_datetime, end_time=end_datetime, type=str)
 
-
+        # Handle empty history for new systems
+        if not battery_soc_state_history or not feed_in_state_history:
+            logger.warning("Historical data is missing for one or more sensors. This is expected if the app was just installed.")
+            return {
+                "time_index": [], "soc": [], "battery_power": [], "inverter_power": [],
+                "solar_power": [], "load_power": [], "grid_power": [], "prices_sell": [],
+                "prices_buy": [], "plan_modes": [], "grid_import_kwh": [], "grid_export_kwh": []
+            }
 
         binned_battery_soc_state_history = data_helpers.bin_data(battery_soc_state_history, bin_period=bin_period, start_bin_datetime=start_datetime, end_bin_datetime=end_datetime)
         binned_battery_power_state_history = data_helpers.bin_data(battery_power_state_history, bin_period=bin_period, start_bin_datetime=start_datetime, end_bin_datetime=end_datetime)
         binned_load_power_state_history = data_helpers.bin_data(load_power_state_history, bin_period=bin_period, start_bin_datetime=start_datetime, end_bin_datetime=end_datetime)
-        
         binned_solar_power_state_history = data_helpers.bin_data(solar_power_state_history, bin_period=bin_period, start_bin_datetime=start_datetime, end_bin_datetime=end_datetime)
-        
+        binned_grid_power_state_history = data_helpers.bin_data(grid_power_state_history, bin_period=bin_period, start_bin_datetime=start_datetime, end_bin_datetime=end_datetime)
+        binned_grid_import_kwh_state_history = data_helpers.bin_data(grid_import_kwh_state_history, bin_period=bin_period, start_bin_datetime=start_datetime, end_bin_datetime=end_datetime)
+        binned_grid_export_kwh_state_history = data_helpers.bin_data(grid_export_kwh_state_history, bin_period=bin_period, start_bin_datetime=start_datetime, end_bin_datetime=end_datetime)
+
         binned_feed_in_state_history = data_helpers.bin_data(feed_in_state_history, bin_period=bin_period, start_bin_datetime=start_datetime, end_bin_datetime=end_datetime, interpolation_method="step")
-        binned_general_price_state_history = data_helpers.bin_data(general_price_state_history, bin_period=bin_period, start_bin_datetime=start_datetime, end_bin_datetime=end_datetime, interpolation_method="step")# Step Interpolation as prices dont gradually change
+        binned_general_price_state_history = data_helpers.bin_data(general_price_state_history, bin_period=bin_period, start_bin_datetime=start_datetime, end_bin_datetime=end_datetime, interpolation_method="step")
         binned_working_mode_state_history = data_helpers.bin_data(working_mode_state_history, bin_period=bin_period, start_bin_datetime=start_datetime, end_bin_datetime=end_datetime, string_state=True)
 
         binned_battery_soc_kwh_history = [(item.avg_state / 100.0) * self.rated_capacity for item in binned_battery_soc_state_history]
@@ -324,9 +344,12 @@ class GoodWePlant(BasePlant):
             "battery_power": [state.avg_state for state in binned_battery_power_state_history],
             "solar_power": [state.avg_state for state in binned_solar_power_state_history],
             "load_power": [state.avg_state for state in binned_load_power_state_history],
+            "grid_power": [state.avg_state for state in binned_grid_power_state_history],
             "prices_sell": [state.avg_state/100.0 for state in binned_feed_in_state_history], # Converted to dollars from cents
             "prices_buy": [state.avg_state/100.0 for state in binned_general_price_state_history],
             "plan_modes": [state.avg_state for state in binned_working_mode_state_history],
+            "grid_import_kwh": [state.avg_state for state in binned_grid_import_kwh_state_history],
+            "grid_export_kwh": [state.avg_state for state in binned_grid_export_kwh_state_history],
         }
         return output
 

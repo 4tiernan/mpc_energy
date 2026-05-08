@@ -18,7 +18,6 @@ class TeslaAPICharger(EVCharger):
             max_charge_current: float,
 
             power_entity_id: str,
-            three_phase_available: str, # Unused
             three_phase_available_entity_id: str,
 
             charge_current_entity_id: str,

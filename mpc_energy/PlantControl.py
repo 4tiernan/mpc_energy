@@ -535,12 +535,13 @@ class Plant:
         # Debias using optional loads if provided
         if self.optional_loads:
             for load in self.optional_loads:
-                opt_history = load.get_historical_power(start=start, end=end, bin_period=self.time_step_minutes)
-                if opt_history:
-                    logger.debug(f"Debiasing load history using optional load: {load.name}")
-                    for i in range(min(len(binned_load_history), len(opt_history))):
-                        opt_val = opt_history[i].avg_state or 0.0
-                        binned_load_history[i].avg_state = max(binned_load_history[i].avg_state - opt_val, 0.0)
+                if load.debias_load:
+                    opt_history = load.get_historical_power(start=start, end=end, bin_period=self.time_step_minutes)
+                    if opt_history:
+                        logger.debug(f"Debiasing load history using optional load: {load.name}")
+                        for i in range(min(len(binned_load_history), len(opt_history))):
+                            opt_val = opt_history[i].avg_state or 0.0
+                            binned_load_history[i].avg_state = max(binned_load_history[i].avg_state - opt_val, 0.0)
 
         # Split binned history into days
         history_by_day = defaultdict(list)

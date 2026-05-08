@@ -198,9 +198,10 @@ class MPC:
             self.solar_5min[0] = (self.solar_5min[0] + self.historical_data["solar_power"][-1]) / 2 # Avgerage the last 5 minutes of solar with the forecast to make a more realistic value for the current timestep
             self.load_5min[0] = self.historical_data["load_power"][-1]
             for load in self.optional_loads:
-                opt_load_history = load.get_historical_power(hours=0.25)
-                opt_load_recent_avg = opt_load_history[0].avg_state if opt_load_history and len(opt_load_history) > 0 and opt_load_history[0].avg_state is not None else 0.0
-                self.load_5min[0] = self.load_5min[0] - opt_load_recent_avg
+                if(load.debias_load):
+                    opt_load_history = load.get_historical_power(hours=0.25)
+                    opt_load_recent_avg = opt_load_history[0].avg_state if opt_load_history and len(opt_load_history) > 0 and opt_load_history[0].avg_state is not None else 0.0
+                    self.load_5min[0] = self.load_5min[0] - opt_load_recent_avg
             
             # Apply near-term correction to load forecast based on current actual-vs-forecast mismatch.
             # This scales early intervals by the current ratio and linearly ramps back to 100% forecast.

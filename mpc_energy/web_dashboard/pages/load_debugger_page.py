@@ -61,12 +61,13 @@ if st.button("Fetch and Analyze Data"):
 
         if opt_loads:
             for load in opt_loads:
-                opt_history = load.get_historical_power(start=start, end=end, bin_period=bin_size)
-                if opt_history:
-                    for i in range(min(len(debiased_data), len(opt_history))):
-                        opt_val = opt_history[i].avg_state if opt_history[i].avg_state is not None else 0.0
-                        optional_load_data[i] += opt_val
-                        debiased_data[i] = max(debiased_data[i] - opt_val, 0.0)
+                if load.debias_load:
+                    opt_history = load.get_historical_power(start=start, end=end, bin_period=bin_size)
+                    if opt_history:
+                        for i in range(min(len(debiased_data), len(opt_history))):
+                            opt_val = opt_history[i].avg_state if opt_history[i].avg_state is not None else 0.0
+                            optional_load_data[i] += opt_val
+                            debiased_data[i] = max(debiased_data[i] - opt_val, 0.0)
 
         # Reconstruct into Days
         fig = go.Figure()

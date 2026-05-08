@@ -41,7 +41,7 @@ class BasePlant(ABC):
         self.working_mode = None
     
     @abstractmethod
-    def check_for_enabled_entites(self) -> None:
+    def check_for_enabled_entities(self) -> None:
         """Checks to make sure all the entities needed for control are available and enabled, if not it raises an error."""
         pass
 

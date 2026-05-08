@@ -285,7 +285,9 @@ class EVLoad(OptionalLoad):
             "max_charge_current": self.max_charge_current,
             "charge_current_entity_id": self.charge_current_entity_id,
             "charge_enable_entity_id": self.charge_enable_entity_id,
-            
+            "three_phase_available_entity_id": getattr(self.charger, 'three_phase_available_entity_id', None) if self.charger else None,
+            "three_phase_available": getattr(self.charger, 'three_phase_available', None) if self.charger else None,
+            "debias_load": self.debias_load 
         }
 
     @classmethod
@@ -314,5 +316,8 @@ class EVLoad(OptionalLoad):
             max_charge_current=float(item.get("max_charge_current", 0.0) or 0.0),
             charge_current_entity_id=str(item.get("charge_current_entity_id", "")).strip(),
             charge_enable_entity_id=str(item.get("charge_enable_entity_id", "")).strip(),
+            three_phase_available_entity_id=str(item.get("three_phase_available_entity_id", "")).strip(),
+            three_phase_available=bool(item.get("three_phase_available", False)),
+            debias_load=bool(item.get("debias_load", True))
         )
     

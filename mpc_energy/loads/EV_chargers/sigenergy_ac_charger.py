@@ -19,6 +19,7 @@ class SigEnergyACCharger(EVCharger):
 
             power_entity_id: str,
             three_phase_available: bool,
+            three_phase_available_entity_id: str, # unused
 
             charge_current_entity_id: str,
             charge_enable_entity_id: str,

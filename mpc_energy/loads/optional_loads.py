@@ -135,12 +135,8 @@ def save_optional_loads(load_configs: list[dict[str, Any]]) -> None:
 
         if not item.get("name"):
             continue
-
-        load = create_load_instance(item)
-        if load is None:
-            continue
-
-        cleaned.append(load.to_dict())
+        
+        cleaned.append(item)
 
     path = _storage_path()
     os.makedirs(os.path.dirname(path), exist_ok=True)

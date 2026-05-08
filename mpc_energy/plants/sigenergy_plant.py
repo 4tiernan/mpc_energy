@@ -13,7 +13,7 @@ class SigEnergyPlant(BasePlant):
 
         self.get_config(plant_config)
 
-        self.check_for_enabled_entites() # Check to make sure all the required entities are enabled before starting the app to prevent issues later on.
+        self.check_for_enabled_entities() # Check to make sure all the required entities are enabled before starting the app to prevent issues later on.
         
         # Initialize power limits and capacity using configuration overrides where available
         self.rated_capacity = self.get_config_entry_value(self.battery_rated_capacity_entry)
@@ -168,7 +168,7 @@ class SigEnergyPlant(BasePlant):
             logger.info(f"Changing control entities for mode: {working_mode}")
             time.sleep(5) # Allow time for HA to update
     
-    def check_for_enabled_entites(self) -> None:
+    def check_for_enabled_entities(self) -> None:
         """Checks to make sure all the entities needed for control are available and enabled, if not it raises an error."""
         def is_numeric(val):
             try:

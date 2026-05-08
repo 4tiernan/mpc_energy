@@ -34,12 +34,12 @@ def plant_config_page():
 
     current_config = load_config()
 
-    with st.form("plant_settings"):
-        st.subheader("Brand Selection")
-        brands = ["Sigenergy", "Goodwe", "Other"]
-        current_brand = current_config.get("plant_brand", "Sigenergy")
-        plant_brand = st.selectbox("Plant Brand", options=brands, index=brands.index(current_brand) if current_brand in brands else 0)
+    st.subheader("Brand Selection")
+    brands = ["Sigenergy", "Goodwe", "Other"]
+    current_brand = current_config.get("plant_brand", "Sigenergy")
+    plant_brand = st.selectbox("Plant Brand", options=brands, index=brands.index(current_brand) if current_brand in brands else 0)
 
+    with st.form("plant_settings"):
         st.subheader("General Settings")
         col_gen1, col_gen2 = st.columns(2)
         with col_gen1:

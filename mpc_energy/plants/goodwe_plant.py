@@ -6,7 +6,7 @@ from exceptions import HAAPIError, SigenergyConnectionError, MPCEnergyError
 import data_helpers, config_manager
 from ha_api import HomeAssistantAPI
 
-class SigEnergyPlant(BasePlant):
+class GoodWePlant(BasePlant):
     def __init__(self, ha: HomeAssistantAPI, optional_loads: list, plant_config: dict = None):
         super().__init__(ha, optional_loads, plant_config)
 

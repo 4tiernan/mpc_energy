@@ -136,8 +136,12 @@ class GoodWePlant(BasePlant):
         """Set the control limits to the desired values."""
 
         self.set_export_limit_switch()
-        self.ha.set_number(self.ems_power_limit_entity_id, round(float(ems_limit) / self.power_scale_factor, 2))
-        self.ha.set_number(self.export_limiter_entity_id, round(float(export_limit) / self.power_scale_factor, 2))
+        # Scale internal kW values back to HA units (e.g. Watts) before sending
+        ha_ems_limit = round(float(ems_limit) / self.power_scale_factor, 2)
+        ha_export_limit = round(float(export_limit) / self.power_scale_factor, 2)
+
+        self.ha.set_number(self.ems_power_limit_entity_id, ha_ems_limit)
+        self.ha.set_number(self.export_limiter_entity_id, ha_export_limit)
 
         if(control_mode in self.control_mode_options):
             self.ha.set_select(self.ems_control_mode_entity_id, control_mode)
@@ -155,6 +159,15 @@ class GoodWePlant(BasePlant):
         wrong_control_mode = current_control_mode != control_mode
         wrong_ems_limit = abs(current_ems_limit - ems_limit) > 0.05
         wrong_export_limit = abs(current_export_limit - export_limit) > 0.05
+
+        logger.debug(f"Checking control limits for working mode '{working_mode}': | "
+                    f"Current Control Mode: {current_control_mode} (Desired: {control_mode}) | "
+                    f"Current EMS Limit: {current_ems_limit} kW (Desired: {ems_limit} kW) | "
+                    f"Current Export Limit: {current_export_limit} kW (Desired: {export_limit} kW) | "
+                    f"Wrong Control Mode: {wrong_control_mode} | "
+                    f"Wrong EMS Limit: {wrong_ems_limit} | "
+                    f"Wrong Export Limit: {wrong_export_limit}"
+        )
 
         any_limits_wrong = wrong_control_mode or wrong_ems_limit or wrong_export_limit
 

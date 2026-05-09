@@ -133,6 +133,7 @@ class SigEnergyPlant(BasePlant):
 
         self.ensure_remote_ems() # Make sure the EMS is able to be controlled
 
+        # Convert internal kW values to HA native units (W or kW)
         self.ha.set_number(self.battery_discharge_limiter_entity_id, round(discharge / self.power_scale_factor, 2))
         self.ha.set_number(self.battery_charge_limiter_entity_id, round(charge / self.power_scale_factor, 2))
         self.ha.set_number(self.pv_limiter_entity_id, round(pv / self.power_scale_factor, 2))

@@ -348,7 +348,10 @@ def run_controller(price_update=False):
 
             if(selected_controller == "MPC"):
                 mpc.run(price_data)
+            elif(selected_controller == "Safe Mode"):
+                plant.self_consumption()
             else:
+                logger.warning(f"Unknown controller selected: {selected_controller}. Defaulting to safe mode.")
                 plant.self_consumption()
 
             last_control_mode = selected_controller
@@ -368,8 +371,11 @@ def run_controller(price_update=False):
             if(last_control_mode != selected_controller or price_update == True):
                 mpc.run(price_data) # Run the MPC Controller if the price updates (every 5 min) or if it was just selected as the new controller
 
-        else: # Selected Controller must be safe mode
-            plant.self_consumption()
+            elif(selected_controller == "Safe Mode"):
+                plant.self_consumption()
+            else:
+                logger.warning(f"Unknown controller selected: {selected_controller}. Defaulting to safe mode.")
+                plant.self_consumption()
 
         if(last_control_mode != selected_controller and last_control_mode != "" and automatic_control == True):
             logger.warning(f"Controller changed from {last_control_mode} to {selected_controller}")

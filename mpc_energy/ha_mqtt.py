@@ -4,6 +4,7 @@ from ha_mqtt_discoverable import Settings, DeviceInfo
 from ha_mqtt_discoverable.sensors import Select, SelectInfo, SensorInfo, Sensor, NumberInfo, Number, Switch, SwitchInfo
 import time
 import const
+import threading
 import config_manager
 from mpc_logger import logger
 
@@ -27,18 +28,99 @@ def CreateSensor(name, unique_id, unit_of_measurement, state_class="measurement"
 
 class CreateSelectInput():
     def __init__(self, name, unique_id, options):
-        self.state = None
         self.options = options
         self.name = name
         select_info = SelectInfo(name=name, unique_id=uid(unique_id), device=device_info, options=options, device_class=None,retain=True)
         settings = Settings(mqtt=mqtt_settings, entity=select_info)
+        
+        # Initialize self.state with a default (first option)
+        # This will be used if no retained message is found or if it's invalid
+        self.state = options[0]
+
+        # Create the Select entity, which also sets up its MQTT client and subscription
+        # The command_callback will handle future commands from HA
         self.entity = Select(settings, self.callback_function)
+        
+        # Attempt to read the retained state from the MQTT broker for this entity's state_topic
+        # This needs to happen *after* self.entity is initialized, as it provides state_topic
+        retained_state = self._get_retained_state_for_select(self.entity.state_topic, self.options, self.state)
+        
+        # Update internal state based on retained message, if found and valid
+        if retained_state in self.options:
+            self.state = retained_state
+        else:
+            # Log a warning if the retained state is invalid, but proceed with the default
+            logger.warning(f"Retained state '{retained_state}' for select entity '{self.name}' is not a valid option. Defaulting to '{self.state}'.")
+
+        # Publish the determined initial state to HA. This ensures HA's displayed state
+        # matches the app's internal state, and updates any invalid retained messages.
         self.entity.select_option(options[0])
         self.entity.write_config()
         
+    def _get_retained_state_for_select(self, state_topic, valid_options, default_value, timeout=2):
+        """
+        Connects a temporary MQTT client to read the retained message on a given state_topic.
+        Returns the decoded payload if found and valid, otherwise the default_value.
+        """
+        retained_payload = {"value": default_value}
+        connected_flag = threading.Event()
+        message_received_flag = threading.Event()
+        
+        temp_client = mqtt.Client(client_id=f"temp_reader_select_{time.time_ns()}")
+        if mqtt_settings.username and mqtt_settings.password:
+            temp_client.username_pw_set(mqtt_settings.username, mqtt_settings.password)
+
+        def on_message_temp(client, userdata, msg):
+            retained_payload["value"] = msg.payload.decode()
+            message_received_flag.set()
+            client.loop_stop() # Stop the loop after receiving the message
+            client.disconnect()
+
+        def on_connect_temp(client, userdata, flags, rc, properties=None):
+            if rc == 0:
+                client.subscribe(state_topic)
+                connected_flag.set()
+            else:
+                logger.error(f"Failed to connect temporary MQTT client (rc: {rc}) to read retained state for {state_topic}.")
+                client.loop_stop()
+                client.disconnect()
+
+        temp_client.on_connect = on_connect_temp
+        temp_client.on_message = on_message_temp
+
+        try:
+            temp_client.connect(mqtt_settings.host, mqtt_settings.port, keepalive=timeout)
+            temp_client.loop_start() # Start a non-blocking loop
+            
+            # Wait for connection
+            if not connected_flag.wait(timeout=timeout):
+                logger.warning(f"Temporary MQTT client failed to connect within {timeout}s for {state_topic}.")
+                return default_value # Return default if not connected
+            
+            # Wait for message
+            if not message_received_flag.wait(timeout=timeout):
+                logger.warning(f"No retained message received within {timeout}s for {state_topic}. Using default.")
+            
+        except Exception as e:
+            logger.error(f"Error reading retained state for {state_topic}: {e}")
+        finally:
+            # Ensure client is stopped and disconnected
+            if temp_client.is_connected():
+                temp_client.disconnect()
+            temp_client.loop_stop() # Ensure loop is stopped even if message not received
+            
+        return retained_payload["value"]
+
     def callback_function(self, client: Client, user_data, message: MQTTMessage):
-        self.state = message.payload.decode()
-        self.entity.select_option(self.state)
+        # This callback is for commands from HA to change the select option
+        new_state = message.payload.decode()
+        if new_state in self.options:
+            self.state = new_state
+            self.entity.select_option(self.state) # Acknowledge the command by publishing the new state
+        else:
+            logger.warning(f"Received invalid command '{new_state}' for select entity '{self.name}'. Valid options: {self.options}. Ignoring command.")
+            # Optionally, publish the current valid state back to HA to correct its display
+            self.entity.select_option(self.state)
     
     def publish_command(self, command):
         command_topic = getattr(self.entity, "_command_topic", None)

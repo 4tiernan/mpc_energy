@@ -195,7 +195,7 @@ class MPC:
         # Inject the current real load and solar values into the sim
         if(inject_real_values):
             # Inject the avg of the last 5 minutes of solar and load power
-            self.solar_5min[0] = (self.solar_5min[0] + self.historical_data["solar_power"][-1]) / 2 # Avgerage the last 5 minutes of solar with the forecast to make a more realistic value for the current timestep
+            self.solar_5min[0] = (self.solar_5min[0] + (self.historical_data["solar_power"][-1] if self.historical_data["solar_power"] else self.solar_5min[0])) / 2 # Avgerage the last 5 minutes of solar with the forecast to make a more realistic value for the current timestep
             self.load_5min[0] = self.historical_data["load_power"][-1]
             for load in self.optional_loads:
                 if(load.debias_load):

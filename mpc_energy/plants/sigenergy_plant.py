@@ -59,6 +59,7 @@ class SigEnergyPlant(BasePlant):
         self.grid_power_entity_id = plant_config.get("grid_power_entity_id")
         self.load_power_entity_id = plant_config.get("load_power_entity_id")
         self.battery_power_sign_convention = plant_config.get("battery_power_sign_convention")
+        self.grid_power_sign_convention = plant_config.get("grid_power_sign_convention")
         
         self.ha_ems_control_switch_entity_id = plant_config.get("ha_ems_control_switch_entity_id")
         self.ems_control_mode_entity_id = plant_config.get("ems_control_mode_entity_id")
@@ -326,6 +327,13 @@ class SigEnergyPlant(BasePlant):
         load_power_state_history = self.ha.get_history(self.load_power_entity_id, start_time=start_datetime, end_time=end_datetime)
 
         grid_power_state_history = self.ha.get_history(self.grid_power_entity_id, start_time=start_datetime, end_time=end_datetime)
+        if(self.grid_power_sign_convention == "- Import, + Export"):
+            for state in grid_power_state_history:
+                try:
+                    state.state = -float(state.state)
+                except:
+                    pass
+
         grid_import_kwh_state_history = self.ha.get_history(self.plant_daily_import_kwh_entity_id, start_time=start_datetime, end_time=end_datetime)
         grid_export_kwh_state_history = self.ha.get_history(self.plant_daily_export_kwh_entity_id, start_time=start_datetime, end_time=end_datetime)
 

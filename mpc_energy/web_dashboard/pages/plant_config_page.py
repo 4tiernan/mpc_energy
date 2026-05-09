@@ -48,7 +48,8 @@ brand_defaults = {
         "battery_charge_limiter_entity_id": "number.sigen_plant_ess_max_charging_limit",
         "export_limiter_entity_id": "number.sigen_plant_grid_export_limitation",
         "import_limiter_entity_id": "number.sigen_plant_grid_import_limitation",
-        "battery_power_sign_convention": "- Charge, + Discharge"
+        "battery_power_sign_convention": "- Charge, + Discharge",
+        "grid_power_sign_convention": "+ Import, - Export"
     },
     "Goodwe": {
         "estimated_daily_load_energy_consumption": 24.0,
@@ -62,6 +63,7 @@ brand_defaults = {
         "load_power_entity_id": "sensor.goodwe_house_consumption",
         "solar_power_entity_id": "sensor.goodwe_pv_power",
         "battery_power_entity_id": "sensor.goodwe_battery_power",
+        "grid_power_entity_id": "sensor.goodwe_active_power",
         "battery_soc_entity_id": "sensor.goodwe_battery_state_of_charge",
         "backup_soc_entry": "3",
         "charge_cutoff_soc_entry": "100",
@@ -70,7 +72,8 @@ brand_defaults = {
         "ems_power_limit_entity_id": "number.goodwe_ems_power_limit",
         "grid_export_limit_switch_entity_id": "switch.goodwe_grid_export_limit_switch",
         "export_limiter_entity_id": "number.goodwe_grid_export_limit",
-        "battery_power_sign_convention": "- Charge, + Discharge"
+        "battery_power_sign_convention": "- Charge, + Discharge",
+        "grid_power_sign_convention": "+ Import, - Export"
     },
     "Other": {
         "estimated_daily_load_energy_consumption": 24.0,
@@ -81,7 +84,8 @@ brand_defaults = {
         "battery_max_discharge_power_limit_entry": "",
         "battery_max_charge_power_limit_entry": "",
         "inverter_max_power_limit_entry": "",
-        "battery_power_sign_convention": "- Charge, + Discharge"
+        "battery_power_sign_convention": "- Charge, + Discharge",
+        "grid_power_sign_convention": "+ Import, - Export"
     }
 }
 
@@ -141,12 +145,16 @@ def plant_config_page():
             bat_p = st.text_input("Battery Power Entity", value=get_val("battery_power_entity_id"))
         with col4:
             grid_p = inv_p = ""
-            if plant_brand == "Sigenergy":
+            if plant_brand in ["Sigenergy", "Goodwe"]:
                 grid_p = st.text_input("Grid Power Entity", value=get_val("grid_power_entity_id"))
+            if plant_brand == "Sigenergy":
                 inv_p = st.text_input("Inverter Power Entity", value=get_val("inverter_power_entity_id"))
             sign_options = ["- Charge, + Discharge", "+ Charge, - Discharge"]
             current_sign = get_val("battery_power_sign_convention", "- Charge, + Discharge")
             sign = st.selectbox("Battery Power Sign Convention", options=sign_options, index=sign_options.index(current_sign) if current_sign in sign_options else 0)
+            grid_sign_options = ["+ Import, - Export", "- Import, + Export"]
+            current_grid_sign = get_val("grid_power_sign_convention", "+ Import, - Export")
+            grid_sign = st.selectbox("Grid Power Sign Convention", options=grid_sign_options, index=grid_sign_options.index(current_grid_sign) if current_grid_sign in grid_sign_options else 0)
 
         st.subheader("Hardware Sensors (Energy & SOC)")
         col5, col6 = st.columns(2)
@@ -204,7 +212,7 @@ def plant_config_page():
                 "solar_power_entity_id": solar_p,
                 "battery_power_entity_id": bat_p,
                 "inverter_power_entity_id": inv_p if plant_brand == "Sigenergy" else "",
-                "grid_power_entity_id": grid_p if plant_brand == "Sigenergy" else "",
+                "grid_power_entity_id": grid_p,
                 "battery_soc_entity_id": bat_soc,
                 "backup_soc_entry": backup_soc,
                 "charge_cutoff_soc_entry": cutoff_soc,
@@ -212,6 +220,7 @@ def plant_config_page():
                 "battery_stored_energy_entity_id": bat_stored if plant_brand == "Sigenergy" else "",
                 "battery_rated_capacity_entry": bat_cap,
                 "battery_power_sign_convention": sign,
+                "grid_power_sign_convention": grid_sign,
                 "ha_ems_control_switch_entity_id": ems_switch if plant_brand == "Sigenergy" else "",
                 "ems_control_mode_entity_id": ems_mode,
                 "battery_discharge_limiter_entity_id": dis_limiter if plant_brand == "Sigenergy" else "",

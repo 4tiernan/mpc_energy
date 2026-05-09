@@ -172,33 +172,37 @@ class GoodWePlant(BasePlant):
             except (ValueError, TypeError):
                 return False
 
-        entity_ids = [
-            self.ems_control_mode_entity_id,
-            self.battery_soc_entity_id,
-            self.battery_power_entity_id,
-            self.solar_power_entity_id,
-            self.load_power_entity_id,
-            self.grid_power_entity_id,
-            self.plant_daily_import_kwh_entity_id,
-            self.plant_daily_export_kwh_entity_id,
-            self.grid_export_limit_switch_entity_id,
-            self.export_limiter_entity_id,
-            self.ems_power_limit_entity_id
-        ]
+        # Map human-readable names to the configured entity IDs
+        checks = {
+            "EMS Control Mode": self.ems_control_mode_entity_id,
+            "Battery SOC": self.battery_soc_entity_id,
+            "Battery Power": self.battery_power_entity_id,
+            "Solar Power": self.solar_power_entity_id,
+            "Load Power": self.load_power_entity_id,
+            "Grid Power": self.grid_power_entity_id,
+            "Daily Import kWh": self.plant_daily_import_kwh_entity_id,
+            "Daily Export kWh": self.plant_daily_export_kwh_entity_id,
+            "Grid Export Switch": self.grid_export_limit_switch_entity_id,
+            "Export Limiter": self.export_limiter_entity_id,
+            "EMS Power Limit": self.ems_power_limit_entity_id
+        }
 
-        unavailable_ids = []
-        for entity_id in entity_ids:
-            if is_numeric(entity_id):
+        errors = []
+        for name, eid in checks.items():
+            if not eid:
+                errors.append(f"- {name}: Configuration is empty")
+                continue
+            if is_numeric(eid):
                 continue # If the entity ID is actually a numeric override value, skip the check to see if the entity exists in HA as it won't.
             try:
-                self.get_safe_state(entity_id)
-            except:
-                unavailable_ids.append(f"{entity_id}\n")
+                self.get_safe_state(eid)
+            except Exception:
+                errors.append(f"- {name}: Entity '{eid}' is unavailable or does not exist")
 
-        if(len(unavailable_ids) > 0):
-            logger.error(f"The required entities are not enabled or don't exist. Please check they are enabled and spelt correctly:")
-            for id in unavailable_ids:
-                logger.error(id)
+        if errors:
+            logger.error("The following required entities are missing or unavailable in Home Assistant:")
+            for err in errors:
+                logger.error(err)
             raise MPCEnergyError("One or more required Home Assistant entities are unavailable.")
 
     def system_curtailing(self, derate_allowance_kw=1.0, tolerance_kw=0.1) -> dict:

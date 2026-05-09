@@ -73,7 +73,7 @@ brand_defaults = {
         "grid_export_limit_switch_entity_id": "switch.goodwe_grid_export_limit_switch",
         "export_limiter_entity_id": "number.goodwe_grid_export_limit",
         "battery_power_sign_convention": "- Charge, + Discharge",
-        "grid_power_sign_convention": "+ Import, - Export"
+        "grid_power_sign_convention": "- Import, + Export"
     },
     "Other": {
         "estimated_daily_load_energy_consumption": 24.0,

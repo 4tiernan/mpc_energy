@@ -178,39 +178,50 @@ class SigEnergyPlant(BasePlant):
             except (ValueError, TypeError):
                 return False
 
-        entity_ids = [
-            self.ha_ems_control_switch_entity_id,
-            self.battery_soc_entity_id,
-            self.backup_soc_entry,
-            self.charge_cutoff_soc_entry,
-            self.battery_kwh_till_full_entity_id,
-            self.battery_stored_energy_entity_id,
-            self.battery_rated_capacity_entry,
-            self.battery_max_discharge_power_limit_entry,
-            self.battery_max_charge_power_limit_entry,
-            self.pv_max_power_limit_entry,
-            self.inverter_max_power_limit_entry,
-            self.export_max_power_limit_entry,
-            self.import_max_power_limit_entry
-        ]
+        # Map human-readable names to the configured entity IDs
+        checks = {
+            "EMS Control Switch": self.ha_ems_control_switch_entity_id,
+            "Battery SOC": self.battery_soc_entity_id,
+            "Backup SOC": self.backup_soc_entry,
+            "Charge Cutoff SOC": self.charge_cutoff_soc_entry,
+            "Battery kWh Till Full": self.battery_kwh_till_full_entity_id,
+            "Battery Stored Energy": self.battery_stored_energy_entity_id,
+            "Battery Power": self.battery_power_entity_id,
+            "Solar Power": self.solar_power_entity_id,
+            "Inverter Power": self.inverter_power_entity_id,
+            "Grid Power": self.grid_power_entity_id,
+            "Load Power": self.load_power_entity_id,
+            "Daily Import kWh": self.plant_daily_import_kwh_entity_id,
+            "Daily Export kWh": self.plant_daily_export_kwh_entity_id,
+            "Battery Rated Capacity": self.battery_rated_capacity_entry,
+            "Max Discharge Power": self.battery_max_discharge_power_limit_entry,
+            "Max Charge Power": self.battery_max_charge_power_limit_entry,
+            "PV Max Power": self.pv_max_power_limit_entry,
+            "Inverter Max Power": self.inverter_max_power_limit_entry,
+            "Export Max Power": self.export_max_power_limit_entry,
+            "Import Max Power": self.import_max_power_limit_entry
+        }
 
         # Only check for the EMS control mode if the HA EMS Control switch is on as otherwise the mode controller is disabled.
         if(self.get_safe_state(self.ha_ems_control_switch_entity_id)['state'] == "on"):
-            entity_ids.append(self.ems_control_mode_entity_id)
+            checks["EMS Control Mode"] = self.ems_control_mode_entity_id
 
-        unavailable_ids = []
-        for entity_id in entity_ids:
-            if is_numeric(entity_id):
+        errors = []
+        for name, eid in checks.items():
+            if not eid:
+                errors.append(f"- {name}: Configuration is empty")
+                continue
+            if is_numeric(eid):
                 continue # If the entity ID is actually a numeric override value, skip the check to see if the entity exists in HA as it won't.
             try:
-                self.get_safe_state(entity_id)
-            except:
-                unavailable_ids.append(f"{entity_id}\n")
+                self.get_safe_state(eid)
+            except Exception:
+                errors.append(f"- {name}: Entity '{eid}' is unavailable or does not exist")
 
-        if(len(unavailable_ids) > 0):
-            logger.error(f"The required entities are not enabled or don't exist. Please check they are enabled and spelt correctly:")
-            for id in unavailable_ids:
-                logger.error(id)
+        if errors:
+            logger.error("The following required entities are missing or unavailable in Home Assistant:")
+            for err in errors:
+                logger.error(err)
             raise MPCEnergyError("One or more required Home Assistant entities are unavailable.")
 
     def system_curtailing(self, derate_allowance_kw=1.0, tolerance_kw=0.1) -> dict:

@@ -300,19 +300,22 @@ class BasePlant(ABC):
                 except:
                     pass
 
-        # Check to see if the requested amount of data was recieved, use the configured default if not
-        if(not self.validate_returned_data_timedelta(data=load_power_history, requested_start=start, requested_end=end)):
-            configured_avg_load = config_manager.estimated_daily_load_energy_consumption
-            logger.warning(f"Using default load energy of {configured_avg_load} kWh per day.")
+        def get_default_avg_day():
+            configured_avg_load = float(config_manager.estimated_daily_load_energy_consumption)
+            logger.warning(f"Using default constant load power of {round(configured_avg_load/24.0, 2)} kW (based on configured daily energy of {configured_avg_load} kWh).")
 
-            # Create a linearly spaced array climbing from 0 to the total load over a day
+            # Create a constant load power based on the daily average energy
+            # Power (kW) = Energy (kWh) / 24 hours
+            constant_load_kw = round(configured_avg_load / 24.0, 2)
             avg_day = []
             for i in range(int(24 * 60 / self.time_step_minutes)):
                 t = (datetime.datetime.min + datetime.timedelta(minutes=i * self.time_step_minutes)).time()
-                val = (i / (24 * 60 / self.time_step_minutes)) * configured_avg_load
-                avg_day.append(data_helpers.BinnedStateClass(avg_state=round(val, 2), states=[], time=t))
+                avg_day.append(data_helpers.BinnedStateClass(avg_state=constant_load_kw, states=[], time=t))
+            return avg_day
 
-            return avg_day # Return the avg day with the default load profile
+        # Check to see if the requested amount of data was recieved, use the configured default if not
+        if(not self.validate_returned_data_timedelta(data=load_power_history, requested_start=start, requested_end=end)):
+            return get_default_avg_day()
         
 
         # Bin whole history first
@@ -353,7 +356,8 @@ class BasePlant(ABC):
                 logger.warning(f"Skipping day {day} due to binning error: {e}")
 
         if not per_day_binned:
-            raise PlantControlError("No valid daily data after binning.")
+            logger.warning("No valid daily data found after binning load history.")
+            return get_default_avg_day()
         
 
         # --- Build average day ---

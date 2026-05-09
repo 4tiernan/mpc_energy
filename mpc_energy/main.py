@@ -351,7 +351,7 @@ def run_controller(price_update=False):
             elif(selected_controller == "Safe Mode"):
                 plant.self_consumption()
             else:
-                logger.warning(f"Unknown controller selected: {selected_controller}. Defaulting to safe mode.")
+                logger.warning(f"Unknown controller selected: '{selected_controller}'. Defaulting to safe mode.")
                 plant.self_consumption()
 
             last_control_mode = selected_controller
@@ -374,7 +374,7 @@ def run_controller(price_update=False):
             elif(selected_controller == "Safe Mode"):
                 plant.self_consumption()
             else:
-                logger.warning(f"Unknown controller selected: {selected_controller}. Defaulting to safe mode.")
+                logger.warning(f"Unknown controller selected: '{selected_controller}'. Defaulting to safe mode.")
                 plant.self_consumption()
 
         if(last_control_mode != selected_controller and last_control_mode != "" and automatic_control == True):

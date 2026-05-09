@@ -49,7 +49,8 @@ brand_defaults = {
         "export_limiter_entity_id": "number.sigen_plant_grid_export_limitation",
         "import_limiter_entity_id": "number.sigen_plant_grid_import_limitation",
         "battery_power_sign_convention": "- Charge, + Discharge",
-        "grid_power_sign_convention": "+ Import, - Export"
+        "grid_power_sign_convention": "+ Import, - Export",
+        "power_unit_scale": "kW"
     },
     "Goodwe": {
         "estimated_daily_load_energy_consumption": 24.0,
@@ -73,7 +74,8 @@ brand_defaults = {
         "grid_export_limit_switch_entity_id": "switch.goodwe_grid_export_limit_switch",
         "export_limiter_entity_id": "number.goodwe_grid_export_limit",
         "battery_power_sign_convention": "- Charge, + Discharge",
-        "grid_power_sign_convention": "- Import, + Export"
+        "grid_power_sign_convention": "- Import, + Export",
+        "power_unit_scale": "W"
     },
     "Other": {
         "estimated_daily_load_energy_consumption": 24.0,
@@ -85,7 +87,8 @@ brand_defaults = {
         "battery_max_charge_power_limit_entry": "",
         "inverter_max_power_limit_entry": "",
         "battery_power_sign_convention": "- Charge, + Discharge",
-        "grid_power_sign_convention": "+ Import, - Export"
+        "grid_power_sign_convention": "+ Import, - Export",
+        "power_unit_scale": "kW"
     }
 }
 
@@ -149,6 +152,11 @@ def plant_config_page():
                 grid_p = st.text_input("Grid Power Entity", value=get_val("grid_power_entity_id"))
             if plant_brand == "Sigenergy":
                 inv_p = st.text_input("Inverter Power Entity", value=get_val("inverter_power_entity_id"))
+            
+            power_scale_options = ["kW", "W"]
+            current_scale = get_val("power_unit_scale", "kW")
+            power_scale = st.selectbox("Power Sensor Units", options=power_scale_options, index=power_scale_options.index(current_scale) if current_scale in power_scale_options else 0)
+
             sign_options = ["- Charge, + Discharge", "+ Charge, - Discharge"]
             current_sign = get_val("battery_power_sign_convention", "- Charge, + Discharge")
             sign = st.selectbox("Battery Power Sign Convention", options=sign_options, index=sign_options.index(current_sign) if current_sign in sign_options else 0)
@@ -220,6 +228,7 @@ def plant_config_page():
                 "battery_stored_energy_entity_id": bat_stored if plant_brand == "Sigenergy" else "",
                 "battery_rated_capacity_entry": bat_cap,
                 "battery_power_sign_convention": sign,
+                "power_unit_scale": power_scale,
                 "grid_power_sign_convention": grid_sign,
                 "ha_ems_control_switch_entity_id": ems_switch if plant_brand == "Sigenergy" else "",
                 "ems_control_mode_entity_id": ems_mode,

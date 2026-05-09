@@ -39,6 +39,9 @@ class BasePlant(ABC):
         self.history_since_midnight = None
         
         self.working_mode = None
+
+        self.power_unit_scale = self.plant_config.get("power_unit_scale", "kW")
+        self.power_scale_factor = 0.001 if self.power_unit_scale == "W" else 1.0
     
     @abstractmethod
     def check_for_enabled_entities(self) -> None:
@@ -270,6 +273,13 @@ class BasePlant(ABC):
         end = datetime.datetime.combine(end_date, datetime.time.max, tzinfo=self.local_tz)
 
         load_power_history = self.ha.get_history(self.load_power_entity_id, start_time=start, end_time=end)
+        # Apply scaling to the raw history data before binning
+        if self.power_scale_factor != 1.0:
+            for state in load_power_history:
+                try:
+                    state.state = float(state.state) * self.power_scale_factor
+                except:
+                    pass
 
         # Check to see if the requested amount of data was recieved, use the configured default if not
         if(not self.validate_returned_data_timedelta(data=load_power_history, requested_start=start, requested_end=end)):

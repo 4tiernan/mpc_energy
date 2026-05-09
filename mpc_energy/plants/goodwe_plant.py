@@ -50,8 +50,8 @@ class GoodWePlant(BasePlant):
                     f"Max Inverter: {self.max_inverter_power} kW | "
                     f"Max Export: {self.max_export_power} kW | "
                     f"Max Import: {self.max_import_power} kW | "
-                    f"Backup SOC: {self.backup_soc_entry} kWh"
-                    f"Charge Cutoff SOC: {self.charge_cutoff_soc_entry}%"
+                    f"Backup SOC: {self.get_config_entry_value(self.backup_soc_entry)}% | "
+                    f"Charge Cutoff SOC: {self.get_config_entry_value(self.charge_cutoff_soc_entry)}%"
                 )
 
     def get_config(self, plant_config: dict) -> None:
@@ -98,7 +98,7 @@ class GoodWePlant(BasePlant):
 
         self.kwh_till_full = self.rated_capacity - self.stored_available_kwh - self.charge_unusable_kwh
 
-        self.battery_kw = self.get_safe_numeric_state(self.battery_power_entity_id)
+        self.battery_kw = self.get_safe_numeric_state(self.battery_power_entity_id) * self.power_scale_factor
         if(self.battery_power_sign_convention == "+ Charge, - Discharge"): # If battery power is the wrong way around, flip it
             self.battery_kw = -self.battery_kw
         elif(self.battery_power_sign_convention == "- Charge, + Discharge"):
@@ -109,8 +109,8 @@ class GoodWePlant(BasePlant):
         #   +kW = discharging (battery supplying power)
         #   -kW = charging (battery absorbing power)
 
-        self.solar_kw = self.get_safe_numeric_state(self.solar_power_entity_id)
-        self.grid_power = self.get_safe_numeric_state(self.grid_power_entity_id)
+        self.solar_kw = self.get_safe_numeric_state(self.solar_power_entity_id) * self.power_scale_factor
+        self.grid_power = self.get_safe_numeric_state(self.grid_power_entity_id) * self.power_scale_factor
         if(self.grid_power_sign_convention == "- Import, + Export"):
             self.grid_power = -self.grid_power
         # Internal grid power convention (App expects):
@@ -118,7 +118,7 @@ class GoodWePlant(BasePlant):
         #   -kW = exporting
 
         self.solar_kw_remaining_today = self.get_safe_numeric_state(config_manager.solcast_solar_kwh_remaining_today_entity_id)
-        self.load_power = self.get_safe_numeric_state(self.load_power_entity_id)
+        self.load_power = self.get_safe_numeric_state(self.load_power_entity_id) * self.power_scale_factor
 
         self.avg_daily_load = sum(bin.avg_state*(self.time_step_minutes/60) for bin in self.get_load_avg(days_ago=self.load_avg_days))
         
@@ -136,8 +136,8 @@ class GoodWePlant(BasePlant):
         """Set the control limits to the desired values."""
 
         self.set_export_limit_switch()
-        self.ha.set_number(self.ems_power_limit_entity_id, ems_limit)
-        self.ha.set_number(self.export_limiter_entity_id, export_limit)
+        self.ha.set_number(self.ems_power_limit_entity_id, round(float(ems_limit), 2))
+        self.ha.set_number(self.export_limiter_entity_id, round(float(export_limit), 2))
 
         if(control_mode in self.control_mode_options):
             self.ha.set_select(self.ems_control_mode_entity_id, control_mode)
@@ -153,8 +153,8 @@ class GoodWePlant(BasePlant):
         
 
         wrong_control_mode = current_control_mode != control_mode
-        wrong_ems_limit = current_ems_limit != ems_limit
-        wrong_export_limit = current_export_limit != export_limit
+        wrong_ems_limit = abs(current_ems_limit - ems_limit) > 0.05
+        wrong_export_limit = abs(current_export_limit - export_limit) > 0.05
 
         any_limits_wrong = wrong_control_mode or wrong_ems_limit or wrong_export_limit
 
@@ -302,25 +302,41 @@ class GoodWePlant(BasePlant):
 
         battery_soc_state_history = self.ha.get_history(self.battery_soc_entity_id, start_time=start_datetime, end_time=end_datetime)
         battery_power_state_history = self.ha.get_history(self.battery_power_entity_id, start_time=start_datetime, end_time=end_datetime)
-        if(self.battery_power_sign_convention == "+ Charge, - Discharge"):
-            for state in battery_power_state_history:
-                try:
-                    state.state = -float(state.state)
-                except:
-                    pass
+        for state in battery_power_state_history:
+            try:
+                val = float(state.state) * self.power_scale_factor
+                if(self.battery_power_sign_convention == "+ Charge, - Discharge"):
+                    val = -val
+                state.state = val
+            except:
+                pass
         # Internal battery power convention ^^^^^^^:
         #   +kW = discharging (battery supplying power)
         #   -kW = charging (battery absorbing power)
 
         solar_power_state_history = self.ha.get_history(self.solar_power_entity_id, start_time=start_datetime, end_time=end_datetime)
+        for state in solar_power_state_history:
+            try:
+                state.state = float(state.state) * self.power_scale_factor
+            except:
+                pass
+
         load_power_state_history = self.ha.get_history(self.load_power_entity_id, start_time=start_datetime, end_time=end_datetime)
+        for state in load_power_state_history:
+            try:
+                state.state = float(state.state) * self.power_scale_factor
+            except:
+                pass
+
         grid_power_state_history = self.ha.get_history(self.grid_power_entity_id, start_time=start_datetime, end_time=end_datetime)
-        if(self.grid_power_sign_convention == "- Import, + Export"):
-            for state in grid_power_state_history:
-                try:
-                    state.state = -float(state.state)
-                except:
-                    pass
+        for state in grid_power_state_history:
+            try:
+                val = float(state.state) * self.power_scale_factor
+                if(self.grid_power_sign_convention == "- Import, + Export"):
+                    val = -val
+                state.state = val
+            except:
+                pass
 
         grid_import_kwh_state_history = self.ha.get_history(self.plant_daily_import_kwh_entity_id, start_time=start_datetime, end_time=end_datetime)
         grid_export_kwh_state_history = self.ha.get_history(self.plant_daily_export_kwh_entity_id, start_time=start_datetime, end_time=end_datetime)

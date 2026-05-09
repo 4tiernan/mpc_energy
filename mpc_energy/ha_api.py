@@ -97,7 +97,7 @@ class HomeAssistantAPI:
                         response_text = e.response.text
 
                     raise HAAPIError(
-                        f"HA service call '{service_path}' failed for entity '{entity_id}'"
+                        f"HA call url: '{url}' failed for entity '{entity_id}'"
                         f" with status '{status_code}'. Error details: '{str(e)}'"
                         f" Response body: '{response_text}'"
                     )

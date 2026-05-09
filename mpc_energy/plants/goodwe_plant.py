@@ -403,7 +403,7 @@ class GoodWePlant(BasePlant):
         self.working_mode = self.ControlMode.DISPATCH
         self.check_control_limits(
             working_mode=self.working_mode,
-            control_mode="Sell Power",
+            control_mode="sell_power",
             ems_limit=self.max_inverter_power,
             export_limit=grid_export_limit
         )
@@ -412,7 +412,7 @@ class GoodWePlant(BasePlant):
         self.working_mode = self.ControlMode.EXPORT_ALL_SOLAR
         self.check_control_limits(
             working_mode=self.working_mode,
-            control_mode="Discharge PV",
+            control_mode="discharge_pv",
             ems_limit=0, # Battery Discharge Power
             export_limit=self.max_export_power
         )
@@ -426,7 +426,7 @@ class GoodWePlant(BasePlant):
         self.working_mode = self.ControlMode.EXPORT_EXCESS_SOLAR
         self.check_control_limits(
             working_mode=self.working_mode,
-            control_mode="Auto",
+            control_mode="auto",
             ems_limit=0, 
             export_limit=self.max_export_power
         )
@@ -435,7 +435,7 @@ class GoodWePlant(BasePlant):
         self.working_mode = self.ControlMode.SOLAR_TO_LOAD
         self.check_control_limits(
             working_mode=self.working_mode,
-            control_mode="Auto",
+            control_mode="auto",
             ems_limit=0, 
             export_limit=self.max_export_power
         )
@@ -459,7 +459,7 @@ class GoodWePlant(BasePlant):
         self.working_mode = self.ControlMode.GRID_IMPORT
         self.check_control_limits(
             working_mode=self.working_mode,
-            control_mode="Import AC",
+            control_mode="import_ac",
             ems_limit=battery_charge_limit, # Battery Charge Power
             export_limit=self.max_export_power
         )
@@ -471,7 +471,7 @@ class GoodWePlant(BasePlant):
         self.working_mode = self.ControlMode.SELF_CONSUMPTION
         self.check_control_limits(
             working_mode=self.working_mode,
-            control_mode="Auto",
+            control_mode="auto",
             ems_limit=0,
             export_limit=self.max_export_power
         )

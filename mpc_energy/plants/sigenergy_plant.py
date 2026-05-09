@@ -44,7 +44,7 @@ class SigEnergyPlant(BasePlant):
                     f"Max Inverter: {self.max_inverter_power} kW | "
                     f"Max Export: {self.max_export_power} kW | "
                     f"Max Import: {self.max_import_power} kW | "
-                    f"Backup Buffer: {self.kwh_backup_buffer} kWh"
+                    f"Backup Buffer: {self.backup_buffer_kwh} kWh"
                 )
         
     def get_config(self, plant_config: dict) -> None:
@@ -87,9 +87,9 @@ class SigEnergyPlant(BasePlant):
     def update_data(self) -> None:
         """Update the plant's data by fetching the latest states from Home Assistant."""
         self.battery_soc_percent = self.get_safe_numeric_state(self.battery_soc_entity_id)
-        self.kwh_backup_buffer = (self.get_config_entry_value(self.backup_soc_entry)/100.0) * self.rated_capacity
+        self.backup_buffer_kwh = (self.get_config_entry_value(self.backup_soc_entry)/100.0) * self.rated_capacity
         self.kwh_stored_energy = self.get_safe_numeric_state(self.battery_stored_energy_entity_id)
-        self.kwh_stored_available = self.kwh_stored_energy - self.kwh_backup_buffer
+        self.kwh_stored_available = self.kwh_stored_energy - self.backup_buffer_kwh
         self.kwh_charge_unusable = (1-(self.get_config_entry_value(self.charge_cutoff_soc_entry)/100.0)) * self.rated_capacity # kWh of buffer to 100% IE the charge limit 
         self.kwh_till_full = self.get_safe_numeric_state(self.battery_kwh_till_full_entity_id) - self.kwh_charge_unusable
         self.battery_kw = self.get_safe_power_state(self.battery_power_entity_id)

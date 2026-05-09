@@ -143,6 +143,16 @@ class HomeAssistantAPI:
             logger.warning(f"Unable to get boolean state for '{entity_id}' Exception '{str(e)}'. Returning default value: "+str(default))
             return default
 
+    def get_select_options(self, entity_id: str) -> list[str]:
+        """Fetches the list of available options for a select or input_select entity."""
+        state_payload = self.get_state(entity_id)
+        if isinstance(state_payload, dict):
+            attributes = state_payload.get("attributes", {})
+            options = attributes.get("options", [])
+            if isinstance(options, list):
+                return options
+        return []
+
     def call_service(self, domain, service, data):
         url = f"{self.base_url}/api/services/{domain}/{service}"
         return self.ha_request(url=url, data=data, method='post')

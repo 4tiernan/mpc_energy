@@ -25,18 +25,18 @@ class GoodWePlant(BasePlant):
 
         
         self.control_mode_options = [
-            "Auto",
-            "Charge PV",
-            "Discharge PV",
-            "Import AC",
-            "Export AC",
-            "Conserve",
-            "Off-grid",
-            "Battery Standby",
-            "Buy Power",
-            "Sell Power",
-            "Charge Battery",
-            "Discharge Battery"
+            "auto",
+            "charge_pv",
+            "discharge_pv",
+            "import_ac",
+            "export_ac",
+            "conserve",
+            "off_grid",
+            "battery_standby",
+            "buy_power",
+            "sell_power",
+            "charge_battery",
+            "discharge_battery"
         ]
 
         self.update_data()
@@ -159,15 +159,6 @@ class GoodWePlant(BasePlant):
         wrong_control_mode = current_control_mode != control_mode
         wrong_ems_limit = abs(current_ems_limit - ems_limit) > 0.05
         wrong_export_limit = abs(current_export_limit - export_limit) > 0.05
-
-        logger.debug(f"Checking control limits for working mode '{working_mode}': | "
-                    f"Current Control Mode: {current_control_mode} (Desired: {control_mode}) | "
-                    f"Current EMS Limit: {current_ems_limit} kW (Desired: {ems_limit} kW) | "
-                    f"Current Export Limit: {current_export_limit} kW (Desired: {export_limit} kW) | "
-                    f"Wrong Control Mode: {wrong_control_mode} | "
-                    f"Wrong EMS Limit: {wrong_ems_limit} | "
-                    f"Wrong Export Limit: {wrong_export_limit}"
-        )
 
         any_limits_wrong = wrong_control_mode or wrong_ems_limit or wrong_export_limit
 

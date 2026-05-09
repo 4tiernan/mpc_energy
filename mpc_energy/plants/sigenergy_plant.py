@@ -233,7 +233,7 @@ class SigEnergyPlant(BasePlant):
 
         control_mode = self.get_plant_mode()
 
-        inverter_limit_kw = self.get_safe_power_state(self.inverter_max_power_limit_entity_id)
+        inverter_limit_kw = self.get_safe_power_state(self.inverter_max_power_limit_entry)
         charge_limit_kw = self.get_safe_power_state(self.battery_charge_limiter_entity_id)
         pv_limit_kw = self.get_safe_power_state(self.pv_limiter_entity_id)
         export_limit_kw = self.get_safe_power_state(self.export_limiter_entity_id)

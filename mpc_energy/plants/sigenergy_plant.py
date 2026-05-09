@@ -88,8 +88,8 @@ class SigEnergyPlant(BasePlant):
         """Update the plant's data by fetching the latest states from Home Assistant."""
         self.battery_soc_percent = self.get_safe_numeric_state(self.battery_soc_entity_id)
         self.backup_buffer_kwh = (self.get_config_entry_value(self.backup_soc_entry)/100.0) * self.rated_capacity
-        self.kwh_stored_energy = self.get_safe_numeric_state(self.battery_stored_energy_entity_id)
-        self.kwh_stored_available = self.kwh_stored_energy - self.backup_buffer_kwh
+        self.stored_energy_kwh = self.get_safe_numeric_state(self.battery_stored_energy_entity_id)
+        self.stored_available_kwh = self.stored_energy_kwh - self.backup_buffer_kwh
         self.kwh_charge_unusable = (1-(self.get_config_entry_value(self.charge_cutoff_soc_entry)/100.0)) * self.rated_capacity # kWh of buffer to 100% IE the charge limit 
         self.kwh_till_full = self.get_safe_numeric_state(self.battery_kwh_till_full_entity_id) - self.kwh_charge_unusable
         self.battery_kw = self.get_safe_power_state(self.battery_power_entity_id)
@@ -119,7 +119,7 @@ class SigEnergyPlant(BasePlant):
         if(self.battery_kw < 0):
             self.hours_till_full = round(self.kwh_till_full / abs(self.battery_kw), 2)
         elif(self.battery_kw > 0):
-            self.hours_till_empty = round(self.kwh_stored_available / abs(self.battery_kw), 2)
+            self.hours_till_empty = round(self.stored_available_kwh / abs(self.battery_kw), 2)
 
     def ensure_remote_ems(self) -> None: 
         """Ensures the remote EMS switch is on provided the automatic control switch is on"""

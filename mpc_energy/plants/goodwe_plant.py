@@ -16,12 +16,12 @@ class GoodWePlant(BasePlant):
         
         # Initialize power limits and capacity using configuration overrides where available
         self.rated_capacity = self.get_config_entry_value(self.battery_rated_capacity_entry)
-        self.max_discharge_power = self.get_config_entry_value(self.battery_max_discharge_power_limit_entry)
-        self.max_charge_power = self.get_config_entry_value(self.battery_max_charge_power_limit_entry)
-        self.max_pv_power = self.get_config_entry_value(self.pv_max_power_limit_entry)
-        self.max_inverter_power = self.get_config_entry_value(self.inverter_max_power_limit_entry)
-        self.max_export_power = self.get_config_entry_value(self.export_max_power_limit_entry)
-        self.max_import_power = self.get_config_entry_value(self.import_max_power_limit_entry)       
+        self.max_discharge_power = self.get_power_config_entry_value(self.battery_max_discharge_power_limit_entry)
+        self.max_charge_power = self.get_power_config_entry_value(self.battery_max_charge_power_limit_entry)
+        self.max_pv_power = self.get_power_config_entry_value(self.pv_max_power_limit_entry)
+        self.max_inverter_power = self.get_power_config_entry_value(self.inverter_max_power_limit_entry)
+        self.max_export_power = self.get_power_config_entry_value(self.export_max_power_limit_entry)
+        self.max_import_power = self.get_power_config_entry_value(self.import_max_power_limit_entry)       
 
         
         self.control_mode_options = [
@@ -98,7 +98,7 @@ class GoodWePlant(BasePlant):
 
         self.kwh_till_full = self.rated_capacity - self.stored_available_kwh - self.charge_unusable_kwh
 
-        self.battery_kw = self.get_safe_numeric_state(self.battery_power_entity_id) * self.power_scale_factor
+        self.battery_kw = self.get_safe_power_state(self.battery_power_entity_id)
         if(self.battery_power_sign_convention == "+ Charge, - Discharge"): # If battery power is the wrong way around, flip it
             self.battery_kw = -self.battery_kw
         elif(self.battery_power_sign_convention == "- Charge, + Discharge"):
@@ -109,8 +109,8 @@ class GoodWePlant(BasePlant):
         #   +kW = discharging (battery supplying power)
         #   -kW = charging (battery absorbing power)
 
-        self.solar_kw = self.get_safe_numeric_state(self.solar_power_entity_id) * self.power_scale_factor
-        self.grid_power = self.get_safe_numeric_state(self.grid_power_entity_id) * self.power_scale_factor
+        self.solar_kw = self.get_safe_power_state(self.solar_power_entity_id)
+        self.grid_power = self.get_safe_power_state(self.grid_power_entity_id)
         if(self.grid_power_sign_convention == "- Import, + Export"):
             self.grid_power = -self.grid_power
         # Internal grid power convention (App expects):
@@ -118,7 +118,7 @@ class GoodWePlant(BasePlant):
         #   -kW = exporting
 
         self.solar_kw_remaining_today = self.get_safe_numeric_state(config_manager.solcast_solar_kwh_remaining_today_entity_id)
-        self.load_power = self.get_safe_numeric_state(self.load_power_entity_id) * self.power_scale_factor
+        self.load_power = self.get_safe_power_state(self.load_power_entity_id)
 
         self.avg_daily_load = sum(bin.avg_state*(self.time_step_minutes/60) for bin in self.get_load_avg(days_ago=self.load_avg_days))
         
@@ -136,8 +136,8 @@ class GoodWePlant(BasePlant):
         """Set the control limits to the desired values."""
 
         self.set_export_limit_switch()
-        self.ha.set_number(self.ems_power_limit_entity_id, round(float(ems_limit), 2))
-        self.ha.set_number(self.export_limiter_entity_id, round(float(export_limit), 2))
+        self.ha.set_number(self.ems_power_limit_entity_id, round(float(ems_limit) / self.power_scale_factor, 2))
+        self.ha.set_number(self.export_limiter_entity_id, round(float(export_limit) / self.power_scale_factor, 2))
 
         if(control_mode in self.control_mode_options):
             self.ha.set_select(self.ems_control_mode_entity_id, control_mode)
@@ -148,8 +148,8 @@ class GoodWePlant(BasePlant):
         """Check if control limits match desired values and change them if required."""
 
         current_control_mode = self.get_plant_mode()
-        current_ems_limit = self.get_safe_numeric_state(self.ems_power_limit_entity_id)
-        current_export_limit = self.get_safe_numeric_state(self.export_limiter_entity_id)
+        current_ems_limit = self.get_safe_power_state(self.ems_power_limit_entity_id)
+        current_export_limit = self.get_safe_power_state(self.export_limiter_entity_id)
         
 
         wrong_control_mode = current_control_mode != control_mode
@@ -165,13 +165,6 @@ class GoodWePlant(BasePlant):
     
     def check_for_enabled_entities(self) -> None:
         """Checks to make sure all the entities needed for control are available and enabled, if not it raises an error."""
-        def is_numeric(val):
-            try:
-                float(val)
-                return True
-            except (ValueError, TypeError):
-                return False
-
         # Map human-readable names to the configured entity IDs
         checks = {
             "EMS Control Mode": self.ems_control_mode_entity_id,
@@ -192,7 +185,7 @@ class GoodWePlant(BasePlant):
             if not eid:
                 errors.append(f"- {name}: Configuration is empty")
                 continue
-            if is_numeric(eid):
+            if self.is_numeric(eid):
                 continue # If the entity ID is actually a numeric override value, skip the check to see if the entity exists in HA as it won't.
             try:
                 self.get_safe_state(eid)

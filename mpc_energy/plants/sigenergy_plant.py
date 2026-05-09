@@ -17,12 +17,12 @@ class SigEnergyPlant(BasePlant):
         
         # Initialize power limits and capacity using configuration overrides where available
         self.rated_capacity = self.get_config_entry_value(self.battery_rated_capacity_entry)
-        self.max_discharge_power = self.get_config_entry_value(self.battery_max_discharge_power_limit_entry)
-        self.max_charge_power = self.get_config_entry_value(self.battery_max_charge_power_limit_entry)
-        self.max_pv_power = self.get_config_entry_value(self.pv_max_power_limit_entry)
-        self.max_inverter_power = self.get_config_entry_value(self.inverter_max_power_limit_entry)
-        self.max_export_power = self.get_config_entry_value(self.export_max_power_limit_entry)
-        self.max_import_power = self.get_config_entry_value(self.import_max_power_limit_entry)
+        self.max_discharge_power = self.get_power_config_entry_value(self.battery_max_discharge_power_limit_entry)
+        self.max_charge_power = self.get_power_config_entry_value(self.battery_max_charge_power_limit_entry)
+        self.max_pv_power = self.get_power_config_entry_value(self.pv_max_power_limit_entry)
+        self.max_inverter_power = self.get_power_config_entry_value(self.inverter_max_power_limit_entry)
+        self.max_export_power = self.get_power_config_entry_value(self.export_max_power_limit_entry)
+        self.max_import_power = self.get_power_config_entry_value(self.import_max_power_limit_entry)
 
         
         self.control_mode_options = [
@@ -92,7 +92,7 @@ class SigEnergyPlant(BasePlant):
         self.kwh_stored_available = self.kwh_stored_energy - self.kwh_backup_buffer
         self.kwh_charge_unusable = (1-(self.get_config_entry_value(self.charge_cutoff_soc_entry)/100.0)) * self.rated_capacity # kWh of buffer to 100% IE the charge limit 
         self.kwh_till_full = self.get_safe_numeric_state(self.battery_kwh_till_full_entity_id) - self.kwh_charge_unusable
-        self.battery_kw = self.get_safe_numeric_state(self.battery_power_entity_id) * self.power_scale_factor
+        self.battery_kw = self.get_safe_power_state(self.battery_power_entity_id)
         if(self.battery_power_sign_convention == "+ Charge, - Discharge"): # If battery power is the wrong way around, flip it
             self.battery_kw = -self.battery_kw
         elif(self.battery_power_sign_convention == "- Charge, + Discharge"):
@@ -103,12 +103,12 @@ class SigEnergyPlant(BasePlant):
         #   +kW = discharging (battery supplying power)
         #   -kW = charging (battery absorbing power)
 
-        self.solar_kw = self.get_safe_numeric_state(self.solar_power_entity_id) * self.power_scale_factor
+        self.solar_kw = self.get_safe_power_state(self.solar_power_entity_id)
         #self.solar_kwh_today = self.get_safe_numeric_state(self.plant_solar_kwh_today_entity_id) # Commented out as it is not used in current implementation.
         self.solar_kw_remaining_today = self.get_safe_numeric_state(config_manager.solcast_solar_kwh_remaining_today_entity_id)
-        self.inverter_power = self.get_safe_numeric_state(self.inverter_power_entity_id) * self.power_scale_factor
-        self.grid_power = self.get_safe_numeric_state(self.grid_power_entity_id) * self.power_scale_factor
-        self.load_power = self.get_safe_numeric_state(self.load_power_entity_id) * self.power_scale_factor
+        self.inverter_power = self.get_safe_power_state(self.inverter_power_entity_id)
+        self.grid_power = self.get_safe_power_state(self.grid_power_entity_id)
+        self.load_power = self.get_safe_power_state(self.load_power_entity_id)
         self.avg_daily_load = sum(bin.avg_state*(self.time_step_minutes/60) for bin in self.get_load_avg(days_ago=self.load_avg_days))
         
 
@@ -133,11 +133,11 @@ class SigEnergyPlant(BasePlant):
 
         self.ensure_remote_ems() # Make sure the EMS is able to be controlled
 
-        self.ha.set_number(self.battery_discharge_limiter_entity_id, discharge)
-        self.ha.set_number(self.battery_charge_limiter_entity_id, charge)
-        self.ha.set_number(self.pv_limiter_entity_id, pv)
-        self.ha.set_number(self.export_limiter_entity_id, grid_export)
-        self.ha.set_number(self.import_limiter_entity_id, grid_import)
+        self.ha.set_number(self.battery_discharge_limiter_entity_id, round(discharge / self.power_scale_factor, 2))
+        self.ha.set_number(self.battery_charge_limiter_entity_id, round(charge / self.power_scale_factor, 2))
+        self.ha.set_number(self.pv_limiter_entity_id, round(pv / self.power_scale_factor, 2))
+        self.ha.set_number(self.export_limiter_entity_id, round(grid_export / self.power_scale_factor, 2))
+        self.ha.set_number(self.import_limiter_entity_id, round(grid_import / self.power_scale_factor, 2))
         
         if(control_mode in self.control_mode_options):
             self.ha.set_select(self.ems_control_mode_entity_id, control_mode)
@@ -149,18 +149,18 @@ class SigEnergyPlant(BasePlant):
         self.ensure_remote_ems() # Make sure the EMS is able to be controlled
 
         current_control_mode = self.get_plant_mode()
-        curent_discharge_limit = self.get_safe_numeric_state(self.battery_discharge_limiter_entity_id)
-        curent_charge_limit = self.get_safe_numeric_state(self.battery_charge_limiter_entity_id)
-        curent_pv_limit = self.get_safe_numeric_state(self.pv_limiter_entity_id)
-        curent_export_limit = self.get_safe_numeric_state(self.export_limiter_entity_id)
-        curent_import_limit = self.get_safe_numeric_state(self.import_limiter_entity_id)
+        curent_discharge_limit = self.get_safe_power_state(self.battery_discharge_limiter_entity_id)
+        curent_charge_limit = self.get_safe_power_state(self.battery_charge_limiter_entity_id)
+        curent_pv_limit = self.get_safe_power_state(self.pv_limiter_entity_id)
+        curent_export_limit = self.get_safe_power_state(self.export_limiter_entity_id)
+        curent_import_limit = self.get_safe_power_state(self.import_limiter_entity_id)
 
         wrong_control_mode = current_control_mode != control_mode
-        wrong_discharge_limit = curent_discharge_limit != discharge
-        wrong_charge_limit = curent_charge_limit != charge
-        wrong_pv_limit = curent_pv_limit != pv
-        wrong_export_limit = curent_export_limit != grid_export
-        wrong_import_limit = curent_import_limit != grid_import
+        wrong_discharge_limit = abs(curent_discharge_limit - discharge) > 0.05
+        wrong_charge_limit = abs(curent_charge_limit - charge) > 0.05
+        wrong_pv_limit = abs(curent_pv_limit - pv) > 0.05
+        wrong_export_limit = abs(curent_export_limit - grid_export) > 0.05
+        wrong_import_limit = abs(curent_import_limit - grid_import) > 0.05
 
         any_limits_wrong = wrong_control_mode or wrong_discharge_limit or wrong_charge_limit or wrong_pv_limit or wrong_export_limit or wrong_import_limit
 
@@ -171,13 +171,6 @@ class SigEnergyPlant(BasePlant):
     
     def check_for_enabled_entities(self) -> None:
         """Checks to make sure all the entities needed for control are available and enabled, if not it raises an error."""
-        def is_numeric(val):
-            try:
-                float(val)
-                return True
-            except (ValueError, TypeError):
-                return False
-
         # Map human-readable names to the configured entity IDs
         checks = {
             "EMS Control Switch": self.ha_ems_control_switch_entity_id,
@@ -211,7 +204,7 @@ class SigEnergyPlant(BasePlant):
             if not eid:
                 errors.append(f"- {name}: Configuration is empty")
                 continue
-            if is_numeric(eid):
+            if self.is_numeric(eid):
                 continue # If the entity ID is actually a numeric override value, skip the check to see if the entity exists in HA as it won't.
             try:
                 self.get_safe_state(eid)
@@ -239,10 +232,10 @@ class SigEnergyPlant(BasePlant):
 
         control_mode = self.get_plant_mode()
 
-        inverter_limit_kw = self.get_safe_numeric_state(self.inverter_max_power_limit_entity_id)
-        charge_limit_kw = self.get_safe_numeric_state(self.battery_charge_limiter_entity_id)
-        pv_limit_kw = self.get_safe_numeric_state(self.pv_limiter_entity_id)
-        export_limit_kw = self.get_safe_numeric_state(self.export_limiter_entity_id)
+        inverter_limit_kw = self.get_safe_power_state(self.inverter_max_power_limit_entity_id)
+        charge_limit_kw = self.get_safe_power_state(self.battery_charge_limiter_entity_id)
+        pv_limit_kw = self.get_safe_power_state(self.pv_limiter_entity_id)
+        export_limit_kw = self.get_safe_power_state(self.export_limiter_entity_id)
 
         charge_disabled_modes = {
             "Standby",

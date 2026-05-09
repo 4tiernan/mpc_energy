@@ -122,6 +122,25 @@ class BasePlant(ABC):
         except (TypeError, ValueError):
             raise HAAPIError(f"Unable to convert state '{state}' for entity '{entity_id}' to float.") from None
         
+    def get_safe_power_state(self, entity_id) -> float:
+        """Fetches a power state and scales it to kW based on configuration."""
+        return self.get_safe_numeric_state(entity_id) * self.power_scale_factor
+
+    def get_power_config_entry_value(self, entry_id) -> float:
+        """Try to get a power value from a config entry (entity or kW number) and ensure it's in kW."""
+        try:
+            return float(entry_id) # Numbers provided in UI are assumed to be kW
+        except (ValueError, TypeError):
+            # If it's an entity, fetch and scale it to kW
+            return self.get_safe_power_state(entry_id)
+
+    def is_numeric(self, val):
+        """Utility to check if a configuration entry is a fixed number or an entity ID."""
+        try:
+            float(val)
+            return True
+        except (ValueError, TypeError):
+            return False
 
     def get_config_entry_value(self, entry_id) -> Any:
         """Try to get the value from a config entry that is either a string float or an entity id."""

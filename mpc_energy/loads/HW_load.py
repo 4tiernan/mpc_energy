@@ -21,7 +21,8 @@ class HWLoad(OptionalLoad):
         power_entity_id: str = "",
         max_charge_power_entity_id: str = "",
         plugged_in_entity_id: str = "",
-        level_entity_id: str = ""
+        level_entity_id: str = "",
+        hw_power_unit_scale: str = "kW"
     ):
         super().__init__(name, load_type, reward_cents_per_kwh, debias_load)
         self.volume_l = float(volume_l)
@@ -31,6 +32,8 @@ class HWLoad(OptionalLoad):
         self.max_charge_power_entity_id = max_charge_power_entity_id
         self.plugged_in_entity_id = plugged_in_entity_id
         self.level_entity_id = level_entity_id
+        self.hw_power_unit_scale = hw_power_unit_scale
+        self.power_scale_factor = 0.001 if self.hw_power_unit_scale == "W" else 1.0
 
         # Internal state
         self.current_power_kw = 0.0
@@ -40,12 +43,21 @@ class HWLoad(OptionalLoad):
         self.current_level_percent = 0.0
         self.current_charge_kwh = 0.0
 
-        logger.debug(f"Initialized HWLoad '{self.name}' with volume={self.volume_l}L, temp_min={self.temp_min}°C, temp_max={self.temp_max}°C, power_entity_id='{self.power_entity_id}', max_charge_power_entity_id='{self.max_charge_power_entity_id}', plugged_in_entity_id='{self.plugged_in_entity_id}', level_entity_id='{self.level_entity_id}'")
+        logger.debug(f"Initialized HWLoad '{self.name}' with scale={self.hw_power_unit_scale}, volume={self.volume_l}L, temp_min={self.temp_min}°C, temp_max={self.temp_max}°C, power_entity_id='{self.power_entity_id}', max_charge_power_entity_id='{self.max_charge_power_entity_id}', plugged_in_entity_id='{self.plugged_in_entity_id}', level_entity_id='{self.level_entity_id}'")
 
     def update_data(self, ha) -> None:
+        def get_val(eid, default=0.0):
+            if not eid: return float(default)
+            try:
+                # If the UI entry is a raw number (kW), don't apply scaling
+                return float(eid)
+            except (ValueError, TypeError):
+                # If it's an entity ID, fetch and scale to kW
+                return ha.get_numeric_state(eid) * self.power_scale_factor
+
         # Update basic power and plugged-in status
-        self.current_power_kw = ha.get_numeric_state(self.power_entity_id) if self.power_entity_id else 0.0
-        self.max_charge_power_limit = ha.get_numeric_state(self.max_charge_power_entity_id) if self.max_charge_power_entity_id else 3.6
+        self.current_power_kw = get_val(self.power_entity_id, 0.0)
+        self.max_charge_power_limit = get_val(self.max_charge_power_entity_id, 3.6)
         self.is_plugged_in = ha.get_boolean_state(self.plugged_in_entity_id) if self.plugged_in_entity_id else True
 
         # Thermal to Energy Conversion
@@ -59,6 +71,15 @@ class HWLoad(OptionalLoad):
             self.current_charge_kwh = (self.current_level_percent / 100.0) * self.capacity_kwh
         else:
             self.current_level_percent = 0.0 
+
+    def get_historical_power(self, start=None, end=None, hours=None, bin_period=5):
+        """Retrieve and bin historical power usage for this device, applying scale factor."""
+        binned = super().get_historical_power(start, end, hours, bin_period)
+        if binned and self.power_scale_factor != 1.0:
+            for b in binned:
+                if b.avg_state is not None:
+                    b.avg_state *= self.power_scale_factor
+        return binned
 
     def build_cvxpy(self, mpc):
         n = mpc.N_5min
@@ -127,7 +148,8 @@ class HWLoad(OptionalLoad):
             power_entity_id=str(item.get("power_entity_id", "")),
             max_charge_power_entity_id=str(item.get("max_charge_power_entity_id", "")),
             plugged_in_entity_id=str(item.get("plugged_in_entity_id", "")),
-            level_entity_id=str(item.get("level_entity_id", ""))
+            level_entity_id=str(item.get("level_entity_id", "")),
+            hw_power_unit_scale=str(item.get("hw_power_unit_scale", "kW"))
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -143,4 +165,5 @@ class HWLoad(OptionalLoad):
             "max_charge_power_entity_id": self.max_charge_power_entity_id,
             "plugged_in_entity_id": self.plugged_in_entity_id,
             "level_entity_id": self.level_entity_id,
+            "hw_power_unit_scale": self.hw_power_unit_scale
         }

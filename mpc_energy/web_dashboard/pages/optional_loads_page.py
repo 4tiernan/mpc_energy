@@ -28,10 +28,11 @@ if col_btn2.button("Clear and delete all saved loads"):
 
 rows = st.session_state.optional_load_rows
 edited_rows: list[dict] = []
+delete_row_idx = None
 
 for idx, row in enumerate(rows):
     with st.container(border=True):
-        col_t1, col_t2 = st.columns([2, 2])
+        col_t1, col_t2, col_t3 = st.columns([2, 2, 0.4])
         l_type = col_t1.selectbox(
             "Load Type",
             options=["ev", "hot_water"],
@@ -41,6 +42,10 @@ for idx, row in enumerate(rows):
         )
         
         name = col_t2.text_input("Load Name", value=row.get("name", ""), key=f"name_input_{idx}")
+        
+        col_t3.markdown("<div style='height: 28px;'></div>", unsafe_allow_html=True)
+        if col_t3.button("🗑️", key=f"del_{idx}", help="Delete this load", use_container_width=True):
+            delete_row_idx = idx
 
         # Local state for field mapping
         nominal_ac_voltage = str(row.get("nominal_ac_voltage", "230.0"))
@@ -64,6 +69,7 @@ for idx, row in enumerate(rows):
         vol = str(row.get("volume_l", "0.0"))
         tmin = str(row.get("temp_min", "0.0"))
         tmax = str(row.get("temp_max", "0.0"))
+        hw_power_unit_scale = row.get("hw_power_unit_scale", "kW")
 
         if l_type == "ev":
             c1, c2, c3 = st.columns(3)
@@ -158,9 +164,10 @@ for idx, row in enumerate(rows):
             lvl_ent = c3.text_input("Tank Temperature Entity ID (C)", value=lvl_ent, key=f"hw_lvl_{idx}")
             vol = c4.text_input("Tank Volume (L)", value=vol, key=f"hw_vol_{idx}")
             
-            c5, c6 = st.columns(2)
+            c5, c6, c7 = st.columns([1, 1, 0.4])
             max_p = c5.text_input("Rated Power (kW)", value=max_p, key=f"hw_hp_{idx}")
             p_ent = c6.text_input("Heater Power Entity ID", value=p_ent, key=f"hw_hpent_{idx}")
+            hw_power_unit_scale = c7.selectbox("Unit", options=["kW", "W"], index=0 if hw_power_unit_scale == "kW" else 1, key=f"hw_unit_{idx}")
 
             reward = st.text_input("Charge Reward (c/kWh)", value=reward, key=f"hw_rew_{idx}")
 
@@ -187,8 +194,14 @@ for idx, row in enumerate(rows):
             "charge_enable_entity_id": ev_charge_enable_entity_id,
             "three_phase_available_entity_id": three_phase_available_entity_id,
             "three_phase_available": three_phase_available,
-            "debias_load": debias_load
+            "debias_load": debias_load,
+            "hw_power_unit_scale": hw_power_unit_scale
         })
+
+if delete_row_idx is not None:
+    edited_rows.pop(delete_row_idx)
+    st.session_state.optional_load_rows = edited_rows
+    st.rerun()
 
 if not edited_rows:
     st.info("No optional loads configured. Click 'Add row' to begin.")

@@ -70,7 +70,7 @@ class HWLoad(OptionalLoad):
     def build_cvxpy(self, mpc):
         n = mpc.N_5min
         dt = mpc.dt_5min
-        mpc_soc = mpc.battery_soc
+        mpc_soc = mpc.soc
         mpc_soc_min_param = mpc.soc_min_param
 
         self.p_hw = cp.Variable(n, nonneg=True)

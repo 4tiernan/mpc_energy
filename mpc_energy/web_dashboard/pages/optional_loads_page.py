@@ -123,6 +123,27 @@ for idx, row in enumerate(rows):
                 three_phase_available = c_t8.checkbox("Three Phase Available", value=three_phase_available if isinstance(three_phase_available, bool) else str(three_phase_available).lower() == "true", key=f"ev_t_3ph_{idx}")
                 debias_load = c_t9.checkbox("Debias Load (Is this load counted as part of your house power consumption?)", value=debias_load if isinstance(debias_load, bool) else str(debias_load).lower() == "true", key=f"ev_debias_{idx}")
 
+            elif charger_model == "Generic Binary":
+                st.write("---")
+                st.caption("Generic Binary Charger Specific Configuration")
+                c_t1, c_t2 = st.columns(2)
+                nominal_ac_voltage = c_t1.text_input("Nominal AC Voltage (V)", value=nominal_ac_voltage, key=f"ev_b_volt_{idx}")
+                ev_max_charge_amps = c_t2.text_input("Rated Current (A)", value=ev_max_charge_amps, key=f"ev_b_max_a_{idx}")
+                
+                c_t3, c_t4 = st.columns(2)
+                ev_charge_enable_entity_id = c_t3.text_input("Switch Entity ID", value=ev_charge_enable_entity_id, key=f"ev_b_sw_ent_{idx}")
+                p_ent = c_t4.text_input("Charger Power Entity ID (kW) [Optional]", value=p_ent, key=f"ev_pent_{idx}")
+
+                c_t5, c_t6 = st.columns(2)
+                plug_ent = c_t5.text_input("EV Plugged In Entity ID [Optional]", value=plug_ent, key=f"ev_avail_{idx}")
+                debias_load = c_t6.checkbox("Debias Load (Is this load counted as part of your house power consumption?)", value=debias_load if isinstance(debias_load, bool) else str(debias_load).lower() == "true", key=f"ev_debias_{idx}")
+
+                # For binary chargers, set both min and max power to the calculated nominal power to guide the MPC
+                try:
+                    calc_p = str(round((float(nominal_ac_voltage) * float(ev_max_charge_amps)) / 1000.0, 2))
+                    max_p, min_p = calc_p, calc_p
+                except (ValueError, TypeError):
+                    pass
 
 
             else:

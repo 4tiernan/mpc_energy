@@ -3,7 +3,7 @@ from ha_api import HomeAssistantAPI
 from mpc_logger import logger
 from typing import Any
 
-charger_models = ["Tesla API", "SigEnergy AC Charger"]#, "GoodWe"]
+charger_models = ["Tesla API", "SigEnergy AC Charger", "Generic Binary"]
 
 class EVCharger(ABC):
     """
@@ -80,6 +80,18 @@ def create_charger_instance(config: dict[str, Any], ha: HomeAssistantAPI) -> "EV
             charge_enable_entity_id=config.get("charge_enable_entity_id", ""),
             charger_model=charger_model,
             debias_load=config.get("debias_load", False)
+        )
+    elif charger_model == "Generic Binary":
+        from loads.EV_chargers.generic_binary import GenericBinaryCharger
+        return GenericBinaryCharger(
+            name=config.get("name", ""),
+            ha=ha,
+            switch_entity_id=config.get("charge_enable_entity_id", ""),
+            nominal_voltage=float(config.get("nominal_ac_voltage", 230.0) or 230.0),
+            rated_current=float(config.get("max_charge_current", 32.0) or 32.0),
+            debias_load=config.get("debias_load", True),
+            plugged_in_entity_id=config.get("plugged_in_entity_id", ""),
+            power_entity_id=config.get("power_entity_id", "")
         )
     else:
         logger.warning(f"Unknown charger model '{charger_model}' for load '{config.get('name', 'Unknown')}'. Skipping charger instantiation.")

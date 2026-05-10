@@ -103,7 +103,7 @@ for idx, row in enumerate(rows):
                 debias_load = c_t9.checkbox("Debias Load (Is this load counted as part of your house power consumption?)", value=debias_load if isinstance(debias_load, bool) else str(debias_load).lower() == "true", key=f"ev_debias_{idx}")
 
             
-            if charger_model == "SigEnergy AC Charger":
+            elif charger_model == "SigEnergy AC Charger":
                 st.write("---")
                 st.caption("SigEnergy AC Charger Specific Configuration")
                 c_t1, c_t2, c_t3 = st.columns(3)

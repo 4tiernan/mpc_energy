@@ -1,5 +1,6 @@
 ## 0.8.0
 * Added ability to setup multiple optional loads through Web UI
+* Added support for GoodWe batteries
 * Streamlit crashing fix???
 
 ## 0.7.0

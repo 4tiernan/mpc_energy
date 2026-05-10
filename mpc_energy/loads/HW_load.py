@@ -9,26 +9,52 @@ class HWLoad(OptionalLoad):
     Specialized load for Hot Water systems.
     Converts temperature and volume into energy (kWh) and percentage level.
     """
-    def __init__(self, *args, **kwargs):
-        self.volume_l = float(kwargs.pop("volume_l", 0.0))
-        self.temp_min = float(kwargs.pop("temp_min", 0.0))
-        self.temp_max = float(kwargs.pop("temp_max", 0.0))
-        super().__init__(*args, **kwargs)
+    def __init__(
+        self,
+        name: str,
+        load_type: str,
+        reward_cents_per_kwh: float,
+        debias_load: bool,
+        volume_l: float,
+        temp_min: float,
+        temp_max: float,
+        power_entity_id: str = "",
+        max_charge_power_entity_id: str = "",
+        plugged_in_entity_id: str = "",
+        level_entity_id: str = ""
+    ):
+        super().__init__(name, load_type, reward_cents_per_kwh, debias_load)
+        self.volume_l = float(volume_l)
+        self.temp_min = float(temp_min)
+        self.temp_max = float(temp_max)
+        self.power_entity_id = power_entity_id
+        self.max_charge_power_entity_id = max_charge_power_entity_id
+        self.plugged_in_entity_id = plugged_in_entity_id
+        self.level_entity_id = level_entity_id
+
+        # Internal state
+        self.current_power_kw = 0.0
+        self.max_charge_power_limit = 0.0
+        self.is_plugged_in = False
+        self.capacity_kwh = 0.0
+        self.current_level_percent = 0.0
+        self.current_charge_kwh = 0.0
 
     def update_data(self, ha) -> None:
         # Update basic power and plugged-in status
-        self.current_power_kw = self._get_numeric(ha, self.power_entity_id)
-        self.max_charge_power_limit = self._get_numeric(ha, self.max_charge_power_entity_id)
-        self.is_plugged_in = self._get_bool(ha, self.plugged_in_entity_id) if self.plugged_in_entity_id else True
+        self.current_power_kw = ha.get_numeric_state(self.power_entity_id) if self.power_entity_id else 0.0
+        self.max_charge_power_limit = ha.get_numeric_state(self.max_charge_power_entity_id) if self.max_charge_power_entity_id else 3.6
+        self.is_plugged_in = ha.get_boolean_state(self.plugged_in_entity_id) if self.plugged_in_entity_id else True
 
         # Thermal to Energy Conversion
-        raw_temp = self._get_numeric(ha, self.level_entity_id) if self.level_entity_id else 0.0
+        raw_temp = ha.get_numeric_state(self.level_entity_id) if self.level_entity_id else 0.0
         
         if self.volume_l > 0 and self.temp_max > self.temp_min:
             # Energy Capacity (kWh) = (Volume * 4.186 * deltaT) / 3600
             self.capacity_kwh = (self.volume_l * 4.186 * (self.temp_max - self.temp_min)) / 3600.0
             # Calculate level based on current temperature: % = (current_T - T_min) / (T_max - T_min)
             self.current_level_percent = min(max((raw_temp - self.temp_min) / (self.temp_max - self.temp_min) * 100.0, 0.0), 100.0)
+            self.current_charge_kwh = (self.current_level_percent / 100.0) * self.capacity_kwh
         else:
             self.current_level_percent = 0.0
 
@@ -54,7 +80,7 @@ class HWLoad(OptionalLoad):
         
         return constraints, objective_term, self.p_hw
 
-    def update_values(self, n, dt, time_index, load_5min):
+    def update_mpc_values(self, n, dt, time_index, load_5min):
         self.soc_init_param.value = float(self.current_charge_kwh)
         self.p_max_limit_param.value = float(self.max_charge_power_limit or 3.6)
         
@@ -78,18 +104,34 @@ class HWLoad(OptionalLoad):
 
     @classmethod
     def from_dict(cls, item: dict[str, Any]) -> "HWLoad | None":
-        base = super().from_dict(item)
-        if not base: return None
-        base.volume_l = float(item.get("volume_l", 0.0))
-        base.temp_min = float(item.get("temp_min", 0.0))
-        base.temp_max = float(item.get("temp_max", 0.0))
-        return base
+        if not item:
+            return None
+
+        # Get base fields dictionary from OptionalLoad
+        params = super().from_dict(item)
+
+        # Add HW specific fields to the params dictionary
+        params.update({
+            "volume_l": float(item.get("volume_l", 0.0) or 0.0),
+            "temp_min": float(item.get("temp_min", 0.0) or 0.0),
+            "temp_max": float(item.get("temp_max", 0.0) or 0.0),
+            "power_entity_id": str(item.get("power_entity_id", "")),
+            "max_charge_power_entity_id": str(item.get("max_charge_power_entity_id", "")),
+            "plugged_in_entity_id": str(item.get("plugged_in_entity_id", "")),
+            "level_entity_id": str(item.get("level_entity_id", "")),
+        })
+
+        return cls(**params)
 
     def to_dict(self) -> dict[str, Any]:
         data = super().to_dict()
         data.update({
             "volume_l": self.volume_l,
             "temp_min": self.temp_min,
-            "temp_max": self.temp_max
+            "temp_max": self.temp_max,
+            "power_entity_id": self.power_entity_id,
+            "max_charge_power_entity_id": self.max_charge_power_entity_id,
+            "plugged_in_entity_id": self.plugged_in_entity_id,
+            "level_entity_id": self.level_entity_id,
         })
         return data

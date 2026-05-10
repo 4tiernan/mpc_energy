@@ -58,6 +58,15 @@ class HWLoad(OptionalLoad):
         else:
             self.current_level_percent = 0.0
 
+    def get_historical_power(self, start, end, bin_period):
+        """Retrieve and bin historical power usage for this device."""
+        if not self.power_entity_id:
+            return []
+
+        import data_helpers
+        history = self.ha.get_history(self.power_entity_id, start_time=start, end_time=end)
+        return data_helpers.bin_data(history, bin_period, start, end)
+
     def build_cvxpy(self, n, dt, mpc_soc, mpc_soc_min_param):
         self.p_hw = cp.Variable(n, nonneg=True)
         self.hw_energy = cp.Variable(n + 1)

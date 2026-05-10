@@ -107,25 +107,26 @@ class HWLoad(OptionalLoad):
         if not item:
             return None
 
-        # Get base fields dictionary from OptionalLoad
-        params = super().from_dict(item)
-
-        # Add HW specific fields to the params dictionary
-        params.update({
-            "volume_l": float(item.get("volume_l", 0.0) or 0.0),
-            "temp_min": float(item.get("temp_min", 0.0) or 0.0),
-            "temp_max": float(item.get("temp_max", 0.0) or 0.0),
-            "power_entity_id": str(item.get("power_entity_id", "")),
-            "max_charge_power_entity_id": str(item.get("max_charge_power_entity_id", "")),
-            "plugged_in_entity_id": str(item.get("plugged_in_entity_id", "")),
-            "level_entity_id": str(item.get("level_entity_id", "")),
-        })
-
-        return cls(**params)
+        return cls(
+            name=str(item.get("name", "Unknown")),
+            load_type=str(item.get("load_type", "hot_water")),
+            reward_cents_per_kwh=float(item.get("reward_cents_per_kwh", 0.0) or 0.0),
+            debias_load=bool(item.get("debias_load", False)),
+            volume_l=float(item.get("volume_l", 0.0) or 0.0),
+            temp_min=float(item.get("temp_min", 0.0) or 0.0),
+            temp_max=float(item.get("temp_max", 0.0) or 0.0),
+            power_entity_id=str(item.get("power_entity_id", "")),
+            max_charge_power_entity_id=str(item.get("max_charge_power_entity_id", "")),
+            plugged_in_entity_id=str(item.get("plugged_in_entity_id", "")),
+            level_entity_id=str(item.get("level_entity_id", ""))
+        )
 
     def to_dict(self) -> dict[str, Any]:
-        data = super().to_dict()
-        data.update({
+        return {
+            "name": self.name,
+            "load_type": self.load_type,
+            "reward_cents_per_kwh": self.reward_cents_per_kwh,
+            "debias_load": self.debias_load,
             "volume_l": self.volume_l,
             "temp_min": self.temp_min,
             "temp_max": self.temp_max,
@@ -133,5 +134,4 @@ class HWLoad(OptionalLoad):
             "max_charge_power_entity_id": self.max_charge_power_entity_id,
             "plugged_in_entity_id": self.plugged_in_entity_id,
             "level_entity_id": self.level_entity_id,
-        })
-        return data
+        }

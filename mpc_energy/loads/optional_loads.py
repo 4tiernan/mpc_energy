@@ -5,6 +5,8 @@ import cvxpy as cp
 import numpy as np
 from mpc_logger import logger
 from ha_api import HomeAssistantAPI
+import data_helpers
+from datetime import timedelta
 
 DEFAULT_PATH = "/data/optional_loads.json"
 LOAD_CLASSES = {}
@@ -93,9 +95,30 @@ class OptionalLoad:
         raise NotImplementedError("Subclasses must implement to_dict method")
 
     # --- MPC Interface Stubs ---
-    def get_historical_power(self, start, end, bin_period):
-        """Retrieve and bin historical power usage for this device."""
-        raise NotImplementedError("Must implement get_historical_power in subclass")
+    def get_historical_power(self, start=None, end=None, hours=None, bin_period=5):
+        if not self.power_entity_id: return None
+        
+        if hours is not None and (start is None or end is None):
+            start, end = data_helpers.get_time_range_from_hours(hours, self.local_tz)
+
+        history = self.ha.get_history(self.power_entity_id, start_time=start, end_time=end)
+        #logger.debug(f"Raw history for opt load '{self.name}' (entity '{self.power_entity_id}') from {start} to {end}: {history}")
+        if not history: return None
+        
+        requested_seconds = max((end - start).total_seconds(), 1.0)
+        if len(history) == 1:
+            # If there's only one point and it covers the start of our window, it spans the whole duration
+            data_span_seconds = requested_seconds if history[0].time <= start + timedelta(minutes=5) else 0.0
+        else:
+            data_span_seconds = max((history[-1].time - history[0].time).total_seconds(), 0.0)
+        coverage = data_span_seconds / requested_seconds
+        
+        if coverage < 0.5:
+            logger.warning(f"Insufficient history coverage ({round(coverage*100)}%) for optional load {self.name} with power entity '{self.power_entity_id}'. Skipping debias.")
+            return None
+            
+        binned = data_helpers.bin_data(history, bin_period, start, end, interpolation_method="step")
+        return binned
 
     def build_cvxpy(self, n, dt, mpc_soc, mpc_soc_min_param):
         """Define CVXPY variables, constraints and rewards."""

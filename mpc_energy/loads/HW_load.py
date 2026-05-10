@@ -40,6 +40,8 @@ class HWLoad(OptionalLoad):
         self.current_level_percent = 0.0
         self.current_charge_kwh = 0.0
 
+        logger.debug(f"Initialized HWLoad '{self.name}' with volume={self.volume_l}L, temp_min={self.temp_min}°C, temp_max={self.temp_max}°C, power_entity_id='{self.power_entity_id}', max_charge_power_entity_id='{self.max_charge_power_entity_id}', plugged_in_entity_id='{self.plugged_in_entity_id}', level_entity_id='{self.level_entity_id}'")
+
     def update_data(self, ha) -> None:
         # Update basic power and plugged-in status
         self.current_power_kw = ha.get_numeric_state(self.power_entity_id) if self.power_entity_id else 0.0
@@ -56,16 +58,7 @@ class HWLoad(OptionalLoad):
             self.current_level_percent = min(max((raw_temp - self.temp_min) / (self.temp_max - self.temp_min) * 100.0, 0.0), 100.0)
             self.current_charge_kwh = (self.current_level_percent / 100.0) * self.capacity_kwh
         else:
-            self.current_level_percent = 0.0
-
-    def get_historical_power(self, start, end, bin_period):
-        """Retrieve and bin historical power usage for this device."""
-        if not self.power_entity_id:
-            return []
-
-        import data_helpers
-        history = self.ha.get_history(self.power_entity_id, start_time=start, end_time=end)
-        return data_helpers.bin_data(history, bin_period, start, end)
+            self.current_level_percent = 0.0 
 
     def build_cvxpy(self, mpc):
         n = mpc.N_5min

@@ -67,7 +67,12 @@ class HWLoad(OptionalLoad):
         history = self.ha.get_history(self.power_entity_id, start_time=start, end_time=end)
         return data_helpers.bin_data(history, bin_period, start, end)
 
-    def build_cvxpy(self, n, dt, mpc_soc, mpc_soc_min_param):
+    def build_cvxpy(self, mpc):
+        n = mpc.n
+        dt = mpc.dt
+        mpc_soc = mpc.soc
+        mpc_soc_min_param = mpc.soc_min_param
+
         self.p_hw = cp.Variable(n, nonneg=True)
         self.hw_energy = cp.Variable(n + 1)
         
@@ -89,7 +94,10 @@ class HWLoad(OptionalLoad):
         
         return constraints, objective_term, self.p_hw
 
-    def update_mpc_values(self, n, dt, time_index, load_5min):
+    def update_mpc_values(self, mpc):
+        n = mpc.n
+        time_index = mpc.time_index
+
         self.soc_init_param.value = float(self.current_charge_kwh)
         self.p_max_limit_param.value = float(self.max_charge_power_limit or 3.6)
         
@@ -100,7 +108,7 @@ class HWLoad(OptionalLoad):
                 draw[i] = 1.0 # 1kW thermal equivalent draw
         self.draw_forecast_param.value = draw
 
-    def get_results(self, dt):
+    def get_results(self, mpc):
         p_hw = self.p_hw.value
         if p_hw is None: return {}
         p_res = [round(float(x), 2) for x in p_hw.tolist()]

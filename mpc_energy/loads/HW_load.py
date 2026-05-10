@@ -1,5 +1,5 @@
 from typing import Any, List, Tuple
-from optional_loads import OptionalLoad
+from loads.optional_loads import OptionalLoad
 import cvxpy as cp
 import numpy as np
 from mpc_logger import logger

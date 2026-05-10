@@ -89,8 +89,7 @@ class HWLoad(OptionalLoad):
 
     def update_mpc_values(self, mpc, time_index):
         n = mpc.N_5min
-        time_index = mpc.time_index
-
+        
         self.soc_init_param.value = float(self.current_charge_kwh)
         self.p_max_limit_param.value = float(self.max_charge_power_limit or 3.6)
         

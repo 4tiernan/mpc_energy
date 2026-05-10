@@ -87,8 +87,8 @@ class HWLoad(OptionalLoad):
         
         return constraints, objective_term, self.p_hw
 
-    def update_mpc_values(self, mpc):
-        n = mpc.n
+    def update_mpc_values(self, mpc, time_index):
+        n = mpc.N_5min
         time_index = mpc.time_index
 
         self.soc_init_param.value = float(self.current_charge_kwh)

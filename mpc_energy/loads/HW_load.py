@@ -112,7 +112,7 @@ class HWLoad(OptionalLoad):
             self.hw_energy[0] == self.soc_init_param,
             self.hw_energy[1:] == self.hw_energy[:-1] + (self.p_hw * dt),# - ((self.draw_forecast_param - self.shortfall) * dt),
             self.hw_energy >= 0,
-            self.hw_energy <= self.capacity_kwh,
+            #self.hw_energy <= self.capacity_kwh,
             self.p_hw <= self.p_max_limit_param,
             #mpc_soc[1:] >= self.p_hw * dt + mpc_soc_min_param
             #self.shortfall <= self.draw_forecast_param

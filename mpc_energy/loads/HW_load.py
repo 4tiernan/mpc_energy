@@ -132,6 +132,7 @@ class HWLoad(OptionalLoad):
 
         # Debug logging to console
         logger.debug(f"HWLoad '{self.name}' draw forecast: min={np.min(draw_forecast):.2f}kW, max={np.max(draw_forecast):.2f}kW, avg={np.mean(draw_forecast):.2f}kW")
+        logger.debug(f"HW Draw Forecast for '{self.name}': {draw_forecast}")
 
     def get_draw_avg(self, days_ago=None, hours_update_interval=24):
         """Calculate the average thermal draw (losses + usage) profile for a day."""
@@ -173,10 +174,12 @@ class HWLoad(OptionalLoad):
                 e1 = max(0.0, (t1 - self.temp_min) / (self.temp_max - self.temp_min)) * cap_kwh
                 e2 = max(0.0, (t2 - self.temp_min) / (self.temp_max - self.temp_min)) * cap_kwh
                 p_draw = p_heat - (e2 - e1) / dt_hr
-                history_by_tod[b_temp[i].time.time()].append(max(0.0, p_draw))
+                # Allowing negative values here lets sensor noise average out to zero
+                history_by_tod[b_temp[i].time.time()].append(p_draw)
 
         if not history_by_tod: return None
-        self.avg_draw_day = {tod: sum(vals)/len(vals) for tod, vals in history_by_tod.items()}
+        # Clamp the final average to a small floor (50W) for standing losses
+        self.avg_draw_day = {tod: max(0.05, sum(vals)/len(vals)) for tod, vals in history_by_tod.items()}
         self.last_draw_data_retrival_timestamp = now_ts
         return self.avg_draw_day
 

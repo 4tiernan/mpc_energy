@@ -90,7 +90,7 @@ class EVLoad(OptionalLoad):
             self.ev_soc[1:] >= self.soc_min_required_param, # List of minimum SOC values
             self.p_ev >= 0,
             self.p_ev <= self.p_max_param,
-            mpc.soc[1:] >= self.p_ev * mpc.dt_5min + mpc.soc_min_param
+            #mpc.soc[1:] >= self.p_ev * mpc.dt_5min + mpc.soc_min_param
         ]
 
         objective_term = (

@@ -27,7 +27,6 @@ class AmberAPITimeoutError(AmberAPIError):
 class AmberAPIConnectionError(AmberAPIError):
     """Raised when a connection to the Amber API cannot be established."""
 
-
 class AmberAPIRequestError(AmberAPIError):
     """Raised for other Amber API request failures."""
 
@@ -39,3 +38,6 @@ class MQTTConnectionError(MPCEnergyError):
 
 class MQTTAuthenticationError(MPCEnergyError):
     """Base exception for MQTT connection failures."""
+
+class OptionalLoadUnavailableError(MPCEnergyError):
+    """Raised when an optional load's required entity is unavailable or its state is invalid."""

@@ -52,6 +52,7 @@ class EVLoad(OptionalLoad):
         self.charger = None
         self.min_charge_power_kw = 0.0
         self.max_charge_power_kw = 0.0
+        self.is_available = True # Assume available until proven otherwise
 
         logger.debug(f"Initialized EV Load '{name}' with capacity {capacity_kwh} kWh," 
                      f" current level limits {min_level_limit}% to {max_level_limit}%,"

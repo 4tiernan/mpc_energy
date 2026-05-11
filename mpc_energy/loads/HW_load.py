@@ -109,7 +109,7 @@ class HWLoad(OptionalLoad):
             self.hw_energy >= 0,
             self.hw_energy <= self.capacity_kwh,
             self.p_hw <= self.p_max_limit_param,
-            mpc_soc[1:] >= self.p_hw * dt + mpc_soc_min_param
+            #mpc_soc[1:] >= self.p_hw * dt + mpc_soc_min_param
         ]
         
         # Maintenance reward: Tiny incentive to keep the tank full

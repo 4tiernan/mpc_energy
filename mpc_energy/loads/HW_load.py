@@ -81,6 +81,8 @@ class HWLoad(OptionalLoad):
         else:
             self.current_level_percent = 0.0 
 
+        logger.debug(f"Updated HWLoad '{self.name}' data: current_power_kw={self.current_power_kw:.2f}kW, max_charge_power_limit={self.max_charge_power_limit:.2f}kW, is_plugged_in={self.is_plugged_in}, raw_temp={raw_temp:.2f}°C, capacity_kwh={self.capacity_kwh:.2f}kWh, current_level_percent={self.current_level_percent:.2f}%, current_charge_kwh={self.current_charge_kwh:.2f}kWh")
+
     def get_historical_power(self, start=None, end=None, hours=None, bin_period=5):
         """Retrieve and bin historical power usage for this device, applying scale factor."""
         binned = super().get_historical_power(start, end, hours, bin_period)
@@ -108,12 +110,12 @@ class HWLoad(OptionalLoad):
         
         constraints = [
             self.hw_energy[0] == self.soc_init_param,
-            self.hw_energy[1:] == self.hw_energy[:-1] + (self.p_hw * dt),
+            self.hw_energy[1:] == self.hw_energy[:-1] + (self.p_hw * dt),# - ((self.draw_forecast_param - self.shortfall) * dt),
             self.hw_energy >= 0,
             self.hw_energy <= self.capacity_kwh,
             self.p_hw <= self.p_max_limit_param,
             #mpc_soc[1:] >= self.p_hw * dt + mpc_soc_min_param
-            self.shortfall <= self.draw_forecast_param
+            #self.shortfall <= self.draw_forecast_param
         ]
         
         # Maintenance reward: Tiny incentive to keep the tank full

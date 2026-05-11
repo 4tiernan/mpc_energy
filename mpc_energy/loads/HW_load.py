@@ -98,6 +98,9 @@ class HWLoad(OptionalLoad):
 
         self.p_hw = cp.Variable(n, nonneg=True)
         self.hw_energy = cp.Variable(n + 1)
+        # shortfall represents thermal usage that couldn't be met (i.e. water is cold).
+        # it prevents infeasibility when predicted usage spikes exceed heater capacity.
+        self.shortfall = cp.Variable(n, nonneg=True)
         
         self.soc_init_param = cp.Parameter(nonneg=True)
         self.draw_forecast_param = cp.Parameter(n, nonneg=True)
@@ -105,17 +108,20 @@ class HWLoad(OptionalLoad):
         
         constraints = [
             self.hw_energy[0] == self.soc_init_param,
-            self.hw_energy[1:] == self.hw_energy[:-1] + (self.p_hw * dt) - (self.draw_forecast_param * dt),
+            self.hw_energy[1:] == self.hw_energy[:-1] + (self.p_hw * dt) - ((self.draw_forecast_param - self.shortfall) * dt),
             self.hw_energy >= 0,
             self.hw_energy <= self.capacity_kwh,
             self.p_hw <= self.p_max_limit_param,
             #mpc_soc[1:] >= self.p_hw * dt + mpc_soc_min_param
+            self.shortfall <= self.draw_forecast_param
         ]
         
         # Maintenance reward: Tiny incentive to keep the tank full
         # User reward: Incentivize heating when prices are low or solar is excess
+        # Shortfall penalty: High cost ensures shortfall is only used to prevent infeasibility.
         objective_term = - (self.reward_cents_per_kwh * cp.sum(self.p_hw) * dt) \
-                         - (cp.sum(self.hw_energy) * 0.001)
+                         - (cp.sum(self.hw_energy) * 0.001) \
+                         + (cp.sum(self.shortfall) * 1000)
         
         return constraints, objective_term, self.p_hw
 
@@ -171,10 +177,10 @@ class HWLoad(OptionalLoad):
             t1, t2 = b_temp[i-1].avg_state, b_temp[i].avg_state
             
             if t1 is not None and t2 is not None:
-                e1 = max(0.0, (t1 - self.temp_min) / (self.temp_max - self.temp_min)) * cap_kwh
-                e2 = max(0.0, (t2 - self.temp_min) / (self.temp_max - self.temp_min)) * cap_kwh
+                # Remove max(0, ...) clipping to allow sensor jitter to average out perfectly
+                e1 = ((t1 - self.temp_min) / (self.temp_max - self.temp_min)) * cap_kwh
+                e2 = ((t2 - self.temp_min) / (self.temp_max - self.temp_min)) * cap_kwh
                 p_draw = p_heat - (e2 - e1) / dt_hr
-                # Allowing negative values here lets sensor noise average out to zero
                 history_by_tod[b_temp[i].time.time()].append(p_draw)
 
         if not history_by_tod: return None

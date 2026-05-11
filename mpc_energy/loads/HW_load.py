@@ -114,7 +114,8 @@ class HWLoad(OptionalLoad):
         
         # Maintenance reward: Tiny incentive to keep the tank full
         # User reward: Incentivize heating when prices are low or solar is excess
-        objective_term = - (self.reward_cents_per_kwh * cp.sum(self.p_hw) * dt)
+        objective_term = - (self.reward_cents_per_kwh * cp.sum(self.p_hw) * dt) \
+                         - (cp.sum(self.hw_energy) * 0.001)
         
         return constraints, objective_term, self.p_hw
 
@@ -126,7 +127,11 @@ class HWLoad(OptionalLoad):
         self.p_max_limit_param.value = float(self.max_charge_power_limit or 3.6)
         
         # Model draw (usage + losses) based on historical average
-        self.draw_forecast_param.value = self.forecast_draw_power(time_index)
+        draw_forecast = self.forecast_draw_power(time_index)
+        self.draw_forecast_param.value = draw_forecast
+
+        # Debug logging to console
+        logger.debug(f"HWLoad '{self.name}' draw forecast: min={np.min(draw_forecast):.2f}kW, max={np.max(draw_forecast):.2f}kW, avg={np.mean(draw_forecast):.2f}kW")
 
     def get_draw_avg(self, days_ago=None, hours_update_interval=24):
         """Calculate the average thermal draw (losses + usage) profile for a day."""

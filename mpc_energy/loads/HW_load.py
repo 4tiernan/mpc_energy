@@ -208,7 +208,9 @@ class HWLoad(OptionalLoad):
 
     def forecast_temp_delta(self, time_index) -> np.ndarray:
         avg_delta = self.get_temp_delta_avg()
-        if not avg_delta: return np.full(len(time_index), -0.01) # Default tiny loss (negative delta)
+        if not avg_delta:
+            logger.warning(f"No historical temperature delta data available for HWLoad '{self.name}'. Using default small negative delta.")
+            return np.full(len(time_index), -0.01) # Default tiny loss (negative delta)
         global_avg = sum(avg_delta.values()) / len(avg_delta)
         return np.array([avg_delta.get(t.time(), global_avg) for t in time_index])
 

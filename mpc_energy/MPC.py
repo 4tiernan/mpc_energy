@@ -556,6 +556,8 @@ class MPC:
                     if "raw_power" in res:
                         # Aggregating power for the total site load forecast, using the raw load power that hasn't been clipped
                         load_power = [round(lp + p, 2) for lp, p in zip(load_power, res["raw_power"])]
+                    else:
+                        logger.error(f"Optional load '{load.name}' did not return 'raw_power' in results, cannot include in total load forecast. Results returned: {res}")
                     optional_loads_results[load.name] = res
                 except Exception as e:
                     logger.warning(f"Failed to get results from optional load '{load.name}'. Error: {e}")

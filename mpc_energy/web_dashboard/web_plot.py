@@ -423,6 +423,16 @@ def plot_mpc_results(st, output):
                     line=dict(shape="hv") # Color will be assigned by Plotly default
                 ), row=2, col=1, secondary_y=True)
 
+            if "temp_c" in load_data and load_data["temp_c"] is not None:
+                # Add temperature trace on secondary Y axis
+                fig.add_trace(go.Scatter(
+                    x=time_index,
+                    y=round_list(load_data["temp_c"][:-1]),
+                    name=f"{load_name} Temp (°C)",
+                    line=dict(dash="dot", width=2),
+                    hovertemplate="%{y:.1f} °C<extra></extra>"
+                ), row=2, col=1, secondary_y=True)
+
     # ===============================
     # AXES LIMITS (soft defaults)
     # ===============================

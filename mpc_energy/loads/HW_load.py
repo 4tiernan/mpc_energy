@@ -109,18 +109,19 @@ class HWLoad(OptionalLoad):
         
         constraints = [
             self.hw_energy[0] == self.soc_init_param,
-            self.hw_energy[1:] == self.hw_energy[:-1] + (self.p_hw * dt),# - ((self.draw_forecast_param - self.shortfall) * dt),
+            self.hw_energy[1:] == self.hw_energy[:-1] + (self.p_hw * dt) - ((self.draw_forecast_param - self.shortfall) * dt),
             self.hw_energy >= 0,
-            #self.hw_energy <= self.capacity_kwh,
+            self.hw_energy <= self.capacity_kwh,
             self.p_hw <= self.p_max_limit_param,
             #mpc_soc[1:] >= self.p_hw * dt + mpc_soc_min_param
-            #self.shortfall <= self.draw_forecast_param
+            self.shortfall <= self.draw_forecast_param
         ]
         
         # Maintenance reward: Tiny incentive to keep the tank full
         # User reward: Incentivize heating when prices are low or solar is excess
         # Shortfall penalty: High cost ensures shortfall is only used to prevent infeasibility.
-        objective_term = -cp.multiply(self.reward_dollars_per_kwh, self.p_hw) * dt
+        objective_term = -cp.multiply(self.reward_dollars_per_kwh, self.p_hw) * dt \
+                        +cp.multiply(self.shortfall, 10.0)*dt # High Penalty for shortfall
 
         return constraints, objective_term, self.p_hw
 
@@ -210,15 +211,20 @@ class HWLoad(OptionalLoad):
 
     def get_results(self, dt):
         p_hw = self.p_hw.value
-        if p_hw is None: return {}
+        if p_hw is None or self.hw_energy.value is None: return {}
         p_res = [round(float(x), 2) for x in p_hw.tolist()]
         
+        hw_energy_val = self.hw_energy.value
+        soc_pct = [round((x / self.capacity_kwh) * 100, 2) if self.capacity_kwh > 0 else 0 for x in hw_energy_val.tolist()]
+        
+        # Calculate temperature: T = T_min + (E/Cap) * (T_max - T_min)
+        delta_t = self.temp_max - self.temp_min
+        temp_c = [round(self.temp_min + (x / self.capacity_kwh) * delta_t, 1) if self.capacity_kwh > 0 else self.temp_min for x in hw_energy_val.tolist()]
 
-        soc_pct = [round((x / self.capacity_kwh) * 100, 2) if self.capacity_kwh > 0 else 0 for x in self.hw_energy.value.tolist()]
         return {
-            "raw_power": p_res,
             "power": p_res,
-            "soc_percent": soc_pct
+            "soc_percent": soc_pct,
+            "temp_c": temp_c
         }
 
     @classmethod

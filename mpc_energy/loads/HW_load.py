@@ -4,6 +4,7 @@ import cvxpy as cp
 import numpy as np
 from mpc_logger import logger
 import datetime
+import time
 import data_helpers
 from collections import defaultdict
 
@@ -23,7 +24,6 @@ class HWLoad(OptionalLoad):
         temp_max: float,
         power_entity_id: str = "",
         max_charge_power_entity_id: str = "",
-        plugged_in_entity_id: str = "",
         level_entity_id: str = "",
         hw_power_unit_scale: str = "kW"
     ):
@@ -33,7 +33,6 @@ class HWLoad(OptionalLoad):
         self.temp_max = float(temp_max)
         self.power_entity_id = power_entity_id
         self.max_charge_power_entity_id = max_charge_power_entity_id
-        self.plugged_in_entity_id = plugged_in_entity_id
         self.level_entity_id = level_entity_id
         self.hw_power_unit_scale = hw_power_unit_scale
         self.power_scale_factor = 0.001 if self.hw_power_unit_scale == "W" else 1.0
@@ -48,10 +47,10 @@ class HWLoad(OptionalLoad):
 
         # Forecast cache
         self.load_avg_days = 3
-        self.avg_draw_day = None
-        self.last_draw_data_retrival_timestamp = 0
+        self.avg_delta_day = None
+        self.last_delta_data_retrival_timestamp = 0
 
-        logger.debug(f"Initialized HWLoad '{self.name}' with scale={self.hw_power_unit_scale}, volume={self.volume_l}L, temp_min={self.temp_min}°C, temp_max={self.temp_max}°C, power_entity_id='{self.power_entity_id}', max_charge_power_entity_id='{self.max_charge_power_entity_id}', plugged_in_entity_id='{self.plugged_in_entity_id}', level_entity_id='{self.level_entity_id}'")
+        logger.debug(f"Initialized HWLoad '{self.name}' with scale={self.hw_power_unit_scale}, volume={self.volume_l}L, temp_min={self.temp_min}°C, temp_max={self.temp_max}°C, power_entity_id='{self.power_entity_id}', max_charge_power_entity_id='{self.max_charge_power_entity_id}', level_entity_id='{self.level_entity_id}'")
 
     def update_data(self) -> None:
         ha = self.ha
@@ -67,7 +66,6 @@ class HWLoad(OptionalLoad):
         # Update basic power and plugged-in status
         self.current_power_kw = get_val(self.power_entity_id, 0.0)
         self.max_charge_power_limit = get_val(self.max_charge_power_entity_id, 3.6)
-        self.is_plugged_in = ha.get_boolean_state(self.plugged_in_entity_id) if self.plugged_in_entity_id else True
 
         # Thermal to Energy Conversion
         raw_temp = ha.get_numeric_state(self.level_entity_id) if self.level_entity_id else 0.0
@@ -122,8 +120,7 @@ class HWLoad(OptionalLoad):
         # User reward: Incentivize heating when prices are low or solar is excess
         # Shortfall penalty: High cost ensures shortfall is only used to prevent infeasibility.
         objective_term = - (self.reward_cents_per_kwh * cp.sum(self.p_hw) * dt) \
-                         - (cp.sum(self.hw_energy) * 0.001) \
-                         + (cp.sum(self.shortfall) * 1000)
+                         - (cp.sum(self.hw_energy) * 0.001) 
         
         return constraints, objective_term, self.p_hw
 
@@ -134,68 +131,61 @@ class HWLoad(OptionalLoad):
         self.soc_init_param.value = float(self.current_charge_kwh)
         self.p_max_limit_param.value = float(self.max_charge_power_limit or 3.6)
         
-        # Model draw (usage + losses) based on historical average
-        draw_forecast = self.forecast_draw_power(time_index)
+        # Model thermal draw (usage + losses) based on historical temperature deltas
+        hot_water_delta_forecast = self.forecast_temp_delta(time_index)
+
+        # Convert temperature delta (°C per 5-min bin) to Power (kW)
+        # Power (kW) = (delta_T * Volume * 4.186) / (3600 seconds * (5/60) hours)
+        # P = (delta_T * Volume * 4.186) / 300
+        draw_forecast = hot_water_delta_forecast * (self.volume_l * 4.186) / 300.0
         self.draw_forecast_param.value = draw_forecast
 
         # Debug logging to console
         logger.debug(f"HWLoad '{self.name}' draw forecast: min={np.min(draw_forecast):.2f}kW, max={np.max(draw_forecast):.2f}kW, avg={np.mean(draw_forecast):.2f}kW")
-        logger.debug(f"HW Draw Forecast for '{self.name}': {draw_forecast}")
 
-    def get_draw_avg(self, days_ago=None, hours_update_interval=24):
-        """Calculate the average thermal draw (losses + usage) profile for a day."""
+    def get_temp_delta_avg(self, days_ago=None, hours_update_interval=24):
+        """Calculate the average temperature delta (cooling rate) profile for a day."""
         if days_ago is None:
             days_ago = self.load_avg_days
 
-        now_ts = datetime.datetime.now().timestamp()
-        if (self.avg_draw_day is not None and 
-            now_ts - self.last_draw_data_retrival_timestamp < hours_update_interval * 3600):
-            return self.avg_draw_day
+        now_ts = time.time()
+        if (self.avg_delta_day is not None and 
+            now_ts - self.last_delta_data_retrival_timestamp < hours_update_interval * 3600):
+            return self.avg_delta_day
 
         bin_period = 5
         now = datetime.datetime.now(self.local_tz)
         rounded_now = data_helpers.round_minutes(now, bin_period)
         start = rounded_now - datetime.timedelta(days=days_ago)
 
-        h_power = self.ha.get_history(self.power_entity_id, start_time=start, end_time=rounded_now)
-        if self.power_scale_factor != 1.0:
-            for s in h_power:
-                try: s.state = float(s.state) * self.power_scale_factor
-                except: pass
-        b_power = data_helpers.bin_data(h_power, bin_period, start, rounded_now)
-
         h_temp = self.ha.get_history(self.level_entity_id, start_time=start, end_time=rounded_now)
         b_temp = data_helpers.bin_data(h_temp, bin_period, start, rounded_now)
 
-        if not b_power or not b_temp or len(b_power) < 2 or len(b_power) != len(b_temp):
+        if not b_temp or len(b_temp) < 2:
             return None
 
-        cap_kwh = (self.volume_l * 4.186 * (self.temp_max - self.temp_min)) / 3600.0
-        dt_hr = bin_period / 60.0
         history_by_tod = defaultdict(list)
         
         for i in range(1, len(b_temp)):
-            p_heat = b_power[i].avg_state or 0.0
             t1, t2 = b_temp[i-1].avg_state, b_temp[i].avg_state
             
             if t1 is not None and t2 is not None:
-                # Remove max(0, ...) clipping to allow sensor jitter to average out perfectly
-                e1 = ((t1 - self.temp_min) / (self.temp_max - self.temp_min)) * cap_kwh
-                e2 = ((t2 - self.temp_min) / (self.temp_max - self.temp_min)) * cap_kwh
-                p_draw = p_heat - (e2 - e1) / dt_hr
-                history_by_tod[b_temp[i].time.time()].append(p_draw)
+                # Delta: positive value means temperature dropped (usage or losses)
+                # We clip to 0 to ignore periods of heating and sensor jitter rising.
+                delta = max(0.0, t1 - t2)
+                history_by_tod[b_temp[i].time.time()].append(delta)
 
         if not history_by_tod: return None
-        # Clamp the final average to a small floor (50W) for standing losses
-        self.avg_draw_day = {tod: max(0.05, sum(vals)/len(vals)) for tod, vals in history_by_tod.items()}
-        self.last_draw_data_retrival_timestamp = now_ts
-        return self.avg_draw_day
 
-    def forecast_draw_power(self, time_index) -> np.ndarray:
-        avg_draw = self.get_draw_avg()
-        if not avg_draw: return np.full(len(time_index), 0.1)
-        global_avg = sum(avg_draw.values()) / len(avg_draw)
-        return np.array([avg_draw.get(t.time(), global_avg) for t in time_index])
+        self.avg_delta_day = {tod: sum(vals)/len(vals) for tod, vals in history_by_tod.items()}
+        self.last_delta_data_retrival_timestamp = now_ts
+        return self.avg_delta_day
+
+    def forecast_temp_delta(self, time_index) -> np.ndarray:
+        avg_delta = self.get_temp_delta_avg()
+        if not avg_delta: return np.full(len(time_index), 0.01) # Default tiny loss
+        global_avg = sum(avg_delta.values()) / len(avg_delta)
+        return np.array([avg_delta.get(t.time(), global_avg) for t in time_index])
 
     def get_results(self, dt):
         p_hw = self.p_hw.value
@@ -225,7 +215,6 @@ class HWLoad(OptionalLoad):
             temp_max=float(item.get("temp_max", 0.0) or 0.0),
             power_entity_id=str(item.get("power_entity_id", "")),
             max_charge_power_entity_id=str(item.get("max_charge_power_entity_id", "")),
-            plugged_in_entity_id=str(item.get("plugged_in_entity_id", "")),
             level_entity_id=str(item.get("level_entity_id", "")),
             hw_power_unit_scale=str(item.get("hw_power_unit_scale", "kW"))
         )
@@ -241,7 +230,6 @@ class HWLoad(OptionalLoad):
             "temp_max": self.temp_max,
             "power_entity_id": self.power_entity_id,
             "max_charge_power_entity_id": self.max_charge_power_entity_id,
-            "plugged_in_entity_id": self.plugged_in_entity_id,
             "level_entity_id": self.level_entity_id,
             "hw_power_unit_scale": self.hw_power_unit_scale
         }

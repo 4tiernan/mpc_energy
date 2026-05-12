@@ -104,14 +104,15 @@ class HWLoad(OptionalLoad):
         self.shortfall = cp.Variable(n, nonneg=True)
         
         self.soc_init_param = cp.Parameter(nonneg=True)
+        self.capacity_param = cp.Parameter(nonneg=True)
         self.draw_forecast_param = cp.Parameter(n, nonneg=True)
         self.p_max_limit_param = cp.Parameter(nonneg=True)
         
         constraints = [
             self.hw_energy[0] == self.soc_init_param,
             self.hw_energy[1:] == self.hw_energy[:-1] + (self.p_hw * dt) - ((self.draw_forecast_param - self.shortfall) * dt),
-            self.hw_energy >= 0,
-            self.hw_energy <= self.capacity_kwh,
+            self.hw_energy >= -0.001, # Small epsilon to prevent precision-based infeasibility
+            self.hw_energy <= self.capacity_param + 0.001,
             self.p_hw <= self.p_max_limit_param,
             #mpc_soc[1:] >= self.p_hw * dt + mpc_soc_min_param
             self.shortfall <= self.draw_forecast_param
@@ -130,6 +131,7 @@ class HWLoad(OptionalLoad):
         n = mpc.N_5min
         
         self.soc_init_param.value = float(self.current_charge_kwh)
+        self.capacity_param.value = float(self.capacity_kwh)
         self.p_max_limit_param.value = float(self.max_charge_power_limit or 3.6)
         
         # Model thermal draw (usage + losses) based on historical temperature deltas
@@ -138,7 +140,7 @@ class HWLoad(OptionalLoad):
         # Convert temperature delta (°C per 5-min bin) to Power (kW)
         # Power (kW) = (delta_T * Volume * 4.186) / (3600 seconds * (5/60) hours)
         # P = (delta_T * Volume * 4.186) / 300
-        draw_forecast = hot_water_delta_forecast * (self.volume_l * 4.186) / 300.0
+        draw_forecast = np.maximum(0.0, hot_water_delta_forecast * (self.volume_l * 4.186) / 300.0)
         self.draw_forecast_param.value = draw_forecast
 
         # Debug logging to console
@@ -222,6 +224,7 @@ class HWLoad(OptionalLoad):
         temp_c = [round(self.temp_min + (x / self.capacity_kwh) * delta_t, 1) if self.capacity_kwh > 0 else self.temp_min for x in hw_energy_val.tolist()]
 
         return {
+            "raw_power": p_res,
             "power": p_res,
             "soc_percent": soc_pct,
             "temp_c": temp_c

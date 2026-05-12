@@ -120,9 +120,8 @@ class HWLoad(OptionalLoad):
         # Maintenance reward: Tiny incentive to keep the tank full
         # User reward: Incentivize heating when prices are low or solar is excess
         # Shortfall penalty: High cost ensures shortfall is only used to prevent infeasibility.
-        objective_term = - (self.reward_dollars_per_kwh * cp.sum(self.p_hw) * dt) \
-                         - (cp.sum(self.hw_energy) * 0.001) 
-        
+        objective_term = -cp.multiply(self.reward_dollars_per_kwh, self.p_hw) * dt
+
         return constraints, objective_term, self.p_hw
 
     def update_mpc_values(self, mpc, time_index):

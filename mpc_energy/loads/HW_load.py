@@ -105,7 +105,7 @@ class HWLoad(OptionalLoad):
         
         self.soc_init_param = cp.Parameter(nonneg=True)
         self.capacity_param = cp.Parameter(nonneg=True)
-        self.draw_forecast_param = cp.Parameter(n, nonneg=True)
+        self.draw_forecast_param = cp.Parameter(n) # Allow negative values for solar gains
         self.p_max_limit_param = cp.Parameter(nonneg=True)
         
         constraints = [

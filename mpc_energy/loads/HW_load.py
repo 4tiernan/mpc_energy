@@ -28,6 +28,7 @@ class HWLoad(OptionalLoad):
         hw_power_unit_scale: str = "kW"
     ):
         super().__init__(name, load_type, reward_cents_per_kwh, debias_load)
+        self.reward_dollars_per_kwh = self.reward_cents_per_kwh / 100.0
         self.volume_l = float(volume_l)
         self.temp_min = float(temp_min)
         self.temp_max = float(temp_max)
@@ -119,7 +120,7 @@ class HWLoad(OptionalLoad):
         # Maintenance reward: Tiny incentive to keep the tank full
         # User reward: Incentivize heating when prices are low or solar is excess
         # Shortfall penalty: High cost ensures shortfall is only used to prevent infeasibility.
-        objective_term = - (self.reward_cents_per_kwh * cp.sum(self.p_hw) * dt) \
+        objective_term = - (self.reward_dollars_per_kwh * cp.sum(self.p_hw) * dt) \
                          - (cp.sum(self.hw_energy) * 0.001) 
         
         return constraints, objective_term, self.p_hw

@@ -216,6 +216,7 @@ class HWLoad(OptionalLoad):
 
         soc_pct = [round((x / self.capacity_kwh) * 100, 2) if self.capacity_kwh > 0 else 0 for x in self.hw_energy.value.tolist()]
         return {
+            "raw_power": p_res,
             "power": p_res,
             "soc_percent": soc_pct
         }

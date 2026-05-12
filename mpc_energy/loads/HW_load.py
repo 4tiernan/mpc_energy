@@ -163,6 +163,10 @@ class HWLoad(OptionalLoad):
         rounded_now = data_helpers.round_minutes(now, bin_period)
         start = rounded_now - datetime.timedelta(days=days_ago)
 
+        if not self.level_entity_id:
+            logger.warning(f"No Tank Temperature Entity ID configured for HWLoad '{self.name}'. Cannot calculate historical deltas.")
+            return None
+
         h_temp = self.ha.get_history(self.level_entity_id, start_time=start, end_time=rounded_now)
         b_temp = data_helpers.bin_data(h_temp, bin_period, start, rounded_now)
 
@@ -177,6 +181,7 @@ class HWLoad(OptionalLoad):
             if t1 is not None and t2 is not None:
                 # Delta: + when increasing, - when decreasing
                 delta = t2 - t1
+                history_by_tod[b_temp[i].time.time()].append(delta)
                 
 
         if not history_by_tod: return None

@@ -196,7 +196,7 @@ for idx, row in enumerate(rows):
             "three_phase_available_entity_id": three_phase_available_entity_id,
             "three_phase_available": three_phase_available,
             "debias_load": debias_load,
-            "hw_power_unit_scale": hw_power_unit_scale
+            "hw_power_unit_scale": hw_power_unit_scale,
         })
 
 if delete_row_idx is not None:

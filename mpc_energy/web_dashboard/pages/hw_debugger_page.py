@@ -63,7 +63,7 @@ if not avg_delta_dict:
 sorted_times = sorted(avg_delta_dict.keys())
 deltas = [avg_delta_dict[t] for t in sorted_times]
 volume = float(hw_config.get("volume_l", 0))
-powers = [(d * volume * 4.186) / 300.0 for d in deltas]
+powers = [(-d * volume * 4.186) / 300.0 for d in deltas]
 
 df = pd.DataFrame({
     "Time": [t.strftime("%H:%M") for t in sorted_times],
@@ -92,8 +92,8 @@ st.plotly_chart(fig, use_container_width=True)
 
 c1, c2, c3 = st.columns(3)
 c1.metric("Average Daily Energy (kWh)", round(sum(powers) * (5/60), 2))
-c2.metric("Peak Predicted Draw (kW)", round(max(powers), 2))
-c3.metric("Max 5m Temp Drop (°C)", round(max(deltas), 2))
+c2.metric("Peak Predicted Draw (kW)", round(max(powers) if powers else 0, 2))
+c3.metric("Max 5m Temp Drop (°C)", round(-min(deltas) if deltas else 0, 2))
 
 with st.expander("Raw Data Table"):
     st.dataframe(df, use_container_width=True)

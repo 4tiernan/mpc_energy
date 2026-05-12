@@ -25,7 +25,7 @@ class HWLoad(OptionalLoad):
         power_entity_id: str = "",
         max_charge_power_entity_id: str = "",
         level_entity_id: str = "",
-        hw_power_unit_scale: str = "kW"
+        hw_power_unit_scale: str = "kW",
     ):
         super().__init__(name, load_type, reward_cents_per_kwh, debias_load)
         self.reward_dollars_per_kwh = self.reward_cents_per_kwh / 100.0
@@ -114,8 +114,8 @@ class HWLoad(OptionalLoad):
             self.hw_energy >= -0.001, # Small epsilon to prevent precision-based infeasibility
             self.hw_energy <= self.capacity_param + 0.001,
             self.p_hw <= self.p_max_limit_param,
-            #mpc_soc[1:] >= self.p_hw * dt + mpc_soc_min_param
-            self.shortfall <= self.draw_forecast_param
+            # Allow shortfall to only cover positive draws (usage). Gains (solar) can't have shortfall.
+            self.shortfall <= cp.maximum(0, self.draw_forecast_param)
         ]
         
         # Maintenance reward: Tiny incentive to keep the tank full
@@ -140,7 +140,9 @@ class HWLoad(OptionalLoad):
         # Convert temperature delta (°C per 5-min bin) to Power (kW)
         # Power (kW) = (delta_T * Volume * 4.186) / (3600 seconds * (5/60) hours)
         # P = (delta_T * Volume * 4.186) / 300
-        draw_forecast = np.maximum(0.0, hot_water_delta_forecast * (self.volume_l * 4.186) / 300.0)
+        # Sign is flipped because hot_water_delta_forecast is + for heating, but draw_forecast is + for cooling.
+        draw_forecast = -hot_water_delta_forecast * (self.volume_l * 4.186) / 300.0
+        
         self.draw_forecast_param.value = draw_forecast
 
         # Debug logging to console
@@ -173,10 +175,9 @@ class HWLoad(OptionalLoad):
             t1, t2 = b_temp[i-1].avg_state, b_temp[i].avg_state
             
             if t1 is not None and t2 is not None:
-                # Delta: positive value means temperature dropped (usage or losses)
-                # We clip to 0 to ignore periods of heating and sensor jitter rising.
-                delta = max(0.0, t1 - t2)
-                history_by_tod[b_temp[i].time.time()].append(delta)
+                # Delta: + when increasing, - when decreasing
+                delta = t2 - t1
+                
 
         if not history_by_tod: return None
 
@@ -207,7 +208,7 @@ class HWLoad(OptionalLoad):
 
     def forecast_temp_delta(self, time_index) -> np.ndarray:
         avg_delta = self.get_temp_delta_avg()
-        if not avg_delta: return np.full(len(time_index), 0.01) # Default tiny loss
+        if not avg_delta: return np.full(len(time_index), -0.01) # Default tiny loss (negative delta)
         global_avg = sum(avg_delta.values()) / len(avg_delta)
         return np.array([avg_delta.get(t.time(), global_avg) for t in time_index])
 

@@ -6,6 +6,7 @@ import plotly.graph_objects as go
 from loads.HW_load import HWLoad
 import loads.optional_loads as optional_loads
 from ha_api import HomeAssistantAPI
+import const
 import config_manager
 
 st.set_page_config(page_title="HW Load Debugger", layout="wide")
@@ -21,7 +22,7 @@ st.caption("Analyze how the delta-based forecaster is interpreting your tank tem
 
 if "ha" not in st.session_state:
     try:
-        st.session_state.ha = HomeAssistantAPI() 
+        st.session_state.ha = HomeAssistantAPI(base_url=const.HA_API_URL, token=const.HA_TOKEN) 
     except Exception as e:
         st.error(f"Failed to connect to Home Assistant API: {e}")
         st.stop()

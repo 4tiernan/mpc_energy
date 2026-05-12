@@ -447,7 +447,7 @@ def plot_mpc_results(st, output):
     )
 
     fig.update_yaxes(
-        title_text="EV SOC (%)",
+        title_text="Device SOC (%)",
         range=[0, 101],
         autorange=False,
         row=2, col=1, secondary_y=True

@@ -177,7 +177,28 @@ class HWLoad(OptionalLoad):
 
         if not history_by_tod: return None
 
-        self.avg_delta_day = {tod: sum(vals)/len(vals) for tod, vals in history_by_tod.items()}
+        # Calculate raw averages per time-of-day
+        raw_avg_dict = {tod: sum(vals)/len(vals) for tod, vals in history_by_tod.items()}
+        
+        # 30-min Moving Average Smoothing (cyclic over 24h)
+        # Create a full 288-bin day (5-min bins)
+        all_tods = [(datetime.datetime.min + datetime.timedelta(minutes=i*5)).time() for i in range(288)]
+        deltas = np.array([raw_avg_dict.get(t, np.nan) for t in all_tods])
+        
+        # Cyclic interpolation of missing data points
+        if np.isnan(deltas).any():
+            if np.isnan(deltas).all():
+                deltas = np.zeros(288)
+            else:
+                valid_idx = np.where(~np.isnan(deltas))[0]
+                deltas = np.interp(np.arange(288), valid_idx, deltas[valid_idx], period=288)
+
+        # Apply 30 min (6 bins) cyclic moving average
+        window = 6
+        kernel = np.ones(window) / window
+        smoothed = np.convolve(np.tile(deltas, 3), kernel, mode='same')[288:576]
+
+        self.avg_delta_day = {all_tods[i]: smoothed[i] for i in range(288)}
         self.last_delta_data_retrival_timestamp = now_ts
         return self.avg_delta_day
 
@@ -195,9 +216,8 @@ class HWLoad(OptionalLoad):
 
         soc_pct = [round((x / self.capacity_kwh) * 100, 2) if self.capacity_kwh > 0 else 0 for x in self.hw_energy.value.tolist()]
         return {
-            "hw_power": p_res,
-            "hw_soc_percent": soc_pct,
-            "power": p_res
+            "power": p_res,
+            "soc_percent": soc_pct
         }
 
     @classmethod

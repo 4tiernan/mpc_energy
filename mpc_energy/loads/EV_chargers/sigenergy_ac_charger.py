@@ -99,10 +99,12 @@ class SigEnergyACCharger(EVCharger):
         if(switch_entity_state != desired_switch_state):
             self.ha.set_switch_state(self.charge_enable_entity_id, desired_switch_state)
             logger.debug(f"Set switch state for {self.name} to {desired_switch_state} as the car is currently plugged in and target charge rate is {self.target_charge_rate:.2f} kW.")
+            logger.debug(f"Set switch state for {self.name} to {desired_switch_state}. (Plugged in: {self.car_plugged_in}, Target: {self.target_charge_rate:.2f} kW)")
             self.last_control_entity_update_time = time.time()
         
         if(current_input_entity_state != desired_current_input_state):
             self.ha.set_number(self.charge_current_entity_id, desired_current_input_state)
             logger.debug(f"Set charge current for {self.name} to {desired_current_input_state:.2f} A as the car is currently plugged in and target charge rate is {self.target_charge_rate:.2f} kW.")
+            logger.debug(f"Set charge current for {self.name} to {desired_current_input_state:.2f} A. (Plugged in: {self.car_plugged_in}, Target: {self.target_charge_rate:.2f} kW)")
             self.last_control_entity_update_time = time.time()
         

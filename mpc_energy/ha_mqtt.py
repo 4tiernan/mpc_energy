@@ -115,7 +115,7 @@ class CreateSelectInput():
         new_state = message.payload.decode()
         if new_state in self.options:
             self.state = new_state
-            self.entity.select_option(self.state) # Acknowledge the command by publishing the new state
+            self.set_state(new_state) # Update internal state and publish to HA
         else:
             logger.warning(f"Received invalid command '{new_state}' for select entity '{self.name}'. Valid options: {self.options}. Ignoring command.")
             # Optionally, publish the current valid state back to HA to correct its display
@@ -131,14 +131,14 @@ class CreateSelectInput():
             logger.warning(f"Unable to publish command for {self.name}: missing MQTT command topic/client")
 
         
-    def set_state(self, state, publish_command=False):
+    def set_state(self, state, publish_command=True):
         if(state in self.options):
             if publish_command:
                 self.publish_command(state)
             self.entity.select_option(state)
             self.state = state
         else:
-            raise(f"{state} option is not a valid option: {self.options} for {self.name} selector")
+            raise ValueError(f"{state} option is not a valid option: {self.options} for {self.name} selector")
 
 
 class CreateNumberInput():

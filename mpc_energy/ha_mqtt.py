@@ -20,9 +20,8 @@ def uid(name):
 # Define the device. At least one of `identifiers` or `connections` must be supplied
 device_info = DeviceInfo(name="MPC Energy Manager Device", identifiers="mpc-energy-py")
 
-
 def CreateSensor(name, unique_id, unit_of_measurement, state_class="measurement", device_class=None):
-    sensor_info = SensorInfo(name=name, unique_id=uid(unique_id), device=device_info, unit_of_measurement=unit_of_measurement, state_class=state_class, device_class=device_class)
+    sensor_info = SensorInfo(name=name, unique_id=uid(unique_id), device=device_info, unit_of_measurement=unit_of_measurement, state_class=state_class, device_class=device_class, retain=True)
     sensor_settings = Settings(mqtt=mqtt_settings, entity=sensor_info)
     return Sensor(sensor_settings)
 

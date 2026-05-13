@@ -198,10 +198,13 @@ class MPC:
             self.solar_5min[0] = (self.solar_5min[0] + (self.historical_data["solar_power"][-1] if self.historical_data["solar_power"] else self.solar_5min[0])) / 2 # Avgerage the last 5 minutes of solar with the forecast to make a more realistic value for the current timestep
             self.load_5min[0] = self.historical_data["load_power"][-1]
             for load in self.optional_loads:
-                if(load.debias_load):
-                    opt_load_history = load.get_historical_power(hours=0.25)
-                    opt_load_recent_avg = opt_load_history[0].avg_state if opt_load_history and len(opt_load_history) > 0 and opt_load_history[0].avg_state is not None else 0.0
-                    self.load_5min[0] = self.load_5min[0] - opt_load_recent_avg
+                try:  
+                    if(load.debias_load):
+                        opt_load_history = load.get_historical_power(hours=0.25)
+                        opt_load_recent_avg = opt_load_history[0].avg_state if opt_load_history and len(opt_load_history) > 0 and opt_load_history[0].avg_state is not None else 0.0
+                        self.load_5min[0] = self.load_5min[0] - opt_load_recent_avg
+                except Exception as e:
+                    logger.warning(f"Failed to debias optional load '{load.name}' from the load forecast. Error: {e}")
             
             # Apply near-term correction to load forecast based on current actual-vs-forecast mismatch.
             # This scales early intervals by the current ratio and linearly ramps back to 100% forecast.
@@ -370,10 +373,13 @@ class MPC:
         total_load = self.load_forecast_param
         mpc_instace = self
         for load in self.optional_loads:
-            l_constraints, l_objective_term, l_p_var = load.build_cvxpy(mpc_instace)
-            constraints += l_constraints
-            objective_list.append(l_objective_term)
-            total_load += l_p_var
+            try:
+                l_constraints, l_objective_term, l_p_var = load.build_cvxpy(mpc_instace)
+                constraints += l_constraints
+                objective_list.append(l_objective_term)
+                total_load += l_p_var
+            except Exception as e:
+                logger.warning(f"Failed to build CVXPY expressions for optional load '{load.name}'. Error: {e}")
 
 
         # Add the main power balance constraint after considering all the optional loads. 
@@ -399,7 +405,10 @@ class MPC:
 
         self.update_values(amber_data, time_index)
         for load in self.optional_loads:
-            load.update_mpc_values(self, time_index)
+            try:
+                load.update_mpc_values(self, time_index)
+            except Exception as e:
+                logger.warning(f"Failed to update optional load '{load.name}'s values for MPC. Error: {e}")
 
         #logger.error("Messing with prices!!")
         #self.prices_sell[180:] = 0.02 # Allow testing of various pricings
@@ -542,11 +551,16 @@ class MPC:
             
             optional_loads_results = {}
             for load in self.optional_loads:
-                res = load.get_results(self.dt_5min)
-                if "raw_power" in res:
-                    # Aggregating power for the total site load forecast, using the raw load power that hasn't been clipped
-                    load_power = [round(lp + p, 2) for lp, p in zip(load_power, res["raw_power"])]
-                optional_loads_results[load.name] = res
+                try:
+                    res = load.get_results(self.dt_5min)
+                    if "raw_power" in res:
+                        # Aggregating power for the total site load forecast, using the raw load power that hasn't been clipped
+                        load_power = [round(lp + p, 2) for lp, p in zip(load_power, res["raw_power"])]
+                    else:
+                        logger.error(f"Optional load '{load.name}' did not return 'raw_power' in results, cannot include in total load forecast. Results returned: {res}")
+                    optional_loads_results[load.name] = res
+                except Exception as e:
+                    logger.warning(f"Failed to get results from optional load '{load.name}'. Error: {e}")
 
             self.profit_remaining_today = round(float(forecast_profit_today), 2)
             self.profit_tomorrow = round(float(forecast_profit_tomorrow), 2)

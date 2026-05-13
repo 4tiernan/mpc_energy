@@ -8,6 +8,7 @@ st.set_page_config(page_title="Optional Loads", layout="wide")
 st.sidebar.page_link("webserver.py", label="Dashboard", icon="📊")
 st.sidebar.page_link("pages/optional_loads_page.py", label="Optional Loads", icon="⚙️")
 st.sidebar.page_link("pages/plant_config_page.py", label="Plant Configuration", icon="🏭")
+st.sidebar.page_link("pages/hw_debugger_page.py", label="HW Debugger", icon="🌡️")
 st.sidebar.page_link("pages/load_debugger_page.py", label="Load Debugger", icon="📈")
 
 st.title("Optional Loads Configuration")
@@ -195,7 +196,7 @@ for idx, row in enumerate(rows):
             "three_phase_available_entity_id": three_phase_available_entity_id,
             "three_phase_available": three_phase_available,
             "debias_load": debias_load,
-            "hw_power_unit_scale": hw_power_unit_scale
+            "hw_power_unit_scale": hw_power_unit_scale,
         })
 
 if delete_row_idx is not None:

@@ -53,7 +53,7 @@ class CreateSelectInput():
 
         # Publish the determined initial state to HA. This ensures HA's displayed state
         # matches the app's internal state, and updates any invalid retained messages.
-        self.entity.select_option(options[0])
+        self.publish_state(self.state)
         self.entity.write_config()
         
     def _get_retained_state_for_select(self, state_topic, valid_options, default_value, timeout=2):
@@ -114,12 +114,11 @@ class CreateSelectInput():
         # This callback is for commands from HA to change the select option
         new_state = message.payload.decode()
         if new_state in self.options:
-            self.state = new_state
-            self.set_state(new_state) # Update internal state and publish to HA
+            self.set_state(new_state, publish_command=False) # Update internal state and publish to HA
         else:
             logger.warning(f"Received invalid command '{new_state}' for select entity '{self.name}'. Valid options: {self.options}. Ignoring command.")
             # Optionally, publish the current valid state back to HA to correct its display
-            self.entity.select_option(self.state)
+            self.publish_state(self.state)
     
     def publish_command(self, command):
         command_topic = getattr(self.entity, "_command_topic", None)
@@ -130,12 +129,22 @@ class CreateSelectInput():
         else:
             logger.warning(f"Unable to publish command for {self.name}: missing MQTT command topic/client")
 
+    def publish_state(self, state):
+        state_topic = getattr(self.entity, "state_topic", None)
+        mqtt_client = getattr(self.entity, "mqtt_client", None)
+
+        if state_topic is not None and mqtt_client is not None:
+            mqtt_client.publish(state_topic, payload=state, qos=0, retain=True)
+        else:
+            logger.warning(f"Unable to publish state for {self.name}: missing MQTT state topic/client")
+            logger.warning(f"Unable to publish command for {self.name}: missing MQTT command topic/client")
+
         
     def set_state(self, state, publish_command=True):
         if(state in self.options):
             if publish_command:
                 self.publish_command(state)
-            self.entity.select_option(state)
+            self.publish_state(state)
             self.state = state
         else:
             raise ValueError(f"{state} option is not a valid option: {self.options} for {self.name} selector")

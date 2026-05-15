@@ -47,12 +47,6 @@ class SigEnergyACCharger(EVCharger):
         self.last_control_entity_update_time = 0.0 # Timestamp of the last time we sent a control command to the charger, used to rate limit calls
         self.min_time_between_control_updates = 30.0 # Minimum time in seconds between control updates to avoid hitting the charger controls to frequently.
 
-    def set_target_charge_rate(self, kw: float):
-        """
-        Sets the charging rate of the SigEnergy AC charger in kW.
-        """
-        self.target_charge_rate = kw
-    
     def update_state(self):
         """
         Update the charger state by fetching the latest data from Home Assistant and checking whether a car is plugged in and adapting power limits.

@@ -234,6 +234,9 @@ class EVLoad(OptionalLoad):
         self.target_charge_rate = p_res[0]
         soc_pct = [round((x / self.capacity_kwh) * 100, 2) if self.capacity_kwh > 0 else 0 for x in soc_ev.tolist()]
 
+        if(self._normalise_ev_mode() == self.EV_MODE_FORCE_ON and self.is_plugged_in):
+            self.target_charge_rate = self.max_charge_power_kw
+
         self.charger.set_target_charge_rate(self.target_charge_rate) # Update the charger with the new target charge rate for real-time control
         
         return {

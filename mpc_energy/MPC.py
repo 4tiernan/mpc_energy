@@ -684,19 +684,12 @@ class MPC:
 
         elif(grid_net > power_threshold): # if grid_net is positive we are importing power
             if(control_active):
-                if(data_helpers.approx_equal(abs(grid_net), load_power)):
-                    self.plant.import_power(battery_charge_limit = max(-battery_power, 0))
-                elif(data_helpers.approx_equal(-inverter_power, self.inverter_p_max)): # If the plan calls for max charging, set the battery charge limit to the max.
+                if(data_helpers.approx_equal(-inverter_power, self.inverter_p_max)): # If the plan calls for max charging, set the battery charge limit to the max.
                     self.plant.import_power(battery_charge_limit = self.p_max_charge, grid_import_limit = self.grid_import_limit)
                 else:   
-                    self.plant.import_power(battery_charge_limit = max(-battery_power, 0), grid_import_limit = abs(grid_net)) # Battery power (- = Charge, + = Discharge)
+                    self.plant.import_power(battery_charge_limit = None, grid_import_limit = abs(grid_net)) # Battery power (- = Charge, + = Discharge)
             return self.plant.ControlMode.GRID_IMPORT
         
-        elif(inverter_power < 0 and battery_power < power_threshold):
-            if(control_active):
-                self.plant.import_power(battery_charge_limit = max(-battery_power, 0), pv_limit = used_solar_power)
-            return self.plant.ControlMode.GRID_IMPORT
-
         else:
             if(control_active):
                 self.plant.self_consumption()

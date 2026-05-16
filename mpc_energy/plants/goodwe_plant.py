@@ -430,6 +430,16 @@ class GoodWePlant(BasePlant):
             ems_limit=0, 
             export_limit=self.max_export_power
         )
+    
+    def partial_grid_import(self):
+        self.working_mode = self.ControlMode.PARTIAL_GRID_IMPORT
+        self.check_control_limits(
+            working_mode=self.working_mode,
+            control_mode="buy_power",
+            ems_limit=0, # Grid Import Power
+            export_limit=self.max_export_power
+        )
+
         
     def import_power(self, battery_charge_limit = None, pv_limit = None, grid_import_limit = None):
         if(battery_charge_limit == None):

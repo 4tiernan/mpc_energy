@@ -2,27 +2,28 @@ import streamlit as st
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import datetime
-from energy_controller import ControlMode
+from plants.base_plant import BasePlant
 import numpy as np
 
 CONTROL_MODE_ORDER = [
-    ControlMode.GRID_IMPORT.value,
-    ControlMode.SELF_CONSUMPTION.value,
-    ControlMode.SOLAR_TO_LOAD.value,
-    ControlMode.EXPORT_EXCESS_SOLAR.value,
-    ControlMode.EXPORT_ALL_SOLAR.value,
-    ControlMode.DISPATCH.value,
+    BasePlant.ControlMode.GRID_IMPORT,
+    BasePlant.ControlMode.SELF_CONSUMPTION,
+    BasePlant.ControlMode.SOLAR_TO_LOAD,
+    BasePlant.ControlMode.EXPORT_EXCESS_SOLAR,
+    BasePlant.ControlMode.EXPORT_ALL_SOLAR,
+    BasePlant.ControlMode.DISPATCH,
     "Unable to determine",
 ]
 
 CONTROL_MODE_COLORS = {
-    ControlMode.GRID_IMPORT.value:        "#fa6be0",  # blue
-    ControlMode.SELF_CONSUMPTION.value:   "#a6ebfc",  # green
-    ControlMode.SOLAR_TO_LOAD.value:      "#D6FFA4",  # darker green
-    ControlMode.EXPORT_EXCESS_SOLAR.value:"#7efd1d",  # orange
-    ControlMode.EXPORT_ALL_SOLAR.value:   "#02d938",  # dark orange
-    ControlMode.DISPATCH.value:            "#fbe94a",  # yellow
-    "Unable to determine":                 "#ff0000",  # grey
+    BasePlant.ControlMode.GRID_IMPORT:        "#fa6be0",  # pink
+    BasePlant.ControlMode.PARTIAL_GRID_IMPORT: "#ff80df", # lighter pink
+    BasePlant.ControlMode.SELF_CONSUMPTION:   "#a6ebfc",  # blue
+    BasePlant.ControlMode.SOLAR_TO_LOAD:      "#D6FFA4",  # lighter green
+    BasePlant.ControlMode.EXPORT_EXCESS_SOLAR: "#7efd1d",  # green
+    BasePlant.ControlMode.EXPORT_ALL_SOLAR:   "#02d938",  # dark green
+    BasePlant.ControlMode.DISPATCH:            "#fbe94a",  # yellow
+    "Unable to determine":                 "#ff0000",  # red
 }
 
 def contiguous_segments(values):

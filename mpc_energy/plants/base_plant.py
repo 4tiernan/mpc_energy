@@ -23,6 +23,7 @@ class BasePlant(ABC):
         DISPATCH = "Dispatching"
         GRID_IMPORT = "Grid Import"
         SOLAR_TO_LOAD = "Solar To Load"
+        PARTIAL_GRID_IMPORT = "Partial Grid Import"
 
     def __init__(self, ha: HomeAssistantAPI, optional_loads: list[OptionalLoad], plant_config: dict = None):
         self.ha: HomeAssistantAPI = ha
@@ -91,6 +92,11 @@ class BasePlant(ABC):
         """Import power from the grid to charge the battery and supply the load as needed. The pv_limit can be used to limit how much solar is used to supply the load in order to prioritize importing from the grid, and the battery_charge_limit can be used to limit how much the battery is allowed to charge from the grid."""
         raise NotImplementedError("Grid import method not implemented for this plant.")
 
+    @abstractmethod
+    def partial_grid_import(self):
+        """Import power from the grid to charge the battery and supply the load as needed while allowing the inverter to charge the battery with solar if possible to reduce grid import. The pv_limit can be used to limit how much solar is used to supply the load in order to prioritize importing from the grid, and the battery_charge_limit can be used to limit how much the battery is allowed to charge from the grid."""
+        raise NotImplementedError("Partial grid import method not implemented for this plant.")
+    
     @abstractmethod
     def self_consumption(self, pv_limit = None):
         """Use solar to supply the load as much as possible while charging the battery with excess solar as needed to maximize self consumption. The pv_limit can be used to limit how much solar is used to supply the load in order to prioritize charging the battery with excess solar."""

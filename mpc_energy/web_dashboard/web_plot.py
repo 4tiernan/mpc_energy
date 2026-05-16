@@ -7,6 +7,7 @@ import numpy as np
 
 CONTROL_MODE_ORDER = [
     BasePlant.ControlMode.GRID_IMPORT,
+    BasePlant.ControlMode.PARTIAL_GRID_IMPORT,
     BasePlant.ControlMode.SELF_CONSUMPTION,
     BasePlant.ControlMode.SOLAR_TO_LOAD,
     BasePlant.ControlMode.EXPORT_EXCESS_SOLAR,
@@ -17,7 +18,7 @@ CONTROL_MODE_ORDER = [
 
 CONTROL_MODE_COLORS = {
     BasePlant.ControlMode.GRID_IMPORT:        "#fa6be0",  # pink
-    BasePlant.ControlMode.PARTIAL_GRID_IMPORT: "#ff80df", # lighter pink
+    BasePlant.ControlMode.PARTIAL_GRID_IMPORT: "#ffb7ed", # lighter pink
     BasePlant.ControlMode.SELF_CONSUMPTION:   "#a6ebfc",  # blue
     BasePlant.ControlMode.SOLAR_TO_LOAD:      "#D6FFA4",  # lighter green
     BasePlant.ControlMode.EXPORT_EXCESS_SOLAR: "#7efd1d",  # green

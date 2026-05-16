@@ -1,7 +1,8 @@
 ## 0.8.0
 * Added ability to setup multiple optional loads through Web UI
 * Added support for GoodWe batteries
-* Streamlit crashing fix???
+* Improved Streamlit crashing detection
+* Resolved bug causing grid import mode to curtail solar
 
 ## 0.7.0
 * Added net grid interaction kWh sensor to aid automations.

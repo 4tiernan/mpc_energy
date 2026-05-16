@@ -44,6 +44,8 @@ class ControlModeOverrideManager:
             self.plant.self_consumption()
         elif(mode == "Grid Import"):
             self.plant.import_power()
+        elif(mode == "Partial Grid Import"):
+            self.plant.partial_grid_import()
         elif(mode == "Solar To Load"):
             self.plant.solar_to_load()
         else:

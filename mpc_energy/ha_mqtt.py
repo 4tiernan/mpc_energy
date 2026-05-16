@@ -368,6 +368,7 @@ control_mode_override_selector = CreateSelectInput(
         "Exporting All Solar",
         "Dispatching",
         "Grid Import",
+        "Partial Grid Import",
         "Solar To Load"
     ]
 )

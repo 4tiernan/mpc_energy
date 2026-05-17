@@ -237,7 +237,7 @@ class EVLoad(OptionalLoad):
         if(self._normalise_ev_mode() == self.EV_MODE_FORCE_ON and self.is_plugged_in):
             self.target_charge_rate = self.max_charge_power_kw
 
-        if(soc_pct[0] >= self.max_level_limit-1):
+        if(soc_pct[0] >= self.max_level_limit-5):
             self.target_charge_rate = self.min_charge_power_kw # If the EV battery is at its maximum, keep it there. 
 
         self.charger.set_target_charge_rate(self.target_charge_rate) # Update the charger with the new target charge rate for real-time control

@@ -483,7 +483,7 @@ class SigEnergyPlant(BasePlant):
             charge=self.max_charge_power,
             pv=self.max_pv_power,
             grid_export=0,
-            grid_import=0)
+            grid_import=self.max_import_power)
         
     def import_power(self, battery_charge_limit = None, pv_limit = None, grid_import_limit = None):
         if(battery_charge_limit == None):

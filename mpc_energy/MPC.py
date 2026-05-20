@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 #from zoneinfo import ZoneInfo
 import time
 from energy_controller import ControlMode
+import logging
 from mpc_logger import logger
 import warnings
 
@@ -489,19 +490,59 @@ class MPC:
         # Prefer ECOS for speed, but fall back to CLARABEL when ECOS reports an
         # inaccurate solution to avoid propagating unstable plans.
         ecos_inaccurate = False
-        with warnings.catch_warnings(record=True) as caught_warnings:
-            warnings.simplefilter("always", UserWarning)
-            self.prob.solve(solver=cp.ECOS, warm_start=True, max_iters=300) # Increased max iters to allow more time for solving
-            ecos_inaccurate = any("Solution may be inaccurate" in str(w.message) for w in caught_warnings)
+        def solve(self, verbose=False):
 
-        if self.prob.status == "optimal_inaccurate" or ecos_inaccurate:
-            logger.warning(
-                f"ECOS returned {self.prob.status} (inaccurate={ecos_inaccurate}); retrying with CLARABEL."
-            )
-            self.prob.solve(solver=cp.CLARABEL, warm_start=True)
+            with warnings.catch_warnings(record=True) as caught_warnings:
+                warnings.simplefilter("always", UserWarning)
+                self.prob.solve(solver=cp.ECOS, warm_start=True, max_iters=300, verbose=verbose) # Increased max iters to allow more time for solving
+                ecos_inaccurate = any("Solution may be inaccurate" in str(w.message) for w in caught_warnings)
+
+            if self.prob.status == "optimal_inaccurate" or ecos_inaccurate:
+                logger.warning(
+                    f"ECOS returned {self.prob.status} (inaccurate={ecos_inaccurate}); retrying with CLARABEL."
+                )
+                self.prob.solve(solver=cp.CLARABEL, warm_start=True, verbose=verbose)
+
+        solve(self)
 
         # Don't continue if the solver failed
         if self.prob.status not in ("optimal", "optimal_inaccurate"):
+            # Log parameter state to help debug infeasibility
+            logger.error(f"MPC solve failed with status: {self.prob.status}. Dumping parameters...")
+            logger.error(f"  soc_init: {self.soc_init_param.value:.4f}")
+            logger.error(f"  soc_min: {self.soc_min_param.value:.4f}")
+            logger.error(f"  soc_max: {self.soc_max_param.value:.4f}")
+            logger.error(f"  grid_import_limit: {self.grid_import_limit_param.value}")
+            logger.error(f"  p_max_charge: {self.p_max_charge_param.value}")
+            logger.error(f"  p_max_discharge: {self.p_max_discharge_param.value}")
+            
+            for load in self.optional_loads:
+                if hasattr(load, 'soc_init_param') and load.soc_init_param.value is not None:
+                    logger.error(f"  Optional Load '{load.name}':")
+                    logger.error(f"    soc_init: {load.soc_init_param.value:.4f}")
+                    if hasattr(load, 'soc_min_required_param') and load.soc_min_required_param.value is not None:
+                        logger.error(f"    soc_min_req[0]: {load.soc_min_required_param.value[0]:.4f}")
+                    if hasattr(load, 'p_max_param') and load.p_max_param.value is not None:
+                        logger.error(f"    p_max_param[0]: {load.p_max_param.value[0]:.4f}")
+            
+            logger.error("Solver failed, dumping first 10 values of key parameters for debugging:")
+            for i in range(min(10, int(self.N_5min))):
+                logger.error(
+                    f"  Index {i}: solar={self.solar_forecast_param.value[i]:.2f}, "
+                    f"load={self.load_forecast_param.value[i]:.2f}, "
+                    f"price_buy={self.price_buy_param.value[i]:.4f}, "
+                    f"price_sell={self.price_sell_param.value[i]:.4f}, "
+                    f"demand_mask={self.demand_mask_param.value[i]}, "
+                    f"solar_eod_reward_mask={self.solar_eod_reward_mask_param.value[i]}"
+                )
+            
+            logger.error("Constraints:")
+            for constraint in self.prob.constraints:
+                logger.error(f"  {constraint}")
+            
+            logger.info("Running Solver again in verbose mode to get more details on the failure...")
+            solve(verbose=True)
+            
             raise RuntimeError(f"MPC solve failed: {self.prob.status}")
         
         else: # Sim successfull 

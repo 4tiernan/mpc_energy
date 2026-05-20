@@ -1,6 +1,6 @@
 from loads.EV_chargers.EV_charger import EVCharger
 from ha_api import HomeAssistantAPI
-from mpc_energy.loads.EV_load import EVLoad
+from loads.EV_load import EVLoad
 from mpc_logger import logger
 import time
 

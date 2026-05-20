@@ -89,8 +89,7 @@ class EVLoad(OptionalLoad):
             self.ev_soc[1:] <= self.soc_upper_limit_param,
             self.ev_soc[1:] >= self.soc_min_required_param, # List of minimum SOC values
             self.p_ev >= 0,
-            self.p_ev <= self.p_max_param,
-            mpc.soc[1:] >= self.p_ev * mpc.dt_5min + mpc.soc_min_param
+            self.p_ev <= self.p_max_param
         ]
 
         objective_term = (
@@ -157,7 +156,8 @@ class EVLoad(OptionalLoad):
         
         self.p_max_param.value = p_max_arr
         self.soc_init_param.value = float(self.current_ev_soc_kWh)
-        self.soc_upper_limit_param.value = max(float((self.max_level_limit / 100.0) * self.capacity_kwh), 0) # Set the upper SOC limit based on the max_level_limit percentage
+        # Ensure upper limit is at least as high as current SOC to prevent solver infeasibility if car is over-charged
+        self.soc_upper_limit_param.value = max(float((self.max_level_limit / 100.0) * self.capacity_kwh), float(self.current_ev_soc_kWh or 0.0))
         self.soc_min_required_param.value = ev_soc_min_required_arr # Set the minimum SOC constraint array based on the selected mode and current SOC
         
     def update_data(self) -> None:

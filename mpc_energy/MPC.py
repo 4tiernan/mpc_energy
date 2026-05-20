@@ -536,9 +536,6 @@ class MPC:
                     f"solar_eod_reward_mask={self.solar_eod_reward_mask_param.value[i]}"
                 )
             
-            logger.error("Constraints:")
-            for constraint in self.prob.constraints:
-                logger.error(f"  {constraint}")
             
             logger.info("Running Solver again in verbose mode to get more details on the failure...")
             solve(self, verbose=True)

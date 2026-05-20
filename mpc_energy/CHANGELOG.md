@@ -1,8 +1,9 @@
 ## 0.8.0
-* Added ability to setup multiple optional loads through Web UI
+* Added ability to setup Plant and multiple optional loads including EV's, through Web UI
 * Added support for GoodWe batteries
 * Improved Streamlit crashing detection
 * Resolved bug causing grid import mode to curtail solar
+* Added support for Sigenergy EV AC charger and Tesla API charger. 
 
 ## 0.7.0
 * Added net grid interaction kWh sensor to aid automations.

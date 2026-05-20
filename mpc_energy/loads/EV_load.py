@@ -52,6 +52,7 @@ class EVLoad(OptionalLoad):
         self.charger = None
         self.min_charge_power_kw = 0.0
         self.max_charge_power_kw = 0.0
+        self.last_charge_mode = None
 
         logger.debug(f"Initialized EV Load '{name}' with capacity {capacity_kwh} kWh," 
                      f" current level limits {min_level_limit}% to {max_level_limit}%,"
@@ -240,8 +241,14 @@ class EVLoad(OptionalLoad):
         if(soc_pct[0] >= self.max_level_limit-5):
             self.target_charge_rate = self.min_charge_power_kw # If the EV battery is at its maximum, keep it there. 
 
-        self.charger.set_target_charge_rate(self.target_charge_rate) # Update the charger with the new target charge rate for real-time control
-        
+        if(self._normalise_ev_mode() == self.EV_MODE_DISABLED and self.last_charge_mode != self.EV_MODE_DISABLED):
+            self.charger.set_target_charge_rate(0.0, None) # Set charge rate to 0 immediately when switching to disabled mode to ensure the charger stops charging as soon as possible.
+
+        self.charger.set_target_charge_rate(self.target_charge_rate, self._normalise_ev_mode()) # Update the charger with the new target charge rate for real-time control
+
+        # Update the last charge mode
+        self.last_charge_mode = self._normalise_ev_mode()
+
         return {
             "power": p_res,
             "raw_power": p_ev.tolist(),

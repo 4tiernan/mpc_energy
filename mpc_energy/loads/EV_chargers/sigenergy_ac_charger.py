@@ -1,4 +1,5 @@
 from loads.EV_chargers.EV_charger import EVCharger
+from loads.EV_load import EVLoad
 from ha_api import HomeAssistantAPI
 from mpc_logger import logger
 import time
@@ -64,7 +65,7 @@ class SigEnergyACCharger(EVCharger):
         """
         self.update_state()
 
-        if self.car_plugged_in:
+        if self.car_plugged_in and self.target_charge_rate is not None:
             if(self.target_charge_rate != 0):
                 target_charge_current = int((self.target_charge_rate * 1000) / (self.available_phases * self.nominal_ac_voltage))
             else: 
@@ -82,21 +83,21 @@ class SigEnergyACCharger(EVCharger):
             desired_switch_state = False
             desired_current_input_state = self.min_charge_current # Set to min charge current when not plugged in to avoid errors
 
+        if(self.charging_mode != EVLoad.EV_MODE_DISABLED):
+            switch_entity_state = self.ha.get_boolean_state(self.charge_enable_entity_id)
+            current_input_entity_state = self.ha.get_numeric_state(self.charge_current_entity_id)
 
-        switch_entity_state = self.ha.get_boolean_state(self.charge_enable_entity_id)
-        current_input_entity_state = self.ha.get_numeric_state(self.charge_current_entity_id)
+            if((switch_entity_state != desired_switch_state or current_input_entity_state != desired_current_input_state) and (time.time() - self.last_control_entity_update_time) < self.min_time_between_control_updates):
+                logger.debug(f"Warning: Rate limiting control updates for {self.name}. Desired switch state: {desired_switch_state}, current switch state: {switch_entity_state}, desired current input: {desired_current_input_state:.2f}A, current input state: {current_input_entity_state:.2f}A. Will attempt to update again in {(self.min_time_between_control_updates - (time.time() - self.last_control_entity_update_time)):.2f} seconds.")
+                return
 
-        if((switch_entity_state != desired_switch_state or current_input_entity_state != desired_current_input_state) and (time.time() - self.last_control_entity_update_time) < self.min_time_between_control_updates):
-            logger.debug(f"Warning: Rate limiting control updates for {self.name}. Desired switch state: {desired_switch_state}, current switch state: {switch_entity_state}, desired current input: {desired_current_input_state:.2f}A, current input state: {current_input_entity_state:.2f}A. Will attempt to update again in {(self.min_time_between_control_updates - (time.time() - self.last_control_entity_update_time)):.2f} seconds.")
-            return
-
-        if(switch_entity_state != desired_switch_state):
-            self.ha.set_switch_state(self.charge_enable_entity_id, desired_switch_state)
-            logger.debug(f"Set switch state for {self.name} to {desired_switch_state} from {switch_entity_state} (Plugged in: {self.car_plugged_in}, Target: {self.target_charge_rate:.2f} kW)")
-            self.last_control_entity_update_time = time.time()
-        
-        if(current_input_entity_state != desired_current_input_state):
-            self.ha.set_number(self.charge_current_entity_id, desired_current_input_state)
-            logger.debug(f"Set charge current for {self.name} to {desired_current_input_state:.2f} A from {current_input_entity_state:.2f} A. (Plugged in: {self.car_plugged_in}, Target: {self.target_charge_rate:.2f} kW)")
-            self.last_control_entity_update_time = time.time()
+            if(switch_entity_state != desired_switch_state):
+                self.ha.set_switch_state(self.charge_enable_entity_id, desired_switch_state)
+                logger.debug(f"Set switch state for {self.name} to {desired_switch_state} from {switch_entity_state} (Plugged in: {self.car_plugged_in}, Target: {self.target_charge_rate:.2f} kW)")
+                self.last_control_entity_update_time = time.time()
+            
+            if(current_input_entity_state != desired_current_input_state):
+                self.ha.set_number(self.charge_current_entity_id, desired_current_input_state)
+                logger.debug(f"Set charge current for {self.name} to {desired_current_input_state:.2f} A from {current_input_entity_state:.2f} A. (Plugged in: {self.car_plugged_in}, Target: {self.target_charge_rate:.2f} kW)")
+                self.last_control_entity_update_time = time.time()
         

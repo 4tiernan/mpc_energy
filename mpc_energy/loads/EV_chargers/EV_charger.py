@@ -20,11 +20,13 @@ class EVCharger(ABC):
 
         logger.debug(f"Initialized EVCharger '{self.name}' with min_charge_power_kw={self.min_charge_power_kw} kW, max_charge_power_kw={self.max_charge_power_kw} kW, debias_load={self.debias_load}")
     
-    def set_target_charge_rate(self, kw: float):
+    def set_target_charge_rate(self, kw: float, charging_mode: str):
         """
         Sets the charging rate of the EV charger in kW.
         """
         self.target_charge_rate = kw
+        self.charging_mode = charging_mode
+        logger.debug(f"Set target charge rate for '{self.name}' to {self.target_charge_rate} kW in mode '{self.charging_mode}'")
             
     @abstractmethod
     def update_state(self):

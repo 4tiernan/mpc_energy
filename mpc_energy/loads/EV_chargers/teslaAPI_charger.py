@@ -59,6 +59,8 @@ class TeslaAPICharger(EVCharger):
         self.min_charge_power_kw = (self.available_phases * self.nominal_ac_voltage * self.min_charge_current) / 1000.0
         self.max_charge_power_kw = (self.available_phases * self.nominal_ac_voltage * self.max_charge_current) / 1000.0
 
+        logger.debug(f"Updated state for '{self.name}': car_plugged_in={self.car_plugged_in}, available_phases={self.available_phases}, min_charge_power_kw={self.min_charge_power_kw:.2f} kW, max_charge_power_kw={self.max_charge_power_kw:.2f} kW")
+
     def update(self):
         """
         Update the charger state by fetching the latest data from Home Assistant and checking wheather a car is plugged in and adapting charge rate as needed.
@@ -93,12 +95,18 @@ class TeslaAPICharger(EVCharger):
                 return
 
             if(switch_entity_state != desired_switch_state):
-                self.ha.set_switch_state(self.charge_enable_entity_id, desired_switch_state)
-                logger.debug(f"Set switch state for {self.name} to {desired_switch_state}. (Plugged in: {self.car_plugged_in}, Target: {self.target_charge_rate:.2f} kW)")
-                self.last_control_entity_update_time = time.time()
+                try:
+                    self.ha.set_switch_state(self.charge_enable_entity_id, desired_switch_state)
+                    logger.debug(f"Set switch state for {self.name} to {desired_switch_state}. (Plugged in: {self.car_plugged_in}, Target: {self.target_charge_rate:.2f} kW)")
+                    self.last_control_entity_update_time = time.time()
+                except Exception as e:
+                    logger.warning(f"Failed to set switch state for Tesla Charger '{self.name}': {e}. This is common if the car is already full or asleep.")
             
             if(current_input_entity_state != desired_current_input_state):
-                self.ha.set_number(self.charge_current_entity_id, desired_current_input_state)
-                logger.debug(f"Set charge current for {self.name} to {desired_current_input_state:.2f} A. (Plugged in: {self.car_plugged_in}, Target: {self.target_charge_rate:.2f} kW)")
-                self.last_control_entity_update_time = time.time()
+                try:
+                    self.ha.set_number(self.charge_current_entity_id, desired_current_input_state)
+                    logger.debug(f"Set charge current for {self.name} to {desired_current_input_state:.2f} A. (Plugged in: {self.car_plugged_in}, Target: {self.target_charge_rate:.2f} kW)")
+                    self.last_control_entity_update_time = time.time()
+                except Exception as e:
+                    logger.warning(f"Failed to set charge current for Tesla Charger '{self.name}': {e}. This is common if the car is already full or asleep.")
         

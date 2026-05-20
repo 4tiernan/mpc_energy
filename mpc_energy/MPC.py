@@ -541,7 +541,7 @@ class MPC:
                 logger.error(f"  {constraint}")
             
             logger.info("Running Solver again in verbose mode to get more details on the failure...")
-            solve(verbose=True)
+            solve(self, verbose=True)
             
             raise RuntimeError(f"MPC solve failed: {self.prob.status}")
         

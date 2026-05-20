@@ -59,8 +59,6 @@ class SigEnergyACCharger(EVCharger):
         self.min_charge_power_kw = (self.available_phases * self.nominal_ac_voltage * self.min_charge_current) / 1000.0
         self.max_charge_power_kw = (self.available_phases * self.nominal_ac_voltage * self.max_charge_current) / 1000.0
 
-        logger.debug(f"Updated state for '{self.name}': car_plugged_in={self.car_plugged_in}, available_phases={self.available_phases}, min_charge_power_kw={self.min_charge_power_kw:.2f} kW, max_charge_power_kw={self.max_charge_power_kw:.2f} kW")
-
     def update(self):
         """
         Update the charger state by fetching the latest data from Home Assistant and checking wheather a car is plugged in and adapting charge rate as needed.

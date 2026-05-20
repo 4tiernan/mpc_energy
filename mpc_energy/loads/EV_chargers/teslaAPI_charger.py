@@ -54,12 +54,10 @@ class TeslaAPICharger(EVCharger):
         self.car_plugged_in = self.ha.get_boolean_state(self.plugged_in_entity_id)
 
         self.three_phase_available = self.ha.get_boolean_state(self.three_phase_available_entity_id) if self.three_phase_available_entity_id else False
-        self.available_phases = 3 if self.three_phase_available else 1
+        self.available_phases = 3 if (self.three_phase_available and self.car_plugged_in) else 1
 
         self.min_charge_power_kw = (self.available_phases * self.nominal_ac_voltage * self.min_charge_current) / 1000.0
         self.max_charge_power_kw = (self.available_phases * self.nominal_ac_voltage * self.max_charge_current) / 1000.0
-
-        logger.debug(f"Updated state for '{self.name}': car_plugged_in={self.car_plugged_in}, available_phases={self.available_phases}, min_charge_power_kw={self.min_charge_power_kw:.2f} kW, max_charge_power_kw={self.max_charge_power_kw:.2f} kW")
 
     def update(self):
         """

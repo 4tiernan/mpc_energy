@@ -4,6 +4,7 @@
 * Improved Streamlit crashing detection
 * Resolved bug causing grid import mode to curtail solar
 * Added support for Sigenergy EV AC charger and Tesla API charger. 
+* Added optimal ev charge level to keep ev's charged during low solar production
 
 ## 0.7.0
 * Added net grid interaction kWh sensor to aid automations.

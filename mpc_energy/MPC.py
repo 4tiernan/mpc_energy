@@ -684,12 +684,12 @@ class MPC:
         grid_net = data["grid_net"][increment] # if grid_net is positive we are importing power 
         battery_power = data["battery_power"][increment]
 
-        if((data_helpers.approx_equal(inverter_power, used_solar_power) and used_solar_power > load_power + power_threshold and grid_net < -power_threshold) or (data_helpers.approx_equal(inverter_power, self.plant.max_inverter_power) and used_solar_power > self.plant.max_inverter_power)):
+        if((data_helpers.approx_equal(inverter_power, used_solar_power) and used_solar_power >= load_power + power_threshold and grid_net <= -power_threshold) or (data_helpers.approx_equal(inverter_power, self.plant.max_inverter_power) and used_solar_power > self.plant.max_inverter_power)):
             if(control_active):
                 self.plant.export_all_solar() # Export if all solar is being exported or > max inverter and charging bat with excess
             return self.plant.ControlMode.EXPORT_ALL_SOLAR
         
-        elif(data_helpers.approx_equal(inverter_power, load_power) and data_helpers.approx_equal(load_power, used_solar_power) and used_solar_power + power_threshold < solar_available):
+        elif(data_helpers.approx_equal(inverter_power, load_power) and data_helpers.approx_equal(load_power, used_solar_power) and used_solar_power + power_threshold <= solar_available):
             if(control_active):
                 self.plant.solar_to_load() # If battery is not charging and solar is being curtailed, send solar straight to load
             return self.plant.ControlMode.SOLAR_TO_LOAD
@@ -699,7 +699,7 @@ class MPC:
                 self.plant.self_consumption()
             return self.plant.ControlMode.SELF_CONSUMPTION                
         
-        elif(inverter_power > used_solar_power + power_threshold and inverter_power > load_power + power_threshold):
+        elif(inverter_power >= used_solar_power + power_threshold and inverter_power >= load_power + power_threshold):
             if(control_active):
                 export_limit = abs(grid_net)
                 if(data_helpers.approx_equal(inverter_power, self.inverter_p_max)): # If Inverter is at 100% in the plan make sure it is in reality
@@ -708,19 +708,19 @@ class MPC:
                 self.plant.dispatch(grid_export_limit = export_limit)
             return self.plant.ControlMode.DISPATCH
         
-        elif(grid_net < -power_threshold and used_solar_power > inverter_power + power_threshold):
+        elif(grid_net <= -power_threshold and used_solar_power >= inverter_power + power_threshold):
             if(control_active):
                 self.plant.export_excess_solar(battery_charge_limit = abs(battery_power))
             return self.plant.ControlMode.EXPORT_EXCESS_SOLAR
         
-        elif(grid_net > power_threshold and inverter_power > -self.power_threshold):
+        elif(grid_net >= power_threshold and inverter_power > -self.power_threshold):
             if(control_active):
                 self.plant.partial_grid_import() # If the plan calls for grid import but the inverter isn't discharging, use partial grid import mode to allow the inverter to charge the battery with solar if possible to reduce grid import
             
             return self.plant.ControlMode.PARTIAL_GRID_IMPORT
 
 
-        elif(grid_net > power_threshold): # if grid_net is positive we are importing power
+        elif(grid_net >= power_threshold): # if grid_net is positive we are importing power
             if(control_active):
                 if(data_helpers.approx_equal(-inverter_power, self.inverter_p_max)): # If the plan calls for max charging, set the battery charge limit to the max.
                     self.plant.import_power(battery_charge_limit = self.p_max_charge, grid_import_limit = self.grid_import_limit)

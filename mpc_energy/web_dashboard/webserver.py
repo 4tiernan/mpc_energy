@@ -9,6 +9,7 @@ import queue
 from streamlit_autorefresh import st_autorefresh
 import config_manager
 import const
+from web_dashboard.common import render_sidebar
 
 st.set_page_config(
     page_title="MPC Dashboard",
@@ -21,17 +22,7 @@ if next_step:
     st.switch_page(next_step)
     st.stop()
 
-st.sidebar.page_link("webserver.py", label="Dashboard", icon="📊")
-st.sidebar.page_link("pages/optional_loads_page.py", label="Optional Loads", icon="⚙️")
-st.sidebar.page_link("pages/plant_config_page.py", label="Plant Configuration", icon="🏭")
-st.sidebar.page_link("pages/hw_debugger_page.py", label="HW Debugger", icon="🌡️")
-st.sidebar.page_link("pages/load_debugger_page.py", label="Load Debugger", icon="📈")
-
-st.sidebar.divider()
-if st.sidebar.button("🔄 Restart MPC Energy", help="Restarts the main MPC integration. Required after configuration changes.", use_container_width=True):
-    config_manager.trigger_restart()
-    st.sidebar.success("Restart signal sent...")
-    time.sleep(1)
+render_sidebar()
 
 if "mqtt_queue" not in st.session_state:
     st.session_state.mqtt_queue = queue.Queue()

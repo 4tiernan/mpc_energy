@@ -2,6 +2,7 @@ import streamlit as st
 import json
 import os
 import config_manager
+from web_dashboard.common import render_sidebar
 
 CONFIG_PATH = "/data/plant_config.json"
 
@@ -95,16 +96,7 @@ brand_defaults = {
 }
 
 def plant_config_page():
-    st.sidebar.page_link("webserver.py", label="Dashboard", icon="📊")
-    st.sidebar.page_link("pages/optional_loads_page.py", label="Optional Loads", icon="⚙️")
-    st.sidebar.page_link("pages/plant_config_page.py", label="Plant Configuration", icon="🏭")
-    st.sidebar.page_link("pages/hw_debugger_page.py", label="HW Debugger", icon="🌡️")
-    st.sidebar.page_link("pages/load_debugger_page.py", label="Load Debugger", icon="📈")
-    
-    st.sidebar.divider()
-    if st.sidebar.button("🔄 Restart MPC Energy", help="Restarts the main MPC integration.", use_container_width=True):
-        config_manager.trigger_restart()
-        st.sidebar.success("Restarting...")
+    render_sidebar()
 
 
     st.title("🏭 Plant Configuration")

@@ -61,7 +61,7 @@ def elapsed_time(code_block_name="Code Block"):
     return elapsed
 
 if(not config_manager.accepted_risks):
-    logger.error("You must toggle the accept risks switch to acknowledge the risks associated with use of this software before being able to use the app.")
+    logger.error("You must toggle the accept risks switch in the config page to acknowledge the risks associated with use of this software before being able to use the app.")
     while True:
         time.sleep(1)
 

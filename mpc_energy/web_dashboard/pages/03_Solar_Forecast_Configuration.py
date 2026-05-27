@@ -1,7 +1,10 @@
 import streamlit as st
 import config_manager
+from web_dashboard.common import render_sidebar
 
 st.set_page_config(page_title="Solar Forecast Configuration", layout="wide")
+render_sidebar()
+
 st.title("☀️ Solar Forecast Configuration")
 
 config = config_manager.load_config()

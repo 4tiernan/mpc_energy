@@ -2,8 +2,11 @@ import streamlit as st
 import config_manager
 import json
 import os
+from web_dashboard.common import render_sidebar
 
 st.set_page_config(page_title="Retailer Configuration", layout="wide")
+render_sidebar()
+
 st.title("⚡ Retailer Configuration")
 
 config = config_manager.load_config()

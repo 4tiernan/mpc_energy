@@ -9,14 +9,10 @@ import const
 import data_helpers
 from loads.optional_loads import load_optional_load_instances
 from mpc_logger import logger
+from web_dashboard.common import render_sidebar
 
 st.set_page_config(page_title="Load Debugger", layout="wide")
-
-st.sidebar.page_link("webserver.py", label="Dashboard", icon="📊")
-st.sidebar.page_link("pages/optional_loads_page.py", label="Optional Loads", icon="⚙️")
-st.sidebar.page_link("pages/plant_config_page.py", label="Plant Configuration", icon="🏭")
-st.sidebar.page_link("pages/hw_debugger_page.py", label="HW Debugger", icon="🌡️")
-st.sidebar.page_link("pages/load_debugger_page.py", label="Load Debugger", icon="📈")
+render_sidebar()
 
 st.title("📈 Load Profile Debugger")
 st.write("This tool visualizes the data used by `update_load_avg` to predict your household consumption.")

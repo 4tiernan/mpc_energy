@@ -18,12 +18,7 @@ def save_config(config):
     with open(CONFIG_PATH, 'w') as f:
         json.dump(config, f, indent=4)
     st.success("Plant configuration saved! Please restart the Add-on for changes to take full effect.")
-    
-    # Setup Flow redirection
-    if not config_manager.load_config().get("energy_retailer"):
-        st.info("Next step: Retailer Configuration")
-        if st.button("Proceed to Retailer Configuration"):
-            st.switch_page("pages/02_Retailer_Configuration.py")
+    st.session_state["plant_saved"] = True
 
 brand_defaults = {
     "Sigenergy": {
@@ -252,6 +247,13 @@ def plant_config_page():
                 "plant_daily_export_kwh_entity_id": daily_export,
             }
             save_config(new_config)
+
+    if st.session_state.get("plant_saved"):
+        if not config_manager.load_config().get("energy_retailer"):
+            st.info("Next step: Retailer Configuration")
+            if st.button("Proceed to Retailer Configuration"):
+                st.session_state["plant_saved"] = False
+                st.switch_page("pages/02_Retailer_Configuration.py")
 
 if __name__ == "__main__":
     plant_config_page()

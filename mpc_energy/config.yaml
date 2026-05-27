@@ -1,6 +1,6 @@
 name: "MPC Energy Dev"
 description: "A profit optimiser for home batteries with wholesale electricity pricing."
-version: "0.7.199"
+version: "0.7.200"
 slug: "mpc_energy"
 url: "https://github.com/4tiernan/mpc_energy" #HA URL for dev branch: https://github.com/4tiernan/mpc_energy#dev 
 init: false
@@ -31,11 +31,9 @@ options:
   ha_mqtt_user: ""
   ha_mqtt_pass: ""
 
-  battery_discharge_cost: 7
   spike_price_warning_level: 25
   notification_target: ""
   notification_target_option: none
-  estimated_daily_load_energy_consumption: 24
 
   log_level: info
 
@@ -46,9 +44,7 @@ schema:
   ha_mqtt_user: str
   ha_mqtt_pass: password
 
-  battery_discharge_cost: int
   spike_price_warning_level: int  
   notification_target: str?
   notification_target_option: list(none|price_spike_warning|error_warning|both)
-  estimated_daily_load_energy_consumption: int
   log_level: list(debug|info|warning)

@@ -5,6 +5,7 @@ from mpc_logger import logger
 
 CONFIG_PATH = "/data/mpc_config.json"
 OPTIONS_PATH = "/data/options.json"
+PLANT_CONFIG_PATH = "/data/plant_config.json"
 
 def load_config():
     """Merges HA options with local dashboard configuration."""
@@ -22,6 +23,14 @@ def load_config():
                 config.update(json.load(f))
         except Exception as e:
             logger.error(f"Failed to load local config: {e}")
+
+    if os.path.exists(PLANT_CONFIG_PATH):
+        try:
+            with open(PLANT_CONFIG_PATH) as f:
+                config.update(json.load(f))
+        except Exception as e:
+            logger.error(f"Failed to load plant config: {e}")
+
     return config
 
 options = load_config()
@@ -82,10 +91,12 @@ solcast_forecast_day_4_entity_id = get_entity_id("solcast_forecast_day_4_entity_
 solcast_solar_kwh_remaining_today_entity_id = get_entity_id("solcast_solar_kwh_remaining_today_entity_id")
 solcast_solar_power_this_hour_entity_id = get_entity_id("solcast_solar_power_this_hour_entity_id")
 
-# Core settings remaining in config.yaml
+# Plant Configuration (Moved to Web UI)
 battery_discharge_cost = get_entity_id("battery_discharge_cost")
+estimated_daily_load_energy_consumption = get_entity_id("estimated_daily_load_energy_consumption")
+
+# Core settings remaining in config.yaml
 spike_price_warning_level = get_entity_id("spike_price_warning_level", default=25)
 notification_target = get_entity_id("notification_target", default="")
 notification_target_option = get_entity_id("notification_target_option", default="both")
-estimated_daily_load_energy_consumption = get_entity_id("estimated_daily_load_energy_consumption")
 log_level = get_entity_id("log_level", default="info")

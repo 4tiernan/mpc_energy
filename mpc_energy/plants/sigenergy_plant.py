@@ -419,7 +419,7 @@ class SigEnergyPlant(BasePlant):
             working_mode=self.working_mode,
             control_mode="Command Discharging (PV First)",
             discharge=self.max_discharge_power,
-            charge=0,
+            charge=self.max_charge_power,
             pv=self.max_pv_power,
             grid_export=grid_export_limit,
             grid_import=0)

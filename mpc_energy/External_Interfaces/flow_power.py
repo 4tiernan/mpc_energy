@@ -171,7 +171,7 @@ class FlowPowerInterface:
                 projected_points[ts_str] = val
 
             final_points = list(projected_points.items())
-            logger.info(f"Buy price projection: {len(final_points)} grid points generated (History profile + {len(import_points)} forecast points).")
+            logger.debug(f"Buy price projection: {len(final_points)} grid points generated (History profile + {len(import_points)} forecast points).")
             return final_points
         except Exception as e:
             logger.warning(f"Failed to project Flow Power buy price from history: {e}")

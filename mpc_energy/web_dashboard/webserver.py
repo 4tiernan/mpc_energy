@@ -15,6 +15,12 @@ st.set_page_config(
     layout="wide"
 )
 
+# Gatekeeper: Redirect to setup if configuration is missing
+next_step = config_manager.get_next_setup_step()
+if next_step:
+    st.switch_page(next_step)
+    st.stop()
+
 st.sidebar.page_link("webserver.py", label="Dashboard", icon="📊")
 st.sidebar.page_link("pages/optional_loads_page.py", label="Optional Loads", icon="⚙️")
 st.sidebar.page_link("pages/plant_config_page.py", label="Plant Configuration", icon="🏭")
@@ -40,13 +46,15 @@ def on_message(client, userdata, msg):
     mqtt_queue.put(json.loads(msg.payload))
 
 if "mqtt_client" not in st.session_state:
-    client = mqtt.Client(callback_api_version=mqtt.CallbackAPIVersion.VERSION2)
-    client.username_pw_set(config_manager.MQTT_USER, config_manager.MQTT_PASS)
-    client.on_message = on_message
-    client.connect(const.MQTT_HOST, const.MQTT_PORT)
-    client.loop_start()
-    client.subscribe("home/mpc/output")
-    st.session_state.mqtt_client = client
+    # Only attempt connection if we have credentials
+    if config_manager.MQTT_USER and config_manager.MQTT_PASS:
+        client = mqtt.Client(callback_api_version=mqtt.CallbackAPIVersion.VERSION2)
+        client.username_pw_set(config_manager.MQTT_USER, config_manager.MQTT_PASS)
+        client.on_message = on_message
+        client.connect(const.MQTT_HOST, const.MQTT_PORT)
+        client.loop_start()
+        client.subscribe("home/mpc/output")
+        st.session_state.mqtt_client = client
 time.sleep(0.1)
 while not mqtt_queue.empty():
     st.session_state.mpc_output = mqtt_queue.get()

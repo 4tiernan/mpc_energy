@@ -189,6 +189,15 @@ class EVLoad(OptionalLoad):
         # Mode detection via HA MQTT
         mode = self._normalise_ev_mode()
 
+        if mode == self.EV_MODE_DISABLED:
+            n = int(mpc.N_5min)
+            self.p_max_param.value = np.zeros(n, dtype=float)
+            self.soc_init_param.value = float(self.current_ev_soc_kWh or 0.0)
+            self.soc_upper_limit_param.value = max(float((self.max_level_limit / 100.0) * self.capacity_kwh), float(self.current_ev_soc_kWh or 0.0))
+            self.soc_min_required_param.value = np.zeros(n, dtype=float)
+            self.soc_optimal_min_param.value = np.zeros(n, dtype=float)
+            return
+
         # Build power limits
         p_max_arr = np.zeros(int(mpc.N_5min), dtype=float) # Start with no charging allowed, then enable based on mode and grid import limits
         grid_import_limit = mpc.grid_import_limit
@@ -213,7 +222,7 @@ class EVLoad(OptionalLoad):
         self.max_target_kwh = (self.max_level_limit / 100.0) * self.capacity_kwh
 
         # If the EV soc is below the minimum soc target, charge asap reguardless of the selected mode. 
-        if(self.current_ev_soc_kWh < self.min_target_kwh):
+        if(self.current_ev_soc_kWh is not None and self.current_ev_soc_kWh < self.min_target_kwh):
             logger.debug(f"EV SOC of {self.current_ev_soc_kWh:.2f} kWh is below the minimum SOC target of {self.min_target_kwh:.2f} kWh. The MPC will attempt to charge the EV as soon as possible to reach the minimum SOC target.")
             ev_soc_min_required_arr = self.build_ev_min_soc_constraint(target_soc=self.min_target_kwh, p_max_arr=p_max_arr, mpc=mpc)
         else:
@@ -224,17 +233,15 @@ class EVLoad(OptionalLoad):
             elif(mode == self.EV_MODE_FORCE_ON):
                 ev_soc_min_required_arr = self.build_ev_min_soc_constraint(target_soc=self.max_target_kwh, p_max_arr=p_max_arr, mpc=mpc)
                 logger.debug("EV Force On Mode Active. required SOC array: " + str(ev_soc_min_required_arr))
-            elif(mode == self.EV_MODE_DISABLED):  # Charging Disabled
-                p_max_arr = np.zeros(int(mpc.N_5min), dtype=float) # No charging allowed, set max power to 0
             else:
                 logger.warning(f"Unknown EV charging mode '{mode}', defaulting to 'Solar Smart' (no minimum SOC constraint).")
 
         # Apply Optimal Daily Min (Target by EOD)
-        if mode != self.EV_MODE_DISABLED and self.optimal_daily_min_soc > 0:
+        if self.optimal_daily_min_soc > 0:
             ev_soc_optimal_min_arr = self.build_ev_optimal_daily_min_mask(time_index, mpc)
         
         self.p_max_param.value = p_max_arr
-        self.soc_init_param.value = float(self.current_ev_soc_kWh)
+        self.soc_init_param.value = float(self.current_ev_soc_kWh or 0.0)
         # Ensure upper limit is at least as high as current SOC to prevent solver infeasibility if car is over-charged
         self.soc_upper_limit_param.value = max(float((self.max_level_limit / 100.0) * self.capacity_kwh), float(self.current_ev_soc_kWh or 0.0))
         self.soc_min_required_param.value = ev_soc_min_required_arr # Set the minimum SOC constraint array based on the selected mode and current SOC

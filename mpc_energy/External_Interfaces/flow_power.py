@@ -119,6 +119,49 @@ class FlowPowerInterface:
 
         return intervals
 
+    def _project_buy_price_from_history(self, import_points):
+        """
+        Project future buy prices using last 3 days of historical data to fill gaps 
+        beyond the provided forecast. Forecast points always take precedence.
+        """
+        now = datetime.now(self.ha.local_tz).replace(second=0, microsecond=0)
+        hist_start = now - timedelta(days=3)
+        
+        try:
+            history = self.ha.get_history(self.import_price_entity_id, start_time=hist_start, end_time=now)
+            if not history:
+                return import_points
+
+            # Check unit of the current state to scale historical values correctly ($/kWh vs c/kWh).
+            state_payload = self.ha.get_state(self.import_price_entity_id)
+            attributes = state_payload.get("attributes", {})
+            unit = attributes.get("unit") or attributes.get("unit_of_measurement")
+            scale_to_dollars = 0.01 if unit == "c/kWh" else 1.0
+
+            projected_points = {}
+            for h in history:
+                if h.state is None:
+                    continue
+                try:
+                    val = float(h.state) * scale_to_dollars
+                    for day_off in [1, 2, 3]:
+                        proj_time = h.time + timedelta(days=day_off)
+                        if proj_time > now:
+                            # Format string compatible with _parse_forecast_timestamp
+                            ts_str = proj_time.strftime("%Y-%m-%d %H:%M:%S%z")
+                            projected_points[ts_str] = val
+                except (ValueError, TypeError):
+                    continue
+
+            # Overwrite projections with actual forecast data.
+            for ts, val in import_points:
+                projected_points[ts] = val
+
+            return list(projected_points.items())
+        except Exception as e:
+            logger.warning(f"Failed to project Flow Power buy price from history: {e}")
+            return import_points
+
     def _build_demand_window_5min(self, intervals_5m, timeline_start):
         if not self.demand_tarrif or not self.demand_tarrif_window_start or not self.demand_tarrif_window_end:
             return [False] * intervals_5m
@@ -283,6 +326,7 @@ class FlowPowerInterface:
 
 
         import_points = self._extract_forecast_points(forecast_payload)
+        import_points = self._project_buy_price_from_history(import_points)
 
         #import_points = [(ts, val * 1.5) for ts, val in import_points] # Inflate import forecast by 50% to better reflect PEA affect
 

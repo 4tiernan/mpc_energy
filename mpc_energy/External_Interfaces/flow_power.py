@@ -127,9 +127,12 @@ class FlowPowerInterface:
         now = datetime.now(self.ha.local_tz).replace(second=0, microsecond=0)
         hist_start = now - timedelta(days=3)
         
+        logger.debug(f"Attempting to project buy prices from history using entity: {self.import_price_entity_id}")
+        
         try:
             history = self.ha.get_history(self.import_price_entity_id, start_time=hist_start, end_time=now)
             if not history:
+                logger.warning(f"No history found for {self.import_price_entity_id} to project buy prices.")
                 return import_points
 
             # Check unit of the current state to scale historical values correctly ($/kWh vs c/kWh).
@@ -137,6 +140,8 @@ class FlowPowerInterface:
             attributes = state_payload.get("attributes", {})
             unit = attributes.get("unit") or attributes.get("unit_of_measurement")
             scale_to_dollars = 0.01 if unit == "c/kWh" else 1.0
+
+            logger.debug(f"Detected unit '{unit}' for history projection. Scale to dollars: {scale_to_dollars}")
 
             projected_points = {}
             for h in history:
@@ -153,13 +158,15 @@ class FlowPowerInterface:
                 except (ValueError, TypeError):
                     continue
 
+            hist_count = len(projected_points)
             # Overwrite projections with actual forecast data.
             for ts, val in import_points:
                 projected_points[ts] = val
 
+            logger.info(f"Buy price projection: {hist_count} historical points used, {len(import_points)} actual forecast points overlaid.")
             return list(projected_points.items())
         except Exception as e:
-            logger.warning(f"Failed to project Flow Power buy price from history: {e}")
+            logger.error(f"Failed to project Flow Power buy price from history: {e}")
             return import_points
 
     def _build_demand_window_5min(self, intervals_5m, timeline_start):

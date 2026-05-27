@@ -318,11 +318,8 @@ def check_for_spike(price_data):
         else:
             spike_found_timestamp = 0 # Reset the spike found timestamp if no spikes are currently forecasted
                 
-last_ev_charging_mode = ha_mqtt.ev_charging_mode_selector.state
-last_ev_charged_by_time = ha_mqtt.ready_by_time_selector.state                
-
 def run_controller(price_update=False):
-    global automatic_control, last_control_mode, last_ev_charging_mode, last_ev_charged_by_time
+    global automatic_control, last_control_mode
     # If Auto control has been TURNED on, print a msg and reset flag
     selected_controller = ha_mqtt.energy_controller_selector.state
 
@@ -331,16 +328,28 @@ def run_controller(price_update=False):
         if(price_update):
             mpc.run_optimisation(price_data) # Run the MPC optimisation each time the price updates to keep the plot updated
         return
-    
-    if(ha_mqtt.ev_charging_mode_selector.state != last_ev_charging_mode or ha_mqtt.ready_by_time_selector.state != last_ev_charged_by_time):
-        last_ev_charging_mode = ha_mqtt.ev_charging_mode_selector.state
-        last_ev_charged_by_time = ha_mqtt.ready_by_time_selector.state
-           
+
+    ev_settings_changed = False
+    for load in opt_loads:
+        if isinstance(load, EVLoad) and hasattr(load, "ev_charging_mode_selector"):
+            current_mode = load.ev_charging_mode_selector.state
+            current_time = load.ready_by_time_selector.state
+            
+            if not hasattr(load, "_last_mqtt_mode"):
+                load._last_mqtt_mode = current_mode
+                load._last_mqtt_time = current_time
+                
+            if current_mode != load._last_mqtt_mode or current_time != load._last_mqtt_time:
+                load._last_mqtt_mode = current_mode
+                load._last_mqtt_time = current_time
+                ev_settings_changed = True
+                
+            if current_mode != EVLoad.EV_MODE_READY_BY_TIME and current_time != "NA":
+                load.ready_by_time_selector.set_state("NA")
+
+    if ev_settings_changed:
         logger.debug(f"EV Charging settings changed. Forcing MPC to update with new settings.")
-        mpc.run_optimisation(price_data) # Run the MPC optimisation to update the EV charging plan with the new settings
-    
-    if(ha_mqtt.ev_charging_mode_selector.state != "Ready by Time" and ha_mqtt.ready_by_time_selector.state != "None"):
-        ha_mqtt.ready_by_time_selector.set_state("NA") # Reset the ready by time selector if the user changes the mode to something other than ready by time to prevent confusion
+        mpc.run_optimisation(price_data)
     
     if(last_control_mode == "Manual Override"):
         if(ha_mqtt.automatic_control_switch.state == True):

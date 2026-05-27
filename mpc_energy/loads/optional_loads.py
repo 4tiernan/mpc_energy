@@ -52,6 +52,8 @@ def load_optional_load_instances(ha: HomeAssistantAPI, local_tz, ha_mqtt) -> lis
                 charger = create_charger_instance(cfg, ha)
                 if charger:
                     instance.set_charger(charger)
+                    
+                instance.setup_mqtt()
 
             instances.append(instance)
 
@@ -93,6 +95,10 @@ class OptionalLoad:
     def to_dict(self) -> dict[str, Any]:
         """Base to_dict. If called on OptionalLoad, returns base fields. Subclasses should extend this."""
         raise NotImplementedError("Subclasses must implement to_dict method")
+
+    def setup_mqtt(self):
+        """Subclasses can implement this to create instance-specific MQTT entities."""
+        pass
 
     # --- MPC Interface Stubs ---
     def get_historical_power(self, start=None, end=None, hours=None, bin_period=5):

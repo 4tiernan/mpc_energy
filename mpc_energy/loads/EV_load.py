@@ -68,6 +68,43 @@ class EVLoad(OptionalLoad):
             self.min_charge_power_kw = self.charger.min_charge_power_kw
             self.max_charge_power_kw = self.charger.max_charge_power_kw
 
+    def setup_mqtt(self):
+        """Creates the ha_mqtt entities required for this EV instance."""
+        if self.ha_mqtt is None:
+            return
+
+        from ha_mqtt import CreateSelectInput
+        
+        # Instance-specific Charging Mode Selector
+        self.ev_charging_mode_selector = CreateSelectInput(
+            name=f"{self.name} Charging Mode",
+            unique_id=f"ev_charging_mode_{self.name.lower().replace(' ', '_')}",
+            options=[
+                self.EV_MODE_DISABLED,
+                self.EV_MODE_SOLAR_SMART,
+                self.EV_MODE_READY_BY_TIME,
+                self.EV_MODE_FORCE_ON,
+            ]
+        )
+        self.ev_charging_mode_selector.set_state(self.EV_MODE_SOLAR_SMART)
+
+        # Instance-specific Ready By Time Selector
+        self.ready_by_time_selector = CreateSelectInput(
+            name=f"{self.name} Ready By Time",
+            unique_id=f"ev_ready_by_time_{self.name.lower().replace(' ', '_')}",
+            options=[
+                "NA", "00:00", "00:30", "01:00", "01:30", "02:00", "02:30",
+                "03:00", "03:30", "04:00", "04:30", "05:00", "05:30",
+                "06:00", "06:30", "07:00", "07:30", "08:00", "08:30",
+                "09:00", "09:30", "10:00", "10:30", "11:00", "11:30",
+                "12:00", "12:30", "13:00", "13:30", "14:00", "14:30",
+                "15:00", "15:30", "16:00", "16:30", "17:00", "17:30",
+                "18:00", "18:30", "19:00", "19:30", "20:00", "20:30",
+                "21:00", "21:30", "22:00", "22:30", "23:00", "23:30"
+            ]
+        )
+        self.ready_by_time_selector.set_state("NA")
+
     def build_cvxpy(self, mpc):
         self.ev_charge_48hr_reward = np.zeros(int(mpc.N_5min), dtype=float)
         self.ev_charge_48hr_reward[:int(mpc.steps_per_hr*48)] = self.reward_cents_per_kwh / 100.0 # Only reward EV charging in the first 48 hrs to avoid charging near the end of the forecast horizon.
@@ -107,8 +144,8 @@ class EVLoad(OptionalLoad):
     
     def _normalise_ev_mode(self):
         mode = self.EV_MODE_SOLAR_SMART
-        if(self.ha_mqtt is not None and hasattr(self.ha_mqtt, "ev_charging_mode_selector")):
-            selected_mode = self.ha_mqtt.ev_charging_mode_selector.state
+        if hasattr(self, "ev_charging_mode_selector"):
+            selected_mode = self.ev_charging_mode_selector.state
             if(selected_mode is not None and str(selected_mode).strip() != ""):
                 mode = str(selected_mode).strip()
         allowed_modes = {
@@ -204,7 +241,7 @@ class EVLoad(OptionalLoad):
         return ev_soc_min_required_arr
     
     def build_ev_ready_by_time_min_soc_mask(self, time_index, mpc):
-        self.ev_full_by_time = self.ha_mqtt.ready_by_time_selector.state if (self.ha_mqtt is not None and hasattr(self.ha_mqtt, "ready_by_time_selector")) else self.ev_full_by_time
+        self.ev_full_by_time = self.ready_by_time_selector.state if hasattr(self, "ready_by_time_selector") else self.ev_full_by_time
 
         required_mask = np.zeros(int(mpc.N_5min), dtype=float)
         if(self.capacity_kwh <= 0):

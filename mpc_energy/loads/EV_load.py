@@ -73,7 +73,7 @@ class EVLoad(OptionalLoad):
         self.ev_charge_48hr_reward[:int(mpc.steps_per_hr*48)] = self.reward_cents_per_kwh / 100.0 # Only reward EV charging in the first 48 hrs to avoid charging near the end of the forecast horizon.
 
         divisor = max(int(mpc.N_5min) * mpc.dt_5min * (self.capacity_kwh), 1.0)
-        self.charge_maintain_reward = 0.20 / divisor
+        self.charge_maintain_reward = 0.20 / divisor # The numerator is the total reward we want to provide for maintaining charge over the entire forecast horizon
 
         n = int(mpc.N_5min)
         self.p_ev = cp.Variable(n, nonneg=True, name=f"{self.name}_p_ev")
@@ -136,6 +136,12 @@ class EVLoad(OptionalLoad):
             max_avail = grid_import_limit - load
             p_max_arr[i] = max(0.0, min(self.max_charge_power_kw, max_avail))
         
+        # If the EV is not connected, constrain the first and second charge power steps to zero.
+        # This allows future planning if it's plugged in later, but prevents immediate commands.
+        if not self.is_plugged_in:
+            if len(p_max_arr) > 0: p_max_arr[0] = 0.0
+            if len(p_max_arr) > 1: p_max_arr[1] = 0.0
+
 
         # SOC constraints
         ev_soc_min_required_arr = np.zeros(int(mpc.N_5min), dtype=float)
@@ -244,9 +250,9 @@ class EVLoad(OptionalLoad):
 
         achieve_optimal_by_index = 48 * mpc.steps_per_hr
 
-        required_mask[:achieve_optimal_by_index] = target_kwh
-        
-        # # We apply the constraint floor for a small window at EOD (e.g. 22:00 to 23:00)
+        required_mask[achieve_optimal_by_index] = target_kwh
+        logger.debug(f"Optimal Daily Min SOC constraint set to {target_kwh:.2f} kWh at index {achieve_optimal_by_index}") 
+
         # for idx, step_time in enumerate(time_index):
         #     # Check for 10 PM (EOD)
         #     if step_time.hour == 22 and 0 <= step_time.minute <= 59:

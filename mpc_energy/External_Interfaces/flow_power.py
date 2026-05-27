@@ -2,6 +2,7 @@ from datetime import datetime, time as datetime_time, timezone, timedelta
 from External_Interfaces.amber_api import PriceForecast, amber_data
 from mpc_logger import logger
 import math
+from collections import defaultdict
 from exceptions import FlowPowerError
 
 
@@ -121,52 +122,55 @@ class FlowPowerInterface:
 
     def _project_buy_price_from_history(self, import_points):
         """
-        Project future buy prices using last 3 days of historical data to fill gaps 
-        beyond the provided forecast. Forecast points always take precedence.
+        Project future buy prices using a time-of-day profile averaged from the 
+        last 3 days of history to fill gaps beyond the provided forecast.
         """
         now = datetime.now(self.ha.local_tz).replace(second=0, microsecond=0)
         hist_start = now - timedelta(days=3)
         
-        logger.debug(f"Attempting to project buy prices from history using entity: {self.import_price_entity_id}")
-        
         try:
             history = self.ha.get_history(self.import_price_entity_id, start_time=hist_start, end_time=now)
             if not history:
-                logger.warning(f"No history found for {self.import_price_entity_id} to project buy prices.")
                 return import_points
 
-            # Check unit of the current state to scale historical values correctly ($/kWh vs c/kWh).
             state_payload = self.ha.get_state(self.import_price_entity_id)
             attributes = state_payload.get("attributes", {})
             unit = attributes.get("unit") or attributes.get("unit_of_measurement")
             scale_to_dollars = 0.01 if unit == "c/kWh" else 1.0
 
-            logger.debug(f"Detected unit '{unit}' for history projection. Scale to dollars: {scale_to_dollars}")
-
-            projected_points = {}
+            # 1. Create a 30-minute time-of-day profile from history.
+            tod_bins = defaultdict(list)
             for h in history:
-                if h.state is None:
-                    continue
+                if h.state is None: continue
                 try:
-                    val = float(h.state) * scale_to_dollars
-                    for day_off in [1, 2, 3]:
-                        proj_time = h.time + timedelta(days=day_off)
-                        if proj_time > now:
-                            # Format string compatible with _parse_forecast_timestamp
-                            ts_str = proj_time.strftime("%Y-%m-%d %H:%M:%S%z")
-                            projected_points[ts_str] = val
-                except (ValueError, TypeError):
-                    continue
+                    val = float(h.state) * scale_to_dollars # $/kWh
+                    t_rounded = h.time.replace(second=0, microsecond=0)
+                    t_rounded -= timedelta(minutes=t_rounded.minute % 30)
+                    tod_bins[t_rounded.time()].append(val)
+                except: continue
+            
+            profile = {tod: sum(vals)/len(vals) for tod, vals in tod_bins.items()}
+            global_avg = sum(profile.values()) / len(profile) if profile else 0.45
 
-            hist_count = len(projected_points)
-            # Overwrite projections with actual forecast data.
-            for ts, val in import_points:
-                projected_points[ts] = val
+            # 2. Initialize a 72h grid (30-min steps) with the profile values.
+            horizon_start = now - timedelta(minutes=now.minute % 30)
+            projected_points = {}
+            for i in range(145): # 72 hours at 30 min intervals
+                ts = horizon_start + timedelta(minutes=i * 30)
+                if ts + timedelta(minutes=30) < now: continue
+                
+                ts_str = ts.strftime("%Y-%m-%d %H:%M:%S%z")
+                projected_points[ts_str] = profile.get(ts.time(), global_avg)
 
-            logger.info(f"Buy price projection: {hist_count} historical points used, {len(import_points)} actual forecast points overlaid.")
-            return list(projected_points.items())
+            # 3. Overlay actual forecast points.
+            for ts_str, val in import_points:
+                projected_points[ts_str] = val
+
+            final_points = list(projected_points.items())
+            logger.info(f"Buy price projection: {len(final_points)} grid points generated (History profile + {len(import_points)} forecast points).")
+            return final_points
         except Exception as e:
-            logger.error(f"Failed to project Flow Power buy price from history: {e}")
+            logger.warning(f"Failed to project Flow Power buy price from history: {e}")
             return import_points
 
     def _build_demand_window_5min(self, intervals_5m, timeline_start):
@@ -333,7 +337,6 @@ class FlowPowerInterface:
 
 
         import_points = self._extract_forecast_points(forecast_payload)
-        import_points = self._project_buy_price_from_history(import_points)
 
         #import_points = [(ts, val * 1.5) for ts, val in import_points] # Inflate import forecast by 50% to better reflect PEA affect
 
@@ -353,7 +356,9 @@ class FlowPowerInterface:
 
         # Build full-horizon forecasts for MPC extrapolation so export happy-hour
         # windows are consumed programmatically from HA forecast metadata.
-        general_price_forecast_full = self._build_forecast(import_points, default_price_cents=general_price, periods=required_30min_periods, period_minutes=30)
+        import_points_projected = self._project_buy_price_from_history(import_points)
+        
+        general_price_forecast_full = self._build_forecast(import_points_projected, default_price_cents=45.0, periods=required_30min_periods, period_minutes=30)
         feed_in_price_forecast_full = self._build_forecast(export_points, default_price_cents=feed_in_price, periods=required_30min_periods, period_minutes=30)
         feed_in_price_forecast_full = self._extend_export_forecast_with_schedule(
             forecast_30min=feed_in_price_forecast_full,

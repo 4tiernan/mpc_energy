@@ -19,6 +19,10 @@ new_config["solcast_solar_power_this_hour_entity_id"] = st.text_input("Power Thi
 if st.button("Save Solar Configuration"):
     config_manager.save_local_config(new_config)
     st.success("Configuration saved! Please restart the add-on for changes to take effect.")
+
+    if st.button("🔄 Restart Now"):
+        config_manager.trigger_restart()
+        st.info("Restarting...")
     
     st.balloons()
     st.write("Setup complete! Once the add-on is restarted and values are valid, the MPC will begin optimizing your energy usage.")

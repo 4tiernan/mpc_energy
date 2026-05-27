@@ -6,6 +6,12 @@ from mpc_logger import logger
 CONFIG_PATH = "/data/mpc_config.json"
 OPTIONS_PATH = "/data/options.json"
 PLANT_CONFIG_PATH = "/data/plant_config.json"
+RESTART_SIGNAL_PATH = "/data/restart_signal"
+
+def trigger_restart():
+    """Writes a restart signal file to be picked up by the main process."""
+    with open(RESTART_SIGNAL_PATH, "w") as f:
+        f.write("restart")
 
 def load_config():
     """Merges HA options with local dashboard configuration."""

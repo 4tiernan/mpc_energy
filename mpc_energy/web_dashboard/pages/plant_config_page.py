@@ -101,6 +101,11 @@ def plant_config_page():
     st.sidebar.page_link("pages/hw_debugger_page.py", label="HW Debugger", icon="🌡️")
     st.sidebar.page_link("pages/load_debugger_page.py", label="Load Debugger", icon="📈")
     
+    st.sidebar.divider()
+    if st.sidebar.button("🔄 Restart MPC Energy", help="Restarts the main MPC integration.", use_container_width=True):
+        config_manager.trigger_restart()
+        st.sidebar.success("Restarting...")
+
 
     st.title("🏭 Plant Configuration")
     st.write("Configure your hardware brand, entities, and physical plant constraints.")

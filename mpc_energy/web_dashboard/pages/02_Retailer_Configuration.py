@@ -34,6 +34,11 @@ new_config["demand_window_end"] = col2.text_input("Window End (HH:MM)", value=co
 if st.button("Save Retailer Configuration"):
     config_manager.save_local_config(new_config)
     st.success("Configuration saved! Please restart the add-on for changes to take effect.")
+    
+    if st.button("🔄 Restart Now"):
+        config_manager.trigger_restart()
+        st.info("Restarting...")
+        
     st.session_state["retailer_saved"] = True
 
 if st.session_state.get("retailer_saved"):

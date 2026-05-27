@@ -100,6 +100,10 @@ class OptionalLoad:
         """Subclasses can implement this to create instance-specific MQTT entities."""
         pass
 
+    def settings_changed(self) -> bool:
+        """Subclasses can implement this to detect if settings have changed via MQTT."""
+        return False
+
     # --- MPC Interface Stubs ---
     def get_historical_power(self, start=None, end=None, hours=None, bin_period=5):
         if not self.power_entity_id: return None

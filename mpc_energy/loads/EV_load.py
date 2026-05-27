@@ -105,6 +105,30 @@ class EVLoad(OptionalLoad):
         )
         self.ready_by_time_selector.set_state("NA")
 
+    def settings_changed(self) -> bool:
+        """Detects if EV settings have changed via MQTT selectors."""
+        if not hasattr(self, "ev_charging_mode_selector"):
+            return False
+            
+        current_mode = self.ev_charging_mode_selector.state
+        current_time = self.ready_by_time_selector.state
+        
+        if not hasattr(self, "_last_mqtt_mode"):
+            self._last_mqtt_mode = current_mode
+            self._last_mqtt_time = current_time
+            return False
+            
+        changed = False
+        if current_mode != self._last_mqtt_mode or current_time != self._last_mqtt_time:
+            self._last_mqtt_mode = current_mode
+            self._last_mqtt_time = current_time
+            changed = True
+            
+        if current_mode != self.EV_MODE_READY_BY_TIME and current_time != "NA":
+            self.ready_by_time_selector.set_state("NA")
+            
+        return changed
+
     def build_cvxpy(self, mpc):
         self.ev_charge_48hr_reward = np.zeros(int(mpc.N_5min), dtype=float)
         self.ev_charge_48hr_reward[:int(mpc.steps_per_hr*48)] = self.reward_cents_per_kwh / 100.0 # Only reward EV charging in the first 48 hrs to avoid charging near the end of the forecast horizon.

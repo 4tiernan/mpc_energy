@@ -168,6 +168,7 @@ while(started == False):
         from PlantControl import Plant
         from plants.plant_manager import GetPlant
         from control_mode_override import ControlModeOverrideManager
+        from loads.EV_load import EVLoad
 
         from External_Interfaces.flow_power import FlowPowerInterface
 
@@ -331,24 +332,11 @@ def run_controller(price_update=False):
 
     ev_settings_changed = False
     for load in opt_loads:
-        if isinstance(load, EVLoad) and hasattr(load, "ev_charging_mode_selector"):
-            current_mode = load.ev_charging_mode_selector.state
-            current_time = load.ready_by_time_selector.state
-            
-            if not hasattr(load, "_last_mqtt_mode"):
-                load._last_mqtt_mode = current_mode
-                load._last_mqtt_time = current_time
-                
-            if current_mode != load._last_mqtt_mode or current_time != load._last_mqtt_time:
-                load._last_mqtt_mode = current_mode
-                load._last_mqtt_time = current_time
-                ev_settings_changed = True
-                
-            if current_mode != EVLoad.EV_MODE_READY_BY_TIME and current_time != "NA":
-                load.ready_by_time_selector.set_state("NA")
+        if load.settings_changed():
+            ev_settings_changed = True
 
     if ev_settings_changed:
-        logger.debug(f"EV Charging settings changed. Forcing MPC to update with new settings.")
+        logger.debug(f"Optional load settings changed. Forcing MPC to update with new settings.")
         mpc.run_optimisation(price_data)
     
     if(last_control_mode == "Manual Override"):

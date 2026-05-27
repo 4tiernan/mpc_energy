@@ -58,6 +58,7 @@ for idx, row in enumerate(rows):
         lvl_ent = row.get("level_entity_id", "")
         cap = str(row.get("capacity_kwh", "0.0"))
         min_lim = str(row.get("min_level_limit", "0.0"))
+        opt_min_lim = str(row.get("optimal_daily_min_soc", "0.0"))
         max_lim = str(row.get("max_level_limit", "100.0"))
         min_p = str(row.get("min_charge_power_kw", "0.0"))
         max_p = str(row.get("max_charge_power_kw", "0.0"))
@@ -84,9 +85,10 @@ for idx, row in enumerate(rows):
                 key=f"ev_charger_model_{idx}"
             )
             
-            c4, c5 = st.columns(2)
+            c4, c5, c6 = st.columns(3)
             min_lim = c4.text_input("Min Battery SOC (%)", value=min_lim, key=f"ev_minlim_{idx}")
-            max_lim = c5.text_input("Max Battery SOC (%)", value=max_lim, key=f"ev_maxlim_{idx}")
+            opt_min_lim = c5.text_input("Optimal Daily Min SOC (%)", value=opt_min_lim, key=f"ev_optminlim_{idx}")
+            max_lim = c6.text_input("Max Battery SOC (%)", value=max_lim, key=f"ev_maxlim_{idx}")
             
             reward = st.text_input("Charge Reward (c/kWh)", value=reward, key=f"ev_rew_{idx}")
             
@@ -182,6 +184,7 @@ for idx, row in enumerate(rows):
             "max_charge_power_kw": max_p,
             "min_charge_power_kw": min_p, 
             "min_level_limit": min_lim,
+            "optimal_daily_min_soc": opt_min_lim,
             "max_level_limit": max_lim, 
             "reward_cents_per_kwh": reward,
             "volume_l": vol, 

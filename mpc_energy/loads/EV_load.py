@@ -23,6 +23,7 @@ class EVLoad(OptionalLoad):
         level_entity_id: str,
         capacity_kwh: float,
         min_level_limit: float,
+        optimal_daily_min_soc: float,
         max_level_limit: float,
         charger_model: str,
         nominal_ac_voltage: float,
@@ -41,6 +42,7 @@ class EVLoad(OptionalLoad):
         self.level_entity_id = level_entity_id
         self.capacity_kwh = capacity_kwh
         self.min_level_limit = min_level_limit
+        self.optimal_daily_min_soc = optimal_daily_min_soc
         self.max_level_limit = max_level_limit
         self.charger_model = charger_model
         self.nominal_ac_voltage = nominal_ac_voltage
@@ -76,18 +78,21 @@ class EVLoad(OptionalLoad):
         n = int(mpc.N_5min)
         self.p_ev = cp.Variable(n, nonneg=True, name=f"{self.name}_p_ev")
         self.ev_soc = cp.Variable(n + 1, name=f"{self.name}_ev_soc")
+        self.unachievable_kwh = cp.Variable(n, nonneg=True, name=f"{self.name}_unachievable_kwh")
         
         self.p_max_param = cp.Parameter(n, nonneg=True, name=f"{self.name}_p_max_param")
         self.soc_init_param = cp.Parameter(nonneg=True, name=f"{self.name}_soc_init_param")
         self.soc_upper_limit_param = cp.Parameter(nonneg=True, name=f"{self.name}_soc_upper_limit_param")
         self.soc_min_required_param = cp.Parameter(n, nonneg=True, name=f"{self.name}_soc_min_required_param")
+        self.soc_optimal_min_param = cp.Parameter(n, nonneg=True, name=f"{self.name}_soc_optimal_min_param")
 
         constraints = [
             self.ev_soc[0] == self.soc_init_param,
             self.ev_soc[1:] == self.ev_soc[:-1] + (mpc.dt_5min * self.p_ev),
             self.ev_soc[1:] >= 0,
             self.ev_soc[1:] <= self.soc_upper_limit_param,
-            self.ev_soc[1:] >= self.soc_min_required_param, # List of minimum SOC values
+            self.ev_soc[1:] >= self.soc_min_required_param - self.unachievable_kwh, # Allow for some unachievable kWh to ensure feasibility if targets can't be met
+            self.ev_soc[1:] >= self.soc_optimal_min_param - self.unachievable_kwh,
             self.p_ev >= 0,
             self.p_ev <= self.p_max_param
         ]
@@ -95,6 +100,7 @@ class EVLoad(OptionalLoad):
         objective_term = (
             - cp.sum(cp.multiply(self.ev_charge_48hr_reward, self.p_ev)) * mpc.dt_5min
             - cp.sum(cp.multiply(self.charge_maintain_reward, self.ev_soc[0:-1])) * mpc.dt_5min
+            + cp.sum(self.unachievable_kwh) * 10000.0  # Large penalty for missing targets
         )
 
         return constraints, objective_term, self.p_ev
@@ -133,7 +139,10 @@ class EVLoad(OptionalLoad):
 
         # SOC constraints
         ev_soc_min_required_arr = np.zeros(int(mpc.N_5min), dtype=float)
+        ev_soc_optimal_min_arr = np.zeros(int(mpc.N_5min), dtype=float)
+
         self.min_target_kwh = (self.min_level_limit / 100.0) * self.capacity_kwh
+        self.optimal_min_kwh = (self.optimal_daily_min_soc / 100.0) * self.capacity_kwh
         self.max_target_kwh = (self.max_level_limit / 100.0) * self.capacity_kwh
 
         # If the EV soc is below the minimum soc target, charge asap reguardless of the selected mode. 
@@ -152,13 +161,17 @@ class EVLoad(OptionalLoad):
                 p_max_arr = np.zeros(int(mpc.N_5min), dtype=float) # No charging allowed, set max power to 0
             else:
                 logger.warning(f"Unknown EV charging mode '{mode}', defaulting to 'Solar Smart' (no minimum SOC constraint).")
-                # No minimum SOC constraint, let the optimiser decide when to charge based on the solar forecast and prices.
+
+        # Apply Optimal Daily Min (Target by EOD)
+        if mode != self.EV_MODE_DISABLED and self.optimal_daily_min_soc > 0:
+            ev_soc_optimal_min_arr = self.build_ev_optimal_daily_min_mask(time_index, mpc)
         
         self.p_max_param.value = p_max_arr
         self.soc_init_param.value = float(self.current_ev_soc_kWh)
         # Ensure upper limit is at least as high as current SOC to prevent solver infeasibility if car is over-charged
         self.soc_upper_limit_param.value = max(float((self.max_level_limit / 100.0) * self.capacity_kwh), float(self.current_ev_soc_kWh or 0.0))
         self.soc_min_required_param.value = ev_soc_min_required_arr # Set the minimum SOC constraint array based on the selected mode and current SOC
+        self.soc_optimal_min_param.value = ev_soc_optimal_min_arr
         
     def update_data(self) -> None:
         """Collects and updates real-time data from Home Assistant."""
@@ -221,6 +234,27 @@ class EVLoad(OptionalLoad):
 
         return required_mask
 
+    def build_ev_optimal_daily_min_mask(self, time_index, mpc):
+        """Encourages hitting the Optimal Daily Min SOC by 10 PM each day."""
+        required_mask = np.zeros(int(mpc.N_5min), dtype=float)
+        if self.capacity_kwh <= 0 or self.optimal_daily_min_soc <= 0:
+            return required_mask
+
+        target_kwh = (self.optimal_daily_min_soc / 100.0) * self.capacity_kwh
+
+        achieve_optimal_by_index = 48 * mpc.steps_per_hr
+
+        required_mask[:achieve_optimal_by_index] = target_kwh
+        
+        # # We apply the constraint floor for a small window at EOD (e.g. 22:00 to 23:00)
+        # for idx, step_time in enumerate(time_index):
+        #     # Check for 10 PM (EOD)
+        #     if step_time.hour == 22 and 0 <= step_time.minute <= 59:
+        #         # Only apply if it doesn't conflict with a higher critical SOC requirement
+        #         required_mask[idx] = target_kwh
+
+        return required_mask
+
     def get_results(self, dt):
         p_ev = self.p_ev.value
         soc_ev = self.ev_soc.value
@@ -266,6 +300,7 @@ class EVLoad(OptionalLoad):
             "level_entity_id": self.level_entity_id,
             "capacity_kwh": self.capacity_kwh,
             "min_level_limit": self.min_level_limit,
+            "optimal_daily_min_soc": self.optimal_daily_min_soc,
             "max_level_limit": self.max_level_limit,
             "charger_model": self.charger_model,
             "nominal_ac_voltage": self.nominal_ac_voltage,
@@ -297,6 +332,7 @@ class EVLoad(OptionalLoad):
             level_entity_id=str(item.get("level_entity_id", "")).strip(),
             capacity_kwh=float(item.get("capacity_kwh", 0.0) or 0.0),
             min_level_limit=float(item.get("min_level_limit", 0.0) or 0.0),
+            optimal_daily_min_soc=float(item.get("optimal_daily_min_soc", 0.0) or 0.0),
             max_level_limit=float(item.get("max_level_limit", 100.0) or 100.0),
             charger_model=str(item.get("charger_model", "Generic")).strip(),
             nominal_ac_voltage=float(item.get("nominal_ac_voltage", 230.0) or 230.0),

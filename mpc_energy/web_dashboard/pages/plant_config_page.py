@@ -1,6 +1,7 @@
 import streamlit as st
 import json
 import os
+import config_manager
 
 CONFIG_PATH = "/data/plant_config.json"
 
@@ -17,6 +18,12 @@ def save_config(config):
     with open(CONFIG_PATH, 'w') as f:
         json.dump(config, f, indent=4)
     st.success("Plant configuration saved! Please restart the Add-on for changes to take full effect.")
+    
+    # Setup Flow redirection
+    if not config_manager.load_config().get("energy_retailer"):
+        st.info("Next step: Retailer Configuration")
+        if st.button("Proceed to Retailer Configuration"):
+            st.switch_page("pages/02_Retailer_Configuration.py")
 
 brand_defaults = {
     "Sigenergy": {

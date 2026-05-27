@@ -70,8 +70,18 @@ if not load_plant_config().get("plant_brand"):
     while True:
         time.sleep(1) # Keep the app running so the user can access the dashboard to set up the plant configuration
     
+if not config_manager.energy_retailer:
+    logger.error("Energy Retailer not configured! Please open the web dashboard and navigate to the 'Retailer Configuration' page.")
+    while True:
+        time.sleep(1)
+
+if not config_manager.solcast_forecast_today_entity_id:
+    logger.error("Solar Forecast not configured! Please open the web dashboard and navigate to the 'Solar Forecast Configuration' page.")
+    while True:
+        time.sleep(1)
+
 if(config_manager.energy_retailer != "amber" and config_manager.energy_retailer != "flow"):
-    logger.error("Invalid energy retailer selected. Please select either amber or flow as the energy retailer in the app configuration page.")
+    logger.error("Invalid energy retailer selected. Please select either amber or flow as the energy retailer in the 'Retailer Configuration' page.")
     while True:
         time.sleep(1)
 

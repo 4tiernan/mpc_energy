@@ -2,6 +2,7 @@ from datetime import datetime, time as datetime_time, timezone, timedelta
 from External_Interfaces.amber_api import PriceForecast, amber_data
 from mpc_logger import logger
 import math
+import data_helpers
 from collections import defaultdict
 from exceptions import FlowPowerError
 
@@ -138,13 +139,16 @@ class FlowPowerInterface:
             unit = attributes.get("unit") or attributes.get("unit_of_measurement")
             scale_to_dollars = 0.01 if unit == "c/kWh" else 1.0
 
-            # 1. Create a 30-minute time-of-day profile from history.
+            # 1. Bin history to 5-minute resolution and group into 30-minute TOD buckets to get true averages.
+            binned_5m = data_helpers.bin_data(history, 5, hist_start, now, interpolation_method="step")
             tod_bins = defaultdict(list)
-            for h in history:
-                if h.state is None: continue
+            for b in binned_5m:
+                if b.avg_state is None:
+                    continue
                 try:
-                    val = float(h.state) * scale_to_dollars # $/kWh
-                    t_rounded = h.time.replace(second=0, microsecond=0)
+                    val = float(b.avg_state) * scale_to_dollars  # $/kWh
+                    # Snap the 5-minute reading to the start of its 30-minute block for averaging
+                    t_rounded = b.time.replace(second=0, microsecond=0)
                     t_rounded -= timedelta(minutes=t_rounded.minute % 30)
                     tod_bins[t_rounded.time()].append(val)
                 except: continue

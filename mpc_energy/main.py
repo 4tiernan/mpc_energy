@@ -487,11 +487,12 @@ while True:
     try:
         # Check for restart signal from the web dashboard
         if os.path.exists(config_manager.RESTART_SIGNAL_PATH):
-            logger.info("Restart signal received from dashboard. Shutting down for supervisor restart...")
+            logger.info("Restart signal received from dashboard. Performing in-place restart...")
             os.remove(config_manager.RESTART_SIGNAL_PATH)
             if streamlit_proc:
                 streamlit_proc.terminate()
-            sys.exit(0)
+                streamlit_proc.wait() # Wait for Streamlit to release the port
+            os.execv(sys.executable, [sys.executable] + sys.argv)
 
         regular_loop_update_due = time.time() - last_loop_timestamp >= 10
         seconds_till_price_update = next_amber_update_timestamp - time.time()

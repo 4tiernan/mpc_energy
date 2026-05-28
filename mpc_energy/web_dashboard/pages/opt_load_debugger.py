@@ -29,7 +29,7 @@ days_to_analyze = st.slider("Historical Days to Analyze", 1, 14, 3)
 
 if st.button("Refresh History Data"):
     with st.spinner("Fetching and processing historical deltas..."):
-        avg_delta_dict = load.get_level_delta_avg(days_ago=days_analyze, hours_update_interval=0)
+        avg_delta_dict = load.get_level_delta_avg(days_ago=days_to_analyze, hours_update_interval=0)
 else:
     avg_delta_dict = load.get_level_delta_avg(days_ago=days_to_analyze)
 

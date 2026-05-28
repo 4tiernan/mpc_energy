@@ -197,6 +197,9 @@ class OptionalLoad:
         kernel = np.ones(window) / window
         smoothed = np.convolve(np.tile(deltas, 3), kernel, mode='same')[288:576]
 
+        # Constrain to negative only (losses) to ignore phantom gains from sensor noise/balancing
+        smoothed = np.minimum(smoothed, 0.0)
+
         self.avg_delta_profile = {all_tods[j]: smoothed[j] for j in range(288)}
         self.last_profile_update_timestamp = now_ts
         return self.avg_delta_profile

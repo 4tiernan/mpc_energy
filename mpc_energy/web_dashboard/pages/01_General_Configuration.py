@@ -52,6 +52,6 @@ with st.form("general_settings"):
 if st.session_state.get("general_saved"):
     next_step = config_manager.get_next_setup_step()
     if next_step and next_step != "pages/01_General_Configuration.py":
-        if st.button("Proceed to next step"):
+        if st.button(f"Proceed to {config_manager.get_page_title(next_step)}"):
             st.session_state["general_saved"] = False
             st.switch_page(next_step)

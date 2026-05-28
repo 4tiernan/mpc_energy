@@ -248,7 +248,7 @@ def plant_config_page():
     if st.session_state.get("plant_saved"):
         next_step = config_manager.get_next_setup_step()
         if next_step and next_step != "pages/plant_config_page.py":
-            if st.button("Proceed to next step"):
+            if st.button(f"Proceed to {config_manager.get_page_title(next_step)}"):
                 st.session_state["plant_saved"] = False
                 st.switch_page(next_step)
 

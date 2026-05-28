@@ -90,6 +90,17 @@ def get_next_setup_step():
 
     return None
 
+def get_page_title(page_path):
+    """Returns a human-readable title for a given streamlit page path."""
+    titles = {
+        "pages/01_General_Configuration.py": "General Configuration",
+        "pages/plant_config_page.py": "Plant Configuration",
+        "pages/02_Retailer_Configuration.py": "Retailer Configuration",
+        "pages/03_Solar_Forecast_Configuration.py": "Solar Forecast",
+        "pages/optional_loads_page.py": "Optional Loads"
+    }
+    return titles.get(page_path, "Next Step")
+
 def get_entity_id(key, default=None):
     value = options.get(key, default)
     if (value == None or value == "") and default is None:

@@ -32,6 +32,6 @@ if st.session_state.get("solar_saved"):
 
     next_step = config_manager.get_next_setup_step()
     if next_step and next_step != "pages/03_Solar_Forecast_Configuration.py":
-        if st.button("Proceed to next step"):
+        if st.button(f"Proceed to {config_manager.get_page_title(next_step)}"):
             st.session_state["solar_saved"] = False
             st.switch_page(next_step)

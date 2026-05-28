@@ -236,6 +236,6 @@ if st.session_state.get("opt_loads_saved"):
             st.session_state["opt_loads_saved"] = False
             st.switch_page("webserver.py")
     else:
-        if st.button("Proceed to next step"):
+        if st.button(f"Proceed to {config_manager.get_page_title(next_step)}"):
             st.session_state["opt_loads_saved"] = False
             st.switch_page(next_step)

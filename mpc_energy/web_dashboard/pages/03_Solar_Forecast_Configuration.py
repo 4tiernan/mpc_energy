@@ -30,7 +30,8 @@ if st.session_state.get("solar_saved"):
         config_manager.trigger_restart()
         st.info("Restarting...")
 
-    st.info("Next step: Configure Optional Loads (EVs, Hot Water, etc.)")
-    if st.button("Proceed to Optional Loads"):
-        st.session_state["solar_saved"] = False
-        st.switch_page("pages/optional_loads_page.py")
+    next_step = config_manager.get_next_setup_step()
+    if next_step and next_step != "pages/03_Solar_Forecast_Configuration.py":
+        if st.button("Proceed to next step"):
+            st.session_state["solar_saved"] = False
+            st.switch_page(next_step)

@@ -45,9 +45,8 @@ if st.button("Save Retailer Configuration"):
     st.session_state["retailer_saved"] = True
 
 if st.session_state.get("retailer_saved"):
-    updated_config = config_manager.load_config()
-    if not updated_config.get("solcast_forecast_today_entity_id"):
-        st.info("Next step: Solar Forecast Configuration")
-        if st.button("Proceed to Solar Forecast Configuration"):
+    next_step = config_manager.get_next_setup_step()
+    if next_step and next_step != "pages/02_Retailer_Configuration.py":
+        if st.button("Proceed to next step"):
             st.session_state["retailer_saved"] = False
-            st.switch_page("pages/03_Solar_Forecast_Configuration.py")
+            st.switch_page(next_step)

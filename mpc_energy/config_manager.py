@@ -62,15 +62,32 @@ def get_next_setup_step():
     
     config = load_config()
     plant_config = load_plant_config()
+    
+    # Check local mpc_config to see what has been explicitly saved via Web UI
+    local_cfg = {}
+    if os.path.exists(CONFIG_PATH):
+        try:
+            with open(CONFIG_PATH) as f:
+                local_cfg = json.load(f)
+        except: pass
 
     if not config.get("accepted_risks") or not config.get("ha_mqtt_user"):
         return "pages/01_General_Configuration.py"
     if not plant_config.get("plant_brand"):
         return "pages/plant_config_page.py"
-    if not config.get("energy_retailer"):
+        
+    # Check if Retailer has been saved in Web UI (ignore defaults from HA options)
+    if not local_cfg.get("energy_retailer"):
         return "pages/02_Retailer_Configuration.py"
-    if not config.get("solcast_forecast_today_entity_id"):
+        
+    # Check if Solar has been saved in Web UI (ignore defaults from HA options)
+    if not local_cfg.get("solcast_forecast_today_entity_id"):
         return "pages/03_Solar_Forecast_Configuration.py"
+
+    # Check if Optional Loads has been configured (indicated by existence of file)
+    if not os.path.exists("/data/optional_loads.json"):
+        return "pages/optional_loads_page.py"
+
     return None
 
 def get_entity_id(key, default=None):

@@ -3,6 +3,7 @@ import streamlit as st
 import loads.optional_loads as optional_loads
 import loads.EV_chargers.EV_charger as ev_charger
 from web_dashboard.common import render_sidebar
+import config_manager
 
 st.set_page_config(page_title="Optional Loads", layout="wide", initial_sidebar_state="collapsed")
 render_sidebar()
@@ -228,7 +229,13 @@ if save:
         st.session_state["opt_loads_saved"] = True
 
 if st.session_state.get("opt_loads_saved"):
-    st.write("Setup complete! Once the add-on is restarted and values are valid, the MPC will begin optimizing your energy usage.")
-    if st.button("Go to Dashboard", type="secondary"):
-        st.session_state["opt_loads_saved"] = False
-        st.switch_page("webserver.py")
+    next_step = config_manager.get_next_setup_step()
+    if not next_step:
+        st.write("Setup complete! Once the add-on is restarted and values are valid, the MPC will begin optimizing your energy usage.")
+        if st.button("Go to Dashboard", type="secondary"):
+            st.session_state["opt_loads_saved"] = False
+            st.switch_page("webserver.py")
+    else:
+        if st.button("Proceed to next step"):
+            st.session_state["opt_loads_saved"] = False
+            st.switch_page(next_step)

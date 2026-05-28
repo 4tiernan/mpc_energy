@@ -50,9 +50,8 @@ with st.form("general_settings"):
         st.session_state["general_saved"] = True
 
 if st.session_state.get("general_saved"):
-    from plants.plant_manager import load_plant_config
-    if not load_plant_config().get("plant_brand"):
-        st.info("Next step: Plant Configuration")
-        if st.button("Proceed to Plant Configuration"):
+    next_step = config_manager.get_next_setup_step()
+    if next_step and next_step != "pages/01_General_Configuration.py":
+        if st.button("Proceed to next step"):
             st.session_state["general_saved"] = False
-            st.switch_page("pages/plant_config_page.py")
+            st.switch_page(next_step)

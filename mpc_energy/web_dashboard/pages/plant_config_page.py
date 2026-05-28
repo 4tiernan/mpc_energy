@@ -246,11 +246,11 @@ def plant_config_page():
             save_config(new_config)
 
     if st.session_state.get("plant_saved"):
-        if not config_manager.load_config().get("energy_retailer"):
-            st.info("Next step: Retailer Configuration")
-            if st.button("Proceed to Retailer Configuration"):
+        next_step = config_manager.get_next_setup_step()
+        if next_step and next_step != "pages/plant_config_page.py":
+            if st.button("Proceed to next step"):
                 st.session_state["plant_saved"] = False
-                st.switch_page("pages/02_Retailer_Configuration.py")
+                st.switch_page(next_step)
 
 if __name__ == "__main__":
     plant_config_page()

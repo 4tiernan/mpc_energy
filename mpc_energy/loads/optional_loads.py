@@ -92,6 +92,7 @@ class OptionalLoad:
         # Profile Cache
         self.avg_delta_profile = None
         self.last_profile_update_timestamp = 0
+        self.last_profile_days_ago = 0
 
     @classmethod
     def from_dict(cls, item: dict[str, Any]) -> Any:
@@ -142,7 +143,8 @@ class OptionalLoad:
         when the device is NOT consuming power.
         """
         now_ts = time.time()
-        if (self.avg_delta_profile is not None and 
+        if (self.avg_delta_profile is not None and
+            self.last_profile_days_ago == days_ago and
             now_ts - self.last_profile_update_timestamp < hours_update_interval * 3600):
             return self.avg_delta_profile
 
@@ -202,6 +204,7 @@ class OptionalLoad:
 
         self.avg_delta_profile = {all_tods[j]: smoothed[j] for j in range(288)}
         self.last_profile_update_timestamp = now_ts
+        self.last_profile_days_ago = days_ago
         return self.avg_delta_profile
 
     def forecast_level_delta(self, time_index) -> np.ndarray:

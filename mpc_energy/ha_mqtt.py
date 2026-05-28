@@ -20,6 +20,44 @@ def uid(name):
 # Define the device. At least one of `identifiers` or `connections` must be supplied
 device_info = DeviceInfo(name="MPC Energy Manager Device", identifiers="mpc-energy-py")
 
+def check_entity_exists(state_topic, broker_host, port=1883, username=None, password=None, timeout=2):
+    """Return True if a retained message exists for this entity, False otherwise."""
+    result = {"exists": False}
+
+    def on_connect(client, userdata, flags, rc):
+        client.subscribe(state_topic)
+
+    def on_message(client, userdata, msg):
+        result["exists"] = True
+        client.disconnect()  # stop after first message
+
+    client = mqtt.Client()
+    if username and password:
+        client.username_pw_set(username, password)
+
+    client.on_connect = on_connect
+    client.on_message = on_message
+
+    try:
+        client.connect(broker_host, port, keepalive=timeout)
+        client.loop_start()
+
+        # wait for message or timeout
+        start = time.time()
+        while time.time() - start < timeout:
+            if result["exists"]:
+                break
+            time.sleep(0.1)
+    except Exception:
+        pass
+
+    client.loop_stop()
+    client.disconnect()
+
+    return result["exists"]
+
+ENTITIES_EXIST = check_entity_exists("homeassistant/switch/MPC-Energy-Manager-Device/Automatic-Control/config", const.MQTT_HOST, const.MQTT_PORT, config_manager.MQTT_USER, config_manager.MQTT_PASS)
+
 def CreateSensor(name, unique_id, unit_of_measurement, state_class="measurement", device_class=None):
     sensor_info = SensorInfo(name=name, unique_id=uid(unique_id), device=device_info, unit_of_measurement=unit_of_measurement, state_class=state_class, device_class=device_class, retain=True)
     sensor_settings = Settings(mqtt=mqtt_settings, entity=sensor_info)
@@ -40,16 +78,17 @@ class CreateSelectInput():
         # The command_callback will handle future commands from HA
         self.entity = Select(settings, self.callback_function)
         
-        # Attempt to read the retained state from the MQTT broker for this entity's state_topic
-        # This needs to happen *after* self.entity is initialized, as it provides state_topic
-        retained_state = self._get_retained_state_for_select(self.entity.state_topic, self.options, self.state)
-        
-        # Update internal state based on retained message, if found and valid
-        if retained_state in self.options:
-            self.state = retained_state
-        else:
-            # Log a warning if the retained state is invalid, but proceed with the default
-            logger.warning(f"Retained state '{retained_state}' for select entity '{self.name}' is not a valid option. Defaulting to '{self.state}'.")
+        if ENTITIES_EXIST:
+            # Attempt to read the retained state from the MQTT broker for this entity's state_topic
+            # This needs to happen *after* self.entity is initialized, as it provides state_topic
+            retained_state = self._get_retained_state_for_select(self.entity.state_topic, self.options, self.state)
+            
+            # Update internal state based on retained message, if found and valid
+            if retained_state in self.options:
+                self.state = retained_state
+            else:
+                # Log a warning if the retained state is invalid, but proceed with the default
+                logger.warning(f"Retained state '{retained_state}' for select entity '{self.name}' is not a valid option. Defaulting to '{self.state}'.")
 
         # Publish the determined initial state to HA. This ensures HA's displayed state
         # matches the app's internal state, and updates any invalid retained messages.
@@ -409,45 +448,7 @@ def initalise_entities(): # Initalise entities and get them discovered by the ha
 
     time.sleep(10)
 
-
-
-def check_entity_exists(state_topic, broker_host, port=1883, username=None, password=None, timeout=5):
-    """Return True if a retained message exists for this entity, False otherwise."""
-    result = {"exists": False}
-
-    def on_connect(client, userdata, flags, rc):
-        client.subscribe(state_topic)
-
-    def on_message(client, userdata, msg):
-        result["exists"] = True
-        client.disconnect()  # stop after first message
-
-    client = mqtt.Client()
-    if username and password:
-        client.username_pw_set(username, password)
-
-    client.on_connect = on_connect
-    client.on_message = on_message
-
-    client.connect(broker_host, port, keepalive=timeout)
-    client.loop_start()
-
-    # wait for message or timeout
-    start = time.time()
-    while time.time() - start < timeout:
-        if result["exists"]:
-            break
-        time.sleep(0.1)
-
-
-    client.loop_stop()
-    client.disconnect()
-
-    return result["exists"]
-
-state_topic = "homeassistant/switch/MPC-Energy-Manager-Device/Automatic-Control/config" # Check to see if the switch exists on the mqtt brocker, if not, set inital values for all entities
-
-if not check_entity_exists(state_topic, const.MQTT_HOST, const.MQTT_PORT, config_manager.MQTT_USER, config_manager.MQTT_PASS):
+if not ENTITIES_EXIST:
     logger.warning("MQTT Topics were not found on the brocker, creating required entities.")
     # Sensor doesn’t exist — set initial values
     initalise_entities()

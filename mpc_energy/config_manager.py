@@ -136,7 +136,7 @@ battery_discharge_cost = get_entity_id("battery_discharge_cost")
 estimated_daily_load_energy_consumption = get_entity_id("estimated_daily_load_energy_consumption")
 
 # Core settings remaining in config.yaml
-spike_price_warning_level = get_entity_id("spike_price_warning_level", default=25)
+spike_price_warning_level = get_entity_id("spike_price_warning_level", default=50)
 notification_target = get_entity_id("notification_target", default="")
 notification_target_option = get_entity_id("notification_target_option", default="both")
 log_level = get_entity_id("log_level", default="info")

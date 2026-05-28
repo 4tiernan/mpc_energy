@@ -41,6 +41,16 @@ streamlit_proc = start_streamlit_dashboard()
 logger.info("Streamlit dashboard started") 
 
 
+def handle_restart():
+    """Checks for a restart signal and performs an in-place restart if found."""
+    if os.path.exists(config_manager.RESTART_SIGNAL_PATH):
+        logger.info("Restart signal received from dashboard. Performing in-place restart...")
+        os.remove(config_manager.RESTART_SIGNAL_PATH)
+        if streamlit_proc:
+            streamlit_proc.terminate()
+            streamlit_proc.wait()  # Wait for Streamlit to release the port
+        os.execv(sys.executable, [sys.executable] + sys.argv)
+
 # Initialize globals as None so error handlers can safely check them if startup fails early
 ha = None
 ha_mqtt = None
@@ -63,26 +73,31 @@ def elapsed_time(code_block_name="Code Block"):
 if(not config_manager.accepted_risks):
     logger.error("Risk acknowledgement required! Please open the web dashboard and navigate to 'General Configuration' to accept the terms of use.")
     while True:
+        handle_restart()
         time.sleep(1)
 
 if not load_plant_config().get("plant_brand"):
     logger.error("Plant configuration not found! Please open the web dashboard and navigate to the 'Plant Configuration' page to set up your inverter and battery details.")
     while True:
+        handle_restart()
         time.sleep(1) # Keep the app running so the user can access the dashboard to set up the plant configuration
     
 if not config_manager.energy_retailer:
     logger.error("Energy Retailer not configured! Please open the web dashboard and navigate to the 'Retailer Configuration' page.")
     while True:
+        handle_restart()
         time.sleep(1)
 
 if not config_manager.solcast_forecast_today_entity_id:
     logger.error("Solar Forecast not configured! Please open the web dashboard and navigate to the 'Solar Forecast Configuration' page.")
     while True:
+        handle_restart()
         time.sleep(1)
 
 if(config_manager.energy_retailer != "amber" and config_manager.energy_retailer != "flow"):
     logger.error("Invalid energy retailer selected. Please select either amber or flow as the energy retailer in the 'Retailer Configuration' page.")
     while True:
+        handle_restart()
         time.sleep(1)
 
 # Check to see if an amber site number has been set and print the available ones if not
@@ -93,6 +108,7 @@ if(config_manager.energy_retailer == "amber" and config_manager.amber_site_id ==
     if(not sites):
         logger.error("No sites were found, amber may not have transfered your connection yet. This can take approximatly 4 days (https://help.amber.com.au/hc/en-us/articles/34942303478797-Solar-and-Battery-Onboarding-What-to-Expect-When-Enrolling-to-SmartShift). Please try again later.")
         while True:
+            handle_restart()
             time.sleep(1)
         
     string_data = ""
@@ -104,6 +120,7 @@ if(config_manager.energy_retailer == "amber" and config_manager.amber_site_id ==
         string_data = string_data + f"Site ID: {site['id']},  NMI: {site['nmi']}, Channels: {available_channels}"
     logger.warning(f"Amber Site ID not selected, please copy the desired site id into the configuration tab:\n({string_data})")
     while True:
+        handle_restart()
         time.sleep(1)
 
 # HA APP Setup Notes:
@@ -165,7 +182,9 @@ def FailSafe(e):
             logger.error(f"Failed to put system into safe mode after detecting an error: {failsafe_error}")   
 
     logger.warning("Trying again after 30 seconds")
-    time.sleep(30)    
+    for _ in range(30):
+        handle_restart()
+        time.sleep(1)    
         
 
 while(started == False):
@@ -486,13 +505,7 @@ last_alive_time_timestamp = 0
 while True:
     try:
         # Check for restart signal from the web dashboard
-        if os.path.exists(config_manager.RESTART_SIGNAL_PATH):
-            logger.info("Restart signal received from dashboard. Performing in-place restart...")
-            os.remove(config_manager.RESTART_SIGNAL_PATH)
-            if streamlit_proc:
-                streamlit_proc.terminate()
-                streamlit_proc.wait() # Wait for Streamlit to release the port
-            os.execv(sys.executable, [sys.executable] + sys.argv)
+        handle_restart()
 
         regular_loop_update_due = time.time() - last_loop_timestamp >= 10
         seconds_till_price_update = next_amber_update_timestamp - time.time()

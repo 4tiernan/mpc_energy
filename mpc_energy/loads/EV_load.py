@@ -197,6 +197,7 @@ class EVLoad(OptionalLoad):
             self.soc_upper_limit_param.value = max(float((self.max_level_limit / 100.0) * self.capacity_kwh), float(self.current_ev_soc_kWh or 0.0))
             self.soc_min_required_param.value = np.zeros(n, dtype=float)
             self.soc_optimal_min_param.value = np.zeros(n, dtype=float)
+            self.draw_forecast_param.value = np.zeros(n, dtype=float)
             return
 
         # Build power limits

@@ -48,7 +48,7 @@ class GenericBinaryCharger(EVCharger):
         except Exception as e:
             logger.error(f"Failed to update Generic Binary Charger '{self.name}': {e}")
 
-    def set_target_charge_rate(self, kw):
+    def set_target_charge_rate(self, kw: float, charging_mode: str):
         """
         Set the charge rate. Since this is a binary charger, any rate > 0 
         turns the switch ON, and a rate of 0 turns it OFF.

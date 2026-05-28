@@ -145,11 +145,11 @@ class MPC:
         self.N_5min = max(1, int(horizon_seconds // (5 * 60)))
         self.forecast_hrs = self.N_5min * self.dt_5min
 
-        logger.debug(
-            f"MPC forecast horizon set to {round(self.forecast_hrs, 2)} hrs "
-            f"({self.N_5min}x5min) segments from {self.sim_start.strftime('%Y-%m-%d %H:%M %Z')} "
-            f"to {self.sim_end.strftime('%Y-%m-%d %H:%M %Z')}"
-        )
+        # logger.debug(
+        #     f"MPC forecast horizon set to {round(self.forecast_hrs, 2)} hrs "
+        #     f"({self.N_5min}x5min) segments from {self.sim_start.strftime('%Y-%m-%d %H:%M %Z')} "
+        #     f"to {self.sim_end.strftime('%Y-%m-%d %H:%M %Z')}"
+        # )
              
     def update_limits(self):
         # Battery Settings

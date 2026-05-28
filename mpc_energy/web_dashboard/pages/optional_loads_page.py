@@ -24,9 +24,18 @@ if "optional_load_rows" not in st.session_state:
 
 rows = st.session_state.optional_load_rows
 
-# Define Tab Labels dynamically based on configured loads
-tab_titles = ["📋 Overview"] + [f"{'🚗' if r.get('load_type')=='ev' else '🛁'} {r.get('name', 'New Load')}" for r in rows]
-tabs = st.tabs(tab_titles)
+# To prevent st.tabs from jumping back to index 0 when a name is edited, 
+# we must keep the tab labels stable until a save occurs.
+def refresh_tab_titles():
+    st.session_state.stable_tab_titles = ["📋 Overview"] + [
+        f"{'🚗' if r.get('load_type')=='ev' else '🛁'} {r.get('name', 'New Load')}" 
+        for r in st.session_state.optional_load_rows
+    ]
+
+if "stable_tab_titles" not in st.session_state or len(st.session_state.stable_tab_titles) != len(rows) + 1:
+    refresh_tab_titles()
+
+tabs = st.tabs(st.session_state.stable_tab_titles)
 
 with tabs[0]:
     st.subheader("Optional Loads Overview")
@@ -45,15 +54,19 @@ with tabs[0]:
     col_act1, col_act2 = st.columns(2)
     if col_act1.button("➕ Add New Load", use_container_width=True):
         st.session_state.optional_load_rows.append({"name": f"New Load {len(rows)+1}", "load_type": "ev", "debias_load": True})
+        refresh_tab_titles()
         st.rerun()
     
     if col_act2.button("🗑️ Delete All Loads", type="secondary", use_container_width=True):
         st.session_state.optional_load_rows = []
+        optional_loads.save_optional_loads([])
+        refresh_tab_titles()
         st.rerun()
 
 for idx, row in enumerate(rows):
     with tabs[idx + 1]:
-        st.subheader(f"Configuration: {row.get('name')}")
+        # Use a subheader inside the tab to show the updated name immediately
+        st.subheader(f"Configuration: {row.get('name', 'New Load')}")
         col_t1, col_t2, col_t3 = st.columns([2, 2, 0.4])
         row["load_type"] = col_t1.selectbox(
             "Load Type",
@@ -66,6 +79,7 @@ for idx, row in enumerate(rows):
         col_t3.markdown("<div style='height: 28px;'></div>", unsafe_allow_html=True)
         if col_t3.button("🗑️", key=f"del_{idx}", help="Delete this load", use_container_width=True):
             st.session_state.optional_load_rows.pop(idx)
+            refresh_tab_titles()
             st.rerun()
 
         if row["load_type"] == "ev":
@@ -154,6 +168,7 @@ if st.button("💾 Save All Optional Loads", type="primary", use_container_width
         st.error("Duplicate names detected. Each optional load must have a unique name.")
     else:
         optional_loads.save_optional_loads(rows)
+        refresh_tab_titles()
         st.success("Optional loads saved. Please restart MPC to take effect. These are stored under /data so they persist across add-on updates.")
         st.session_state["opt_loads_saved"] = True
 

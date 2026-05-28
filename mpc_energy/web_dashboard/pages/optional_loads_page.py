@@ -29,33 +29,31 @@ tab_titles = ["📋 Overview"] + [f"{'🚗' if r.get('load_type')=='ev' else '�
 tabs = st.tabs(tab_titles)
 
 with tabs[0]:
-    st.subheader("Configured Loads Summary")
+    st.subheader("Optional Loads Overview")
     if not rows:
-        st.info("No optional loads configured. Use the button below to add your first device.")
+        st.info("No optional loads configured. Use the 'Add' button below to get started.")
     else:
         summary_data = []
         for r in rows:
             summary_data.append({
                 "Name": r.get("name"),
                 "Type": r.get("load_type", "").upper(),
-                "Level Entity": r.get("level_entity_id", "Not Set")
+                "Sensor": r.get("level_entity_id", "Not Set")
             })
         st.table(summary_data)
 
     col_act1, col_act2 = st.columns(2)
     if col_act1.button("➕ Add New Load", use_container_width=True):
-        st.session_state.optional_load_rows.append({"name": f"New Load {len(rows)+1}", "load_type": "ev"})
+        st.session_state.optional_load_rows.append({"name": f"New Load {len(rows)+1}", "load_type": "ev", "debias_load": True})
         st.rerun()
     
-    if col_act2.button("🗑️ Wipe All Config", type="secondary", use_container_width=True):
+    if col_act2.button("🗑️ Delete All Loads", type="secondary", use_container_width=True):
         st.session_state.optional_load_rows = []
-        optional_loads.save_optional_loads([])
-        st.success("All optional loads deleted.")
         st.rerun()
 
 for idx, row in enumerate(rows):
     with tabs[idx + 1]:
-        st.subheader(f"Configure: {row.get('name')}")
+        st.subheader(f"Configuration: {row.get('name')}")
         col_t1, col_t2, col_t3 = st.columns([2, 2, 0.4])
         row["load_type"] = col_t1.selectbox(
             "Load Type",

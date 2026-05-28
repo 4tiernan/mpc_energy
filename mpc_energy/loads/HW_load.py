@@ -7,7 +7,6 @@ import datetime
 import time
 import data_helpers
 from collections import defaultdict
-
 class HWLoad(OptionalLoad):
     """
     Specialized load for Hot Water systems.
@@ -95,20 +94,20 @@ class HWLoad(OptionalLoad):
         mpc_soc = mpc.soc
         mpc_soc_min_param = mpc.soc_min_param
 
-        self.p_hw = cp.Variable(n, nonneg=True)
-        self.hw_energy = cp.Variable(n + 1)
+        self.p_hw = cp.Variable(n, nonneg=True, name=f"{self.name}_p_hw")
+        self.hw_energy = cp.Variable(n + 1, name=f"{self.name}_energy")
         # shortfall represents thermal usage that couldn't be met (i.e. water is cold).
         # it prevents infeasibility when predicted usage spikes exceed heater capacity.
-        self.shortfall = cp.Variable(n, nonneg=True)
+        self.shortfall = cp.Variable(n, nonneg=True, name=f"{self.name}_shortfall")
         
-        self.soc_init_param = cp.Parameter(nonneg=True)
-        self.capacity_param = cp.Parameter(nonneg=True)
-        self.draw_forecast_param = cp.Parameter(n) # Allow negative values for solar gains
-        self.p_max_limit_param = cp.Parameter(nonneg=True)
+        self.soc_init_param = cp.Parameter(nonneg=True, name=f"{self.name}_soc_init")
+        self.capacity_param = cp.Parameter(nonneg=True, name=f"{self.name}_capacity")
+        self.draw_forecast_param = cp.Parameter(n, name=f"{self.name}_draw_forecast") # Allow negative values for solar gains
+        self.p_max_limit_param = cp.Parameter(nonneg=True, name=f"{self.name}_p_max_limit")
         
         constraints = [
             self.hw_energy[0] == self.soc_init_param,
-            self.hw_energy[1:] == self.hw_energy[:-1] + (self.p_hw * dt) - ((self.draw_forecast_param - self.shortfall) * dt),
+            self.hw_energy[1:] == self.hw_energy[:-1] + (self.p_hw * dt) - (self.draw_forecast_param * dt) + (self.shortfall * dt),
             self.hw_energy >= -0.001, # Small epsilon to prevent precision-based infeasibility
             self.hw_energy <= self.capacity_param + 0.001,
             self.p_hw <= self.p_max_limit_param,
@@ -133,7 +132,7 @@ class HWLoad(OptionalLoad):
         self.p_max_limit_param.value = float(self.max_charge_power_limit or 3.6)
         
         # Model thermal draw (usage + losses) based on historical temperature deltas
-        hot_water_delta_forecast = self.forecast_temp_delta(time_index)
+        hot_water_delta_forecast = self.forecast_level_delta(time_index)
 
         # Convert temperature delta (°C per 5-min bin) to Power (kW)
         # Power (kW) = (delta_T * Volume * 4.186) / (3600 seconds * (5/60) hours)
@@ -142,80 +141,6 @@ class HWLoad(OptionalLoad):
         draw_forecast = -hot_water_delta_forecast * (self.volume_l * 4.186) / 300.0
         
         self.draw_forecast_param.value = draw_forecast
-
-        # Debug logging to console
-        logger.debug(f"HWLoad '{self.name}' draw forecast: min={np.min(draw_forecast):.2f}kW, max={np.max(draw_forecast):.2f}kW, avg={np.mean(draw_forecast):.2f}kW")
-
-    def get_temp_delta_avg(self, days_ago=None, hours_update_interval=24):
-        """Calculate the average temperature delta (cooling rate) profile for a day."""
-        if days_ago is None:
-            days_ago = self.load_avg_days
-
-        now_ts = time.time()
-        if (self.avg_delta_day is not None and 
-            now_ts - self.last_delta_data_retrival_timestamp < hours_update_interval * 3600):
-            return self.avg_delta_day
-
-        bin_period = 5
-        now = datetime.datetime.now(self.local_tz)
-        rounded_now = data_helpers.round_minutes(now, bin_period)
-        start = rounded_now - datetime.timedelta(days=days_ago)
-
-        if not self.level_entity_id:
-            logger.warning(f"No Tank Temperature Entity ID configured for HWLoad '{self.name}'. Cannot calculate historical deltas.")
-            return None
-
-        h_temp = self.ha.get_history(self.level_entity_id, start_time=start, end_time=rounded_now)
-        b_temp = data_helpers.bin_data(h_temp, bin_period, start, rounded_now)
-
-        if not b_temp or len(b_temp) < 2:
-            return None
-
-        history_by_tod = defaultdict(list)
-        
-        for i in range(1, len(b_temp)):
-            t1, t2 = b_temp[i-1].avg_state, b_temp[i].avg_state
-            
-            if t1 is not None and t2 is not None:
-                # Delta: + when increasing, - when decreasing
-                delta = t2 - t1
-                history_by_tod[b_temp[i].time.time()].append(delta)
-                
-
-        if not history_by_tod: return None
-
-        # Calculate raw averages per time-of-day
-        raw_avg_dict = {tod: sum(vals)/len(vals) for tod, vals in history_by_tod.items()}
-        
-        # 30-min Moving Average Smoothing (cyclic over 24h)
-        # Create a full 288-bin day (5-min bins)
-        all_tods = [(datetime.datetime.min + datetime.timedelta(minutes=i*5)).time() for i in range(288)]
-        deltas = np.array([raw_avg_dict.get(t, np.nan) for t in all_tods])
-        
-        # Cyclic interpolation of missing data points
-        if np.isnan(deltas).any():
-            if np.isnan(deltas).all():
-                deltas = np.zeros(288)
-            else:
-                valid_idx = np.where(~np.isnan(deltas))[0]
-                deltas = np.interp(np.arange(288), valid_idx, deltas[valid_idx], period=288)
-
-        # Apply 30 min (6 bins) cyclic moving average
-        window = 6
-        kernel = np.ones(window) / window
-        smoothed = np.convolve(np.tile(deltas, 3), kernel, mode='same')[288:576]
-
-        self.avg_delta_day = {all_tods[i]: smoothed[i] for i in range(288)}
-        self.last_delta_data_retrival_timestamp = now_ts
-        return self.avg_delta_day
-
-    def forecast_temp_delta(self, time_index) -> np.ndarray:
-        avg_delta = self.get_temp_delta_avg()
-        if not avg_delta:
-            logger.warning(f"No historical temperature delta data available for HWLoad '{self.name}'. Using default small negative delta.")
-            return np.full(len(time_index), -0.01) # Default tiny loss (negative delta)
-        global_avg = sum(avg_delta.values()) / len(avg_delta)
-        return np.array([avg_delta.get(t.time(), global_avg) for t in time_index])
 
     def get_results(self, dt):
         p_hw = self.p_hw.value

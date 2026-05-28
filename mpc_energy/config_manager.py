@@ -2,6 +2,7 @@
 import json
 import os
 from mpc_logger import logger
+import migration
 
 CONFIG_PATH = "/data/mpc_config.json"
 OPTIONS_PATH = "/data/options.json"
@@ -38,6 +39,9 @@ def load_config():
             logger.error(f"Failed to load plant config: {e}")
 
     return config
+
+# Run migration before loading to ensure local files are up to date with HA options
+migration.migrate_config()
 
 options = load_config()
 

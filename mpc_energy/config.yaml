@@ -25,26 +25,5 @@ map:
 
 startup: services
 
-
-options:
-  accepted_risks: False
-  ha_mqtt_user: ""
-  ha_mqtt_pass: ""
-
-  spike_price_warning_level: 25
-  notification_target: ""
-  notification_target_option: none
-
-  log_level: info
-
-
-schema:
-  accepted_risks: bool
-
-  ha_mqtt_user: str
-  ha_mqtt_pass: password
-
-  spike_price_warning_level: int  
-  notification_target: str?
-  notification_target_option: list(none|price_spike_warning|error_warning|both)
-  log_level: list(debug|info|warning)
+options: {}
+schema: {}

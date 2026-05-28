@@ -59,6 +59,8 @@ def get_next_setup_step():
     config = load_config()
     plant_config = load_plant_config()
 
+    if not config.get("accepted_risks") or not config.get("ha_mqtt_user"):
+        return "pages/01_General_Configuration.py"
     if not plant_config.get("plant_brand"):
         return "pages/plant_config_page.py"
     if not config.get("energy_retailer"):

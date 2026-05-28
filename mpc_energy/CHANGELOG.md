@@ -7,6 +7,7 @@
 * Added optimal ev charge level to keep ev's charged during low solar production
 * Improved Flow Energy Price Forecasting
 * Reduced 'Unable to Determine Control Mode' error from occouring
+* Changed config to occour through streamlit dashboard
 
 ## 0.7.0
 * Added net grid interaction kWh sensor to aid automations.

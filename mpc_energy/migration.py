@@ -25,6 +25,10 @@ def migrate_config():
         logger.error(f"Migration: Failed to load HA options: {e}")
         return
 
+    if not options.get("ha_mqtt_user") or not options.get("ha_mqtt_pass"):
+        logger.info("Migration Skipped: MQTT credentials are missing from Home Assistant options. Please ignore this if this is the first time you have installed MPC")
+        return
+
     # Mapping legacy keys to new plant_config.json keys
     plant_mapping = {
         "battery_discharge_cost": "battery_discharge_cost",

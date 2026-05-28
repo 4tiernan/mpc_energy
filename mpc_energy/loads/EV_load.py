@@ -220,15 +220,15 @@ class EVLoad(OptionalLoad):
         self.draw_forecast_param.value = draw_forecast
         
         logger.debug(f"EVLoad '{self.name}' phantom drain forecast: avg={np.mean(draw_forecast)*1000:.1f}W")
-
-
-        # SOC constraints
-        ev_soc_min_required_arr = np.zeros(int(mpc.N_5min), dtype=float)
-        ev_soc_optimal_min_arr = np.zeros(int(mpc.N_5min), dtype=float)
+        
 
         self.min_target_kwh = (self.min_level_limit / 100.0) * self.capacity_kwh
         self.optimal_min_kwh = (self.optimal_daily_min_soc / 100.0) * self.capacity_kwh
         self.max_target_kwh = (self.max_level_limit / 100.0) * self.capacity_kwh
+
+        # SOC constraints
+        ev_soc_min_required_arr = np.ones(int(mpc.N_5min), dtype=float) * self.min_target_kwh
+        ev_soc_optimal_min_arr = np.zeros(int(mpc.N_5min), dtype=float)
 
         # If the EV soc is below the minimum soc target, charge asap reguardless of the selected mode. 
         if(self.current_ev_soc_kWh is not None and self.current_ev_soc_kWh < self.min_target_kwh):

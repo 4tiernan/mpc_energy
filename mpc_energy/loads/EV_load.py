@@ -212,6 +212,7 @@ class EVLoad(OptionalLoad):
         if not self.is_plugged_in:
             if len(p_max_arr) > 0: p_max_arr[0] = 0.0
             if len(p_max_arr) > 1: p_max_arr[1] = 0.0
+            logger.debug(f"EV '{self.name}' is not currently plugged in. Constraining immediate charge power to 0 kW until next update.")
 
         # Background Degradation (Phantom Drain)
         # Convert SOC% delta to Power (kW): P = -deltaSOC * Capacity * (60/5) / 100

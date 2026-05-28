@@ -53,23 +53,25 @@ class GenericBinaryCharger(EVCharger):
         Set the charge rate. Since this is a binary charger, any rate > 0 
         turns the switch ON, and a rate of 0 turns it OFF.
         """
-        if kw > 0:
+        if kw > 0.05: # Use a small threshold to avoid floating point issues
             if self.state != "on":
-                logger.info(f"Turning ON binary charger '{self.name}' (Target: {kw} kW)")
+                logger.info(f"Generic Binary Charger '{self.name}': Setting charge rate to {self.nominal_power:.2f} kW, ({kw:.2f} kW requested) (Switch ON)")
                 try:
                     self.ha.set_switch_state(self.switch_entity_id, True)
                     self.state = "on"
+                    self.target_charge_rate = self.nominal_power
                 except Exception as e:
                     logger.error(f"Error turning ON Generic Binary Charger '{self.name}': {e}")
         else:
             if self.state != "off":
-                logger.info(f"Turning OFF binary charger '{self.name}'")
+                logger.info(f"Generic Binary Charger '{self.name}': Setting charge rate to 0.00 kW, ({kw:.2f} kW requested) (Switch OFF)")
                 try:
                     self.ha.set_switch_state(self.switch_entity_id, False)
                     self.state = "off"
+                    self.target_charge_rate = 0.0
                 except Exception as e:
                     logger.error(f"Error turning OFF Generic Binary Charger '{self.name}': {e}")
 
     def turn_off(self):
         """Stop charging."""
-        self.set_target_charge_rate(0)
+        self.set_target_charge_rate(0, None)

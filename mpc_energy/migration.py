@@ -62,9 +62,6 @@ def migrate_config():
         "battery_power_sign_convention": "battery_power_sign_convention"
     }
 
-    # Keys related to the legacy single-EV configuration
-    ev_keys = [k for k in options.keys() if k.startswith("ev_")]
-
     # Load current local configs
     mpc_cfg = {}
     if os.path.exists(MPC_CONFIG_PATH):
@@ -99,34 +96,11 @@ def migrate_config():
                 logger.info(f"Migration: Syncing plant configuration for '{new_key}' from HA option '{k}'")
                 plant_cfg[new_key] = v
                 changed_plant = True
-        elif k in ev_keys:
-            continue # Handled separately below
         else:
             if mpc_cfg.get(k) != v:
                 logger.info(f"Migration: Syncing general configuration for '{k}' from HA option")
                 mpc_cfg[k] = v
                 changed_mpc = True
-
-    # Migrate legacy EV load if it hasn't been migrated yet
-    if options.get("ev_soc_entity_id") and not any(l.get("name") == "Legacy EV" for l in opt_loads):
-        logger.info("Migration: Legacy EV configuration detected in HA options. Migrating to optional_loads.json...")
-        legacy_ev = {
-            "name": "Legacy EV",
-            "load_type": "ev",
-            "level_entity_id": options.get("ev_soc_entity_id"),
-            "capacity_kwh": options.get("ev_battery_capacity_kwh"),
-            "plugged_in_entity_id": options.get("ev_plugged_in_entity_id"),
-            "power_entity_id": options.get("ev_charging_power_entity_id"),
-            "min_level_limit": options.get("ev_min_soc", 20),
-            "max_level_limit": options.get("ev_max_soc", 80),
-            "reward_cents_per_kwh": options.get("ev_charge_reward_cents_per_kwh", 5),
-            "charger_model": "Tesla API", # Default for legacy migrations
-            "debias_load": True
-        }
-        # Filter out Nones
-        legacy_ev = {k: v for k, v in legacy_ev.items() if v is not None}
-        opt_loads.append(legacy_ev)
-        changed_opt = True
 
     if changed_mpc:
         with open(MPC_CONFIG_PATH, "w") as f:

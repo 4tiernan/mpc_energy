@@ -4,7 +4,7 @@ import json
 import os
 from web_dashboard.common import render_sidebar
 
-st.set_page_config(page_title="Retailer Configuration", layout="wide")
+st.set_page_config(page_title="Retailer Configuration", layout="wide", initial_sidebar_state="collapsed")
 render_sidebar()
 
 st.title("⚡ Retailer Configuration")

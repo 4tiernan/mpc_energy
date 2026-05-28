@@ -13,7 +13,8 @@ from web_dashboard.common import render_sidebar
 
 st.set_page_config(
     page_title="MPC Dashboard",
-    layout="wide"
+    layout="wide",
+    initial_sidebar_state="collapsed"
 )
 
 # Gatekeeper: Redirect to setup if configuration is missing

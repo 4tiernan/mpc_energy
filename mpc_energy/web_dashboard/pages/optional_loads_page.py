@@ -4,7 +4,7 @@ import loads.optional_loads as optional_loads
 import loads.EV_chargers.EV_charger as ev_charger
 from web_dashboard.common import render_sidebar
 
-st.set_page_config(page_title="Optional Loads", layout="wide")
+st.set_page_config(page_title="Optional Loads", layout="wide", initial_sidebar_state="collapsed")
 render_sidebar()
 
 st.title("Optional Loads Configuration")
@@ -225,3 +225,10 @@ if save:
         optional_loads.save_optional_loads(edited_rows)
         st.session_state.optional_load_rows = optional_loads.load_optional_loads()
         st.success("Optional loads saved. Please restart MPC to take effect. These are stored under /data so they persist across add-on updates.")
+        st.session_state["opt_loads_saved"] = True
+
+if st.session_state.get("opt_loads_saved"):
+    st.write("Setup complete! Once the add-on is restarted and values are valid, the MPC will begin optimizing your energy usage.")
+    if st.button("Go to Dashboard", type="secondary"):
+        st.session_state["opt_loads_saved"] = False
+        st.switch_page("webserver.py")

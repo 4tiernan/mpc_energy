@@ -11,7 +11,7 @@ from loads.optional_loads import load_optional_load_instances
 from mpc_logger import logger
 from web_dashboard.common import render_sidebar
 
-st.set_page_config(page_title="Load Debugger", layout="wide")
+st.set_page_config(page_title="Load Debugger", layout="wide", initial_sidebar_state="collapsed")
 render_sidebar()
 
 st.title("📈 Load Profile Debugger")

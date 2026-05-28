@@ -2,7 +2,7 @@ import streamlit as st
 import config_manager
 from web_dashboard.common import render_sidebar
 
-st.set_page_config(page_title="Solar Forecast Configuration", layout="wide")
+st.set_page_config(page_title="Solar Forecast Configuration", layout="wide", initial_sidebar_state="collapsed")
 render_sidebar()
 
 st.title("☀️ Solar Forecast Configuration")
@@ -22,13 +22,15 @@ new_config["solcast_solar_power_this_hour_entity_id"] = st.text_input("Power Thi
 if st.button("Save Solar Configuration"):
     config_manager.save_local_config(new_config)
     st.success("Configuration saved! Please restart the add-on for changes to take effect.")
+    st.session_state["solar_saved"] = True
 
-    if st.button("🔄 Restart Now"):
+if st.session_state.get("solar_saved"):
+    st.balloons()
+    if st.button("🔄 Restart Now", help="Restart the integration to apply solar forecast changes."):
         config_manager.trigger_restart()
         st.info("Restarting...")
-    
-    st.balloons()
-    st.write("Setup complete! Once the add-on is restarted and values are valid, the MPC will begin optimizing your energy usage.")
-    
-    if st.button("Go to Dashboard"):
-        st.switch_page("webserver.py")
+
+    st.info("Next step: Configure Optional Loads (EVs, Hot Water, etc.)")
+    if st.button("Proceed to Optional Loads"):
+        st.session_state["solar_saved"] = False
+        st.switch_page("pages/optional_loads_page.py")

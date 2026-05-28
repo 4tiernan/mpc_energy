@@ -237,7 +237,7 @@ class EVLoad(OptionalLoad):
                 logger.warning(f"Unknown EV charging mode '{mode}', defaulting to 'Solar Smart' (no minimum SOC constraint).")
 
         # Apply Optimal Daily Min (Target by EOD)
-        if self.optimal_daily_min_soc > 0:
+        if self.optimal_daily_min_soc > 0 and self.optimal_min_kwh > self.current_ev_soc_kWh: 
             ev_soc_optimal_min_arr = self.build_ev_optimal_daily_min_mask(time_index, mpc)
         
         self.p_max_param.value = p_max_arr

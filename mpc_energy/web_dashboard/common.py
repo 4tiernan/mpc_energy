@@ -12,7 +12,7 @@ def render_sidebar():
     st.sidebar.page_link("pages/optional_loads_page.py", label="Optional Loads", icon="⚙️")
     st.sidebar.page_link("pages/hw_debugger_page.py", label="HW Debugger", icon="🌡️")
     st.sidebar.page_link("pages/load_debugger_page.py", label="Load Debugger", icon="📈")
-
+    
     st.sidebar.divider()
     if st.sidebar.button("🔄 Restart MPC Energy", help="Restarts the main MPC integration. Required after configuration changes.", use_container_width=True):
         config_manager.trigger_restart()

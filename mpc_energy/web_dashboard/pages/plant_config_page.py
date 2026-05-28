@@ -83,6 +83,7 @@ brand_defaults = {
 }
 
 def plant_config_page():
+    st.set_page_config(page_title="Plant Configuration", layout="wide", initial_sidebar_state="collapsed")
     render_sidebar()
 
 

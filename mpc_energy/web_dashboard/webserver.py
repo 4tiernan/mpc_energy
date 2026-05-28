@@ -1,4 +1,11 @@
 import streamlit as st
+
+st.set_page_config(
+    page_title="MPC Dashboard",
+    layout="wide",
+    initial_sidebar_state="collapsed"
+)
+
 import numpy as np
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
@@ -10,13 +17,6 @@ from streamlit_autorefresh import st_autorefresh
 import config_manager
 import const
 from web_dashboard.common import render_sidebar
-
-st.set_page_config(
-    page_title="MPC Dashboard",
-    layout="wide",
-    initial_sidebar_state="collapsed"
-)
-
 # Gatekeeper: Redirect to setup if configuration is missing
 next_step = config_manager.get_next_setup_step()
 if next_step:

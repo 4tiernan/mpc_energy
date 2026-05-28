@@ -52,12 +52,12 @@ with tabs[0]:
         st.table(summary_data)
 
     col_act1, col_act2 = st.columns(2)
-    if col_act1.button("➕ Add New Load", use_container_width=True):
+    if col_act1.button("➕ Add New Load", width='stretch'):
         st.session_state.optional_load_rows.append({"name": f"New Load {len(rows)+1}", "load_type": "ev", "debias_load": True})
         refresh_tab_titles()
         st.rerun()
     
-    if col_act2.button("🗑️ Delete All Loads", type="secondary", use_container_width=True):
+    if col_act2.button("🗑️ Delete All Loads", type="secondary", width='stretch'):
         st.session_state.optional_load_rows = []
         optional_loads.save_optional_loads([])
         refresh_tab_titles()
@@ -77,7 +77,7 @@ for idx, row in enumerate(rows):
         )
         row["name"] = col_t2.text_input("Load Name", value=row.get("name", ""), key=f"name_input_{idx}")
         col_t3.markdown("<div style='height: 28px;'></div>", unsafe_allow_html=True)
-        if col_t3.button("🗑️", key=f"del_{idx}", help="Delete this load", use_container_width=True):
+        if col_t3.button("🗑️", key=f"del_{idx}", help="Delete this load", width='stretch'):
             st.session_state.optional_load_rows.pop(idx)
             refresh_tab_titles()
             st.rerun()
@@ -159,7 +159,7 @@ for idx, row in enumerate(rows):
             row["reward_cents_per_kwh"] = st.text_input("Charge Reward (c/kWh)", value=str(row.get("reward_cents_per_kwh", "0.0")), key=f"hw_rew_{idx}")
 
 st.divider()
-if st.button("💾 Save All Optional Loads", type="primary", use_container_width=True):
+if st.button("💾 Save All Optional Loads", type="primary", width='stretch'):
     # Validation: Ensure names are unique and not empty
     names = [r["name"].strip() for r in rows]
     if any(not n for n in names):

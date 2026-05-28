@@ -130,7 +130,7 @@ if st.button("Fetch and Analyze Data"):
                 legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
             )
 
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width='stretch')
             
             st.subheader("Statistical Summary")
             st.write(f"Average Daily Energy Consumption (Base Load): **{round(sum(avg_day) * (bin_size/60), 2)} kWh**")

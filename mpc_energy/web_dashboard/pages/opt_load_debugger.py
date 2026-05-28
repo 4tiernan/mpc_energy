@@ -27,11 +27,21 @@ load = next(l for l in opt_loads if l.name == selected_load_name)
 
 days_to_analyze = st.slider("Historical Days to Analyze", 1, 14, 3)
 
-if st.button("Refresh History Data"):
+# Store the last computed profile and its parameters in session state
+if "debugger_profile_cache" not in st.session_state:
+    st.session_state.debugger_profile_cache = {}
+
+cache_key = (selected_load_name, days_to_analyze)
+
+# Check if we need to recalculate
+if (cache_key != st.session_state.debugger_profile_cache.get("last_key") or 
+    st.button("Refresh History Data")):
     with st.spinner("Fetching and processing historical deltas..."):
         avg_delta_dict = load.get_level_delta_avg(days_ago=days_to_analyze, hours_update_interval=0)
+        st.session_state.debugger_profile_cache["last_key"] = cache_key
+        st.session_state.debugger_profile_cache["avg_delta_dict"] = avg_delta_dict
 else:
-    avg_delta_dict = load.get_level_delta_avg(days_ago=days_to_analyze)
+    avg_delta_dict = st.session_state.debugger_profile_cache.get("avg_delta_dict")
 
 if not avg_delta_dict:
     st.error("No historical data found. Ensure the 'Level Entity ID' is correct and has history.")
@@ -71,7 +81,7 @@ fig.update_layout(
     hovermode="x unified",
     legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
 )
-st.plotly_chart(fig, use_container_width=True)
+st.plotly_chart(fig, width='stretch')
 
 c1, c2, c3 = st.columns(3)
 c1.metric("Avg Daily Loss (kWh)", round(sum(powers) * (5/60), 2))
@@ -79,4 +89,4 @@ c2.metric("Peak Loss Power (W)", round(max(powers)*1000 if powers else 0, 1))
 c3.metric(f"Max 5m {unit} Drop", round(-min(deltas) if deltas else 0, 3))
 
 with st.expander("Raw Data Table"):
-    st.dataframe(df, use_container_width=True)
+    st.dataframe(df, width='stretch')

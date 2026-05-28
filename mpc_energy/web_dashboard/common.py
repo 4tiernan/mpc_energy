@@ -14,7 +14,7 @@ def render_sidebar():
     st.sidebar.page_link("pages/load_debugger_page.py", label="Load Debugger", icon="📈")
     
     st.sidebar.divider()
-    if st.sidebar.button("🔄 Restart MPC Energy", help="Restarts the main MPC integration. Required after configuration changes.", use_container_width=True):
+    if st.sidebar.button("🔄 Restart MPC Energy", help="Restarts the main MPC integration. Required after configuration changes.", width='stretch'):
         config_manager.trigger_restart()
         st.sidebar.success("Restart signal sent...")
         time.sleep(1)

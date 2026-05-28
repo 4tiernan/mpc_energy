@@ -10,7 +10,7 @@ def render_sidebar():
     st.sidebar.page_link("pages/02_Retailer_Configuration.py", label="Retailer Configuration", icon="⚡")
     st.sidebar.page_link("pages/03_Solar_Forecast_Configuration.py", label="Solar Forecast", icon="☀️")
     st.sidebar.page_link("pages/optional_loads_page.py", label="Optional Loads", icon="⚙️")
-    st.sidebar.page_link("pages/hw_debugger_page.py", label="HW Debugger", icon="🌡️")
+    st.sidebar.page_link("pages/opt_load_debugger.py", label="Opt Load Debugger", icon="🧪")
     st.sidebar.page_link("pages/load_debugger_page.py", label="Load Debugger", icon="📈")
     
     st.sidebar.divider()

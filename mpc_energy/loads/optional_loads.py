@@ -6,7 +6,9 @@ import numpy as np
 from mpc_logger import logger
 from ha_api import HomeAssistantAPI
 import data_helpers
-from datetime import timedelta
+import datetime
+import time
+from collections import defaultdict
 
 DEFAULT_PATH = "/data/optional_loads.json"
 LOAD_CLASSES = {}
@@ -86,6 +88,10 @@ class OptionalLoad:
         self.ha: HomeAssistantAPI = None
         self.ha_mqtt = None
         self.local_tz = None
+        
+        # Profile Cache
+        self.avg_delta_profile = None
+        self.last_profile_update_timestamp = 0
 
     @classmethod
     def from_dict(cls, item: dict[str, Any]) -> Any:
@@ -118,7 +124,7 @@ class OptionalLoad:
         requested_seconds = max((end - start).total_seconds(), 1.0)
         if len(history) == 1:
             # If there's only one point and it covers the start of our window, it spans the whole duration
-            data_span_seconds = requested_seconds if history[0].time <= start + timedelta(minutes=5) else 0.0
+            data_span_seconds = requested_seconds if history[0].time <= start + datetime.timedelta(minutes=5) else 0.0
         else:
             data_span_seconds = max((history[-1].time - history[0].time).total_seconds(), 0.0)
         coverage = data_span_seconds / requested_seconds
@@ -129,6 +135,80 @@ class OptionalLoad:
             
         binned = data_helpers.bin_data(history, bin_period, start, end, interpolation_method="step")
         return binned
+
+    def get_level_delta_avg(self, days_ago=3, hours_update_interval=24):
+        """
+        Calculates the average rate of change (loss/degradation) for the level entity 
+        when the device is NOT consuming power.
+        """
+        now_ts = time.time()
+        if (self.avg_delta_profile is not None and 
+            now_ts - self.last_profile_update_timestamp < hours_update_interval * 3600):
+            return self.avg_delta_profile
+
+        bin_period = 5
+        now = datetime.datetime.now(self.local_tz)
+        rounded_now = data_helpers.round_minutes(now, bin_period)
+        start = rounded_now - datetime.timedelta(days=days_ago)
+
+        if not self.level_entity_id:
+            return None
+
+        # Get history for both level (SOC/Temp) and Power
+        h_level = self.ha.get_history(self.level_entity_id, start_time=start, end_time=rounded_now)
+        b_level = data_helpers.bin_data(h_level, bin_period, start, rounded_now)
+        
+        # Optional: Get power history to filter out charging periods
+        b_power = []
+        if self.power_entity_id:
+            h_power = self.ha.get_history(self.power_entity_id, start_time=start, end_time=rounded_now)
+            b_power = data_helpers.bin_data(h_power, bin_period, start, rounded_now)
+
+        if not b_level or len(b_level) < 2:
+            return None
+
+        history_by_tod = defaultdict(list)
+        for i in range(1, len(b_level)):
+            l1, l2 = b_level[i-1].avg_state, b_level[i].avg_state
+            
+            # Only look at deltas where level is known and power is negligible (not charging)
+            is_charging = False
+            if i < len(b_power) and b_power[i].avg_state is not None:
+                is_charging = b_power[i].avg_state > 0.05
+
+            if l1 is not None and l2 is not None and not is_charging:
+                delta = l2 - l1
+                history_by_tod[b_level[i].time.time()].append(delta)
+
+        if not history_by_tod: return None
+
+        # Calculate raw averages and apply cyclic smoothing
+        all_tods = [(datetime.datetime.min + datetime.timedelta(minutes=j*5)).time() for j in range(288)]
+        deltas = np.array([np.mean(history_by_tod[t]) if t in history_by_tod else np.nan for t in all_tods])
+        
+        if np.isnan(deltas).all():
+            deltas = np.zeros(288)
+        else:
+            valid_idx = np.where(~np.isnan(deltas))[0]
+            deltas = np.interp(np.arange(288), valid_idx, deltas[valid_idx], period=288)
+
+        # Apply 30-min cyclic moving average
+        window = 6
+        kernel = np.ones(window) / window
+        smoothed = np.convolve(np.tile(deltas, 3), kernel, mode='same')[288:576]
+
+        self.avg_delta_profile = {all_tods[j]: smoothed[j] for j in range(288)}
+        self.last_profile_update_timestamp = now_ts
+        return self.avg_delta_profile
+
+    def forecast_level_delta(self, time_index) -> np.ndarray:
+        """Predicts the rate of level change based on time of day profile."""
+        avg_delta = self.get_level_delta_avg()
+        if not avg_delta:
+            # Default to zero or tiny negative loss if no history
+            return np.full(len(time_index), -0.001 if self.load_type == "hot_water" else 0.0)
+        global_avg = sum(avg_delta.values()) / len(avg_delta)
+        return np.array([avg_delta.get(t.time(), global_avg) for t in time_index])
 
     def build_cvxpy(self, n, dt, mpc_soc, mpc_soc_min_param):
         """Define CVXPY variables, constraints and rewards."""

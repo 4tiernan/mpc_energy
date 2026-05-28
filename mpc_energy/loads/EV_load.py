@@ -146,10 +146,11 @@ class EVLoad(OptionalLoad):
         self.soc_upper_limit_param = cp.Parameter(nonneg=True, name=f"{self.name}_soc_upper_limit_param")
         self.soc_min_required_param = cp.Parameter(n, nonneg=True, name=f"{self.name}_soc_min_required_param")
         self.soc_optimal_min_param = cp.Parameter(n, nonneg=True, name=f"{self.name}_soc_optimal_min_param")
+        self.draw_forecast_param = cp.Parameter(n, name=f"{self.name}_draw_forecast")
 
         constraints = [
             self.ev_soc[0] == self.soc_init_param,
-            self.ev_soc[1:] == self.ev_soc[:-1] + (mpc.dt_5min * self.p_ev),
+            self.ev_soc[1:] == self.ev_soc[:-1] + (mpc.dt_5min * self.p_ev) - (mpc.dt_5min * self.draw_forecast_param),
             self.ev_soc[1:] >= 0,
             self.ev_soc[1:] <= self.soc_upper_limit_param,
             self.ev_soc[1:] >= self.soc_min_required_param - self.unachievable_kwh, # Allow for some unachievable kWh to ensure feasibility if targets can't be met
@@ -211,6 +212,14 @@ class EVLoad(OptionalLoad):
         if not self.is_plugged_in:
             if len(p_max_arr) > 0: p_max_arr[0] = 0.0
             if len(p_max_arr) > 1: p_max_arr[1] = 0.0
+
+        # Background Degradation (Phantom Drain)
+        # Convert SOC% delta to Power (kW): P = -deltaSOC * Capacity * (60/5) / 100
+        soc_delta_forecast = self.forecast_level_delta(time_index)
+        draw_forecast = -soc_delta_forecast * self.capacity_kwh * 0.12
+        self.draw_forecast_param.value = draw_forecast
+        
+        logger.debug(f"EVLoad '{self.name}' phantom drain forecast: avg={np.mean(draw_forecast)*1000:.1f}W")
 
 
         # SOC constraints

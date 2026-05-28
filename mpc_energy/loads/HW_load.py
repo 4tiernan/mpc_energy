@@ -48,8 +48,6 @@ class HWLoad(OptionalLoad):
 
         # Forecast cache
         self.load_avg_days = 3
-        self.avg_delta_day = None
-        self.last_delta_data_retrival_timestamp = 0
 
         logger.debug(f"Initialized HWLoad '{self.name}' with scale={self.hw_power_unit_scale}, volume={self.volume_l}L, temp_min={self.temp_min}°C, temp_max={self.temp_max}°C, power_entity_id='{self.power_entity_id}', max_charge_power_entity_id='{self.max_charge_power_entity_id}', level_entity_id='{self.level_entity_id}'")
 

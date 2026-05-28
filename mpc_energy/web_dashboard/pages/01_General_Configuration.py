@@ -18,11 +18,11 @@ with st.form("general_settings"):
     st.subheader("🌐 MQTT Credentials")
     st.info("Provide the credentials for your Home Assistant MQTT broker (Mosquitto).")
     mqtt_user = st.text_input("MQTT Username", value=config.get("ha_mqtt_user", ""), help="This should be the username for your MQTT broker, if using the default mosquitto broker, check the mosquito add-on config page.")
-    mqtt_pass = st.text_input("MQTT Password", value=config.get("ha_mqtt_pass", ""), type="password")
+    mqtt_pass = st.text_input("MQTT Password", value=config.get("ha_mqtt_pass", ""), type="password", help="This should be the password for your MQTT broker, if using the default mosquitto broker, check the mosquito add-on config page.")
     
     st.subheader("🔔 Notifications & Logging")
     col1, col2 = st.columns(2)
-    spike_level = col1.number_input("Spike Price Warning Level (c/kWh)", value=int(config.get("spike_price_warning_level", 25)))
+    spike_level = col1.number_input("Spike Price Warning Level (c/kWh)", value=int(config.get("spike_price_warning_level", 50)), help="Set a feed in price threshold to receive notifications when the forecasted feed in price is expected to spike.")
     log_levels = ["debug", "info", "warning"]
     log_level = col2.selectbox("System Log Level", log_levels, index=log_levels.index(config.get("log_level", "info")))
     
@@ -55,3 +55,7 @@ if st.session_state.get("general_saved"):
         if st.button(f"Proceed to {config_manager.get_page_title(next_step)}"):
             st.session_state["general_saved"] = False
             st.switch_page(next_step)
+    else:
+        if st.button("🔄 Restart Now", help="Restart the integration to apply changes."):
+            config_manager.trigger_restart()
+            st.info("Restarting...")

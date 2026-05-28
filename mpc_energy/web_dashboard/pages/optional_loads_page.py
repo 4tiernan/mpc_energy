@@ -11,6 +11,14 @@ render_sidebar()
 st.title("Optional Loads Configuration")
 st.caption("Add optional loads and EV-style constraints for MPC/Plant Control integration.")
 
+# Wizard helper: If in the initial setup flow, allow finishing without adding loads
+if config_manager.get_next_setup_step() == "pages/optional_loads_page.py":
+    st.info("💡 **Not adding any optional loads?** If you don't have any devices to configure right now, click the button below to complete the setup wizard.")
+    if st.button("🔄 Finish Setup & Restart Now", help="This will finalize your configuration and start the MPC."):
+        optional_loads.save_optional_loads([])
+        config_manager.trigger_restart()
+        st.info("Restarting integration...")
+
 if "optional_load_rows" not in st.session_state:
     st.session_state.optional_load_rows = optional_loads.load_optional_loads()
 
@@ -47,7 +55,7 @@ for idx, row in enumerate(rows):
 
         # Local state for field mapping
         nominal_ac_voltage = str(row.get("nominal_ac_voltage", "230.0"))
-        ev_min_charge_amps = str(row.get("min_charge_current", "5.0"))
+        ev_min_charge_amps = str(row.get("min_charge_current", "6.0"))
         ev_max_charge_amps = str(row.get("max_charge_current", "32.0"))
         ev_charge_current_entity_id = row.get("charge_current_entity_id", "")
         ev_charge_enable_entity_id = row.get("charge_enable_entity_id", "")
@@ -83,66 +91,66 @@ for idx, row in enumerate(rows):
             )
             
             c4, c5, c6 = st.columns(3)
-            min_lim = c4.text_input("Min Battery SOC (%)", value=min_lim, key=f"ev_minlim_{idx}")
-            opt_min_lim = c5.text_input("Optimal Daily Min SOC (%)", value=opt_min_lim, key=f"ev_optminlim_{idx}")
-            max_lim = c6.text_input("Max Battery SOC (%)", value=max_lim, key=f"ev_maxlim_{idx}")
+            min_lim = c4.text_input("Min Battery SOC (%)", value=min_lim, key=f"ev_minlim_{idx}", help="MPC will always keep the EV SOC above this, no matter the cost.")
+            opt_min_lim = c5.text_input("Optimal Daily Min SOC (%)", value=opt_min_lim, key=f"ev_optminlim_{idx}", help="MPC will try to achieve at least this SOC in the most economical way during the forecast horizon.")
+            max_lim = c6.text_input("Max Battery SOC (%)", value=max_lim, key=f"ev_maxlim_{idx}", help="MPC will never charge the EV above this level.")
             
-            reward = st.text_input("Charge Reward (c/kWh)", value=reward, key=f"ev_rew_{idx}")
+            reward = st.text_input("Charge Reward (c/kWh)", value=reward, key=f"ev_rew_{idx}", help="This is the value that the MPC will use to determine how much to prioritize charging this EV compared to other loads. Set this to your estimated cost of running other loads to have the MPC treat this EV like a regular load, or set it higher/lower to have the MPC prioritize/deprioritize charging this EV.")
             
             if charger_model == "Tesla API":
                 st.write("---")
                 st.caption("Tesla API Specific Configuration")
                 c_t1, c_t2, c_t3 = st.columns(3)
-                nominal_ac_voltage = c_t1.text_input("Nominal AC Voltage (V)", value=nominal_ac_voltage, key=f"ev_t_volt_{idx}")
-                ev_min_charge_amps = c_t2.text_input("Min Charge Current (A)", value=ev_min_charge_amps, key=f"ev_t_min_a_{idx}")
-                ev_max_charge_amps = c_t3.text_input("Max Charge Current (A)", value=ev_max_charge_amps, key=f"ev_t_max_a_{idx}")
+                nominal_ac_voltage = c_t1.text_input("Nominal AC Voltage (V)", value=nominal_ac_voltage, key=f"ev_t_volt_{idx}", help="This is the nominal phase voltage for your EV charger. 230V in Australia, 120V in US, etc.")
+                ev_min_charge_amps = c_t2.text_input("Min Charge Current (A)", value=ev_min_charge_amps, key=f"ev_t_min_a_{idx}", help="This is the minimum current that your EV charger can charge at. Set this to the larger of your Car or Charger's min current limit. Most cars / chargers cannot go below 6A")
+                ev_max_charge_amps = c_t3.text_input("Max Charge Current (A)", value=ev_max_charge_amps, key=f"ev_t_max_a_{idx}", help="This is the maximum current that your EV charger can charge at. Set this to the smaller of your Car or Charger's max current limit.")
                 c_t4, c_t5 = st.columns(2)
-                ev_charge_current_entity_id = c_t4.text_input("Charge Current Entity ID", value=ev_charge_current_entity_id, key=f"ev_t_cur_ent_{idx}")
-                ev_charge_enable_entity_id = c_t5.text_input("Charge Enable Entity ID", value=ev_charge_enable_entity_id, key=f"ev_t_en_ent_{idx}")
+                ev_charge_current_entity_id = c_t4.text_input("Charge Current Entity ID", value=ev_charge_current_entity_id, key=f"ev_t_cur_ent_{idx}", help="The Home Assistant entity ID for the current charging current of the EV in Amps. This is used to control how much power the EV is currently charging at so that the MPC can make informed decisions.")
+                ev_charge_enable_entity_id = c_t5.text_input("Charge Enable Entity ID", value=ev_charge_enable_entity_id, key=f"ev_t_en_ent_{idx}", help="The Home Assistant entity ID for enabling or disabling the EV charging process.")
 
                 c_t6, c_t7 = st.columns(2)
-                p_ent = c_t6.text_input("Charger Power Entity ID (kW)", value=p_ent, key=f"ev_pent_{idx}")
-                plug_ent = c_t7.text_input("EV Plugged In Entity ID", value=plug_ent, key=f"ev_avail_{idx}")
+                p_ent = c_t6.text_input("Charger Power Entity ID (kW)", value=p_ent, key=f"ev_pent_{idx}", help="The Home Assistant entity ID for the current charging power of the EV in kW. ")
+                plug_ent = c_t7.text_input("EV Plugged In Entity ID", value=plug_ent, key=f"ev_avail_{idx}", help="The Home Assistant entity ID for indicating whether the EV is plugged in.")
 
                 c_t8, c_t9 = st.columns(2)
-                three_phase_available_entity_id = c_t8.text_input("Three Phase Available Entity ID", value=three_phase_available_entity_id, key=f"ev_t_3ph_ent_{idx}")
-                debias_load = c_t9.checkbox("Debias Load (Is this load counted as part of your house power consumption?)", value=debias_load if isinstance(debias_load, bool) else str(debias_load).lower() == "true", key=f"ev_debias_{idx}")
+                three_phase_available_entity_id = c_t8.text_input("Three Phase Available Entity ID", value=three_phase_available_entity_id, key=f"ev_t_3ph_ent_{idx}", help="The Home Assistant entity ID for indicating whether three-phase power is available.")
+                debias_load = c_t9.checkbox("Debias Load (Is this load counted as part of your house power consumption?)", value=debias_load if isinstance(debias_load, bool) else str(debias_load).lower() == "true", key=f"ev_debias_{idx}", help="Check this if the load should be excluded from the total household power consumption. (If the EV charger is charging but your house power consumption isn't increasing, uncheck this box so that the MPC doesn't get confused)")
 
             
             elif charger_model == "SigEnergy AC Charger":
                 st.write("---")
                 st.caption("SigEnergy AC Charger Specific Configuration")
                 c_t1, c_t2, c_t3 = st.columns(3)
-                nominal_ac_voltage = c_t1.text_input("Nominal AC Voltage (V)", value=nominal_ac_voltage, key=f"ev_t_volt_{idx}")
-                ev_min_charge_amps = c_t2.text_input("Min Charge Current (A)", value=ev_min_charge_amps, key=f"ev_t_min_a_{idx}")
-                ev_max_charge_amps = c_t3.text_input("Max Charge Current (A)", value=ev_max_charge_amps, key=f"ev_t_max_a_{idx}")
+                nominal_ac_voltage = c_t1.text_input("Nominal AC Voltage (V)", value=nominal_ac_voltage, key=f"ev_t_volt_{idx}", help="This is the nominal phase voltage for your EV charger. 230V in Australia, 120V in US, etc.")
+                ev_min_charge_amps = c_t2.text_input("Min Charge Current (A)", value=ev_min_charge_amps, key=f"ev_t_min_a_{idx}", help="This is the minimum current that your EV charger can charge at. Set this to the larger of your Car or Charger's min current limit. Most cars / chargers cannot go below 6A")
+                ev_max_charge_amps = c_t3.text_input("Max Charge Current (A)", value=ev_max_charge_amps, key=f"ev_t_max_a_{idx}", help="This is the maximum current that your EV charger can charge at. Set this to the smaller of your Car or Charger's max current limit.")
                 c_t4, c_t5 = st.columns(2)
-                ev_charge_current_entity_id = c_t4.text_input("Charge Current Entity ID", value=ev_charge_current_entity_id, key=f"ev_t_cur_ent_{idx}")
-                ev_charge_enable_entity_id = c_t5.text_input("Charge Enable Entity ID", value=ev_charge_enable_entity_id, key=f"ev_t_en_ent_{idx}")
+                ev_charge_current_entity_id = c_t4.text_input("Charge Current Entity ID", value=ev_charge_current_entity_id, key=f"ev_t_cur_ent_{idx}", help="The Home Assistant entity ID for the current charging current of the EV in Amps. This is used to control how much power the EV is currently charging at so that the MPC can make informed decisions.")
+                ev_charge_enable_entity_id = c_t5.text_input("Charge Enable Entity ID", value=ev_charge_enable_entity_id, key=f"ev_t_en_ent_{idx}", help="The Home Assistant entity ID for enabling or disabling the EV charging process.")
                 
                 c_t6, c_t7 = st.columns(2)
-                p_ent = c_t6.text_input("Charger Power Entity ID (kW)", value=p_ent, key=f"ev_pent_{idx}")
-                plug_ent = c_t7.text_input("EV Plugged In Entity ID", value=plug_ent, key=f"ev_avail_{idx}")
+                p_ent = c_t6.text_input("Charger Power Entity ID (kW)", value=p_ent, key=f"ev_pent_{idx}", help="The Home Assistant entity ID for the power consumption of the EV charger in kW.")
+                plug_ent = c_t7.text_input("EV Plugged In Entity ID", value=plug_ent, key=f"ev_avail_{idx}", help="The Home Assistant entity ID for indicating whether the EV is plugged in.")
 
 
                 c_t8, c_t9 = st.columns(2)
-                three_phase_available = c_t8.checkbox("Three Phase Available", value=three_phase_available if isinstance(three_phase_available, bool) else str(three_phase_available).lower() == "true", key=f"ev_t_3ph_{idx}")
-                debias_load = c_t9.checkbox("Debias Load (Is this load counted as part of your house power consumption?)", value=debias_load if isinstance(debias_load, bool) else str(debias_load).lower() == "true", key=f"ev_debias_{idx}")
+                three_phase_available = c_t8.checkbox("Three Phase Available", value=three_phase_available if isinstance(three_phase_available, bool) else str(three_phase_available).lower() == "true", key=f"ev_t_3ph_{idx}", help="Check this if your EV charger can use three-phase power when available. This will allow the MPC to increase charging power when three-phase power is available.")
+                debias_load = c_t9.checkbox("Debias Load (Is this load counted as part of your house power consumption?)", value=debias_load if isinstance(debias_load, bool) else str(debias_load).lower() == "true", key=f"ev_debias_{idx}", help="Check this if the load should be excluded from the total household power consumption. (If the EV charger is charging but your house power consumption isn't increasing, uncheck this box so that the MPC doesn't get confused)")
 
             elif charger_model == "Generic Binary":
                 st.write("---")
                 st.caption("Generic Binary Charger Specific Configuration")
                 c_t1, c_t2 = st.columns(2)
-                nominal_ac_voltage = c_t1.text_input("Nominal AC Voltage (V)", value=nominal_ac_voltage, key=f"ev_b_volt_{idx}")
-                ev_max_charge_amps = c_t2.text_input("Rated Current (A)", value=ev_max_charge_amps, key=f"ev_b_max_a_{idx}")
-                
+                nominal_ac_voltage = c_t1.text_input("Nominal AC Voltage (V)", value=nominal_ac_voltage, key=f"ev_b_volt_{idx}", help="This is the nominal phase voltage for your EV charger. 230V in Australia, 120V in US, etc.")
+                ev_max_charge_amps = c_t2.text_input("Rated Current (A)", value=ev_max_charge_amps, key=f"ev_b_max_a_{idx}", help="This is the rated current for your EV charger.")
+
                 c_t3, c_t4 = st.columns(2)
-                ev_charge_enable_entity_id = c_t3.text_input("Switch Entity ID", value=ev_charge_enable_entity_id, key=f"ev_b_sw_ent_{idx}")
-                p_ent = c_t4.text_input("Charger Power Entity ID (kW) [Optional]", value=p_ent, key=f"ev_pent_{idx}")
+                ev_charge_enable_entity_id = c_t3.text_input("Switch Entity ID", value=ev_charge_enable_entity_id, key=f"ev_b_sw_ent_{idx}", help="The Home Assistant entity ID for enabling or disabling the EV charging process.")
+                p_ent = c_t4.text_input("Charger Power Entity ID (kW) [Optional]", value=p_ent, key=f"ev_pent_{idx}", help="The Home Assistant entity ID for the power consumption of the EV charger in kW.")
 
                 c_t5, c_t6 = st.columns(2)
-                plug_ent = c_t5.text_input("EV Plugged In Entity ID [Optional]", value=plug_ent, key=f"ev_avail_{idx}")
-                debias_load = c_t6.checkbox("Debias Load (Is this load counted as part of your house power consumption?)", value=debias_load if isinstance(debias_load, bool) else str(debias_load).lower() == "true", key=f"ev_debias_{idx}")
+                plug_ent = c_t5.text_input("EV Plugged In Entity ID [Optional]", value=plug_ent, key=f"ev_avail_{idx}", help="The Home Assistant entity ID for indicating whether the EV is plugged in.")
+                debias_load = c_t6.checkbox("Debias Load (Is this load counted as part of your house power consumption?)", value=debias_load if isinstance(debias_load, bool) else str(debias_load).lower() == "true", key=f"ev_debias_{idx}", help="Check this if the load should be excluded from the total household power consumption. (If the EV charger is charging but your house power consumption isn't increasing, uncheck this box so that the MPC doesn't get confused)")
 
                 # For binary chargers, set both min and max power to the calculated nominal power to guide the MPC
                 try:
@@ -157,19 +165,19 @@ for idx, row in enumerate(rows):
 
         elif l_type == "hot_water":
             c1, c2 = st.columns(2)
-            tmin = c1.text_input("Min Tank Temp (C)", value=tmin, key=f"hw_tmin_{idx}")
-            tmax = c2.text_input("Max Tank Temp (C)", value=tmax, key=f"hw_tmax_{idx}")
-            
+            tmin = c1.text_input("Min Tank Temp (C)", value=tmin, key=f"hw_tmin_{idx}", help="The MPC will try to keep the tank above this temperature at all times.")
+            tmax = c2.text_input("Max Tank Temp (C)", value=tmax, key=f"hw_tmax_{idx}", help="The maximum temperature the tank should reach.")
+
             c3, c4 = st.columns(2)
-            lvl_ent = c3.text_input("Tank Temperature Entity ID (C)", value=lvl_ent, key=f"hw_lvl_{idx}")
-            vol = c4.text_input("Tank Volume (L)", value=vol, key=f"hw_vol_{idx}")
+            lvl_ent = c3.text_input("Tank Temperature Entity ID (C)", value=lvl_ent, key=f"hw_lvl_{idx}", help="The Home Assistant entity ID for the temperature of the hot water tank.")
+            vol = c4.text_input("Tank Volume (L)", value=vol, key=f"hw_vol_{idx}", help="The volume of the hot water tank in liters.")
             
             c5, c6, c7 = st.columns([1, 1, 0.4])
-            max_p = c5.text_input("Rated Power (kW)", value=max_p, key=f"hw_hp_{idx}")
-            p_ent = c6.text_input("Heater Power Entity ID", value=p_ent, key=f"hw_hpent_{idx}")
+            max_p = c5.text_input("Rated Power (kW)", value=max_p, key=f"hw_hp_{idx}", help="The rated power of the hot water heater in kW.")
+            p_ent = c6.text_input("Heater Power Entity ID", value=p_ent, key=f"hw_hpent_{idx}", help="The Home Assistant entity ID for the power consumption of the hot water heater.")
             hw_power_unit_scale = c7.selectbox("Unit", options=["kW", "W"], index=0 if hw_power_unit_scale == "kW" else 1, key=f"hw_unit_{idx}")
 
-            reward = st.text_input("Charge Reward (c/kWh)", value=reward, key=f"hw_rew_{idx}")
+            reward = st.text_input("Charge Reward (c/kWh)", value=reward, key=f"hw_rew_{idx}", help="The reward for charging the hot water tank in cents per kWh.")
 
         edited_rows.append({
             "name": name, 
@@ -232,7 +240,11 @@ if st.session_state.get("opt_loads_saved"):
     next_step = config_manager.get_next_setup_step()
     if not next_step:
         st.write("Setup complete! Once the add-on is restarted and values are valid, the MPC will begin optimizing your energy usage.")
-        if st.button("Go to Dashboard", type="secondary"):
+        col_final1, col_final2 = st.columns(2)
+        if col_final1.button("🔄 Restart Now", help="Restart the integration to apply changes."):
+            config_manager.trigger_restart()
+            st.info("Restarting...")
+        if col_final2.button("Go to Dashboard", type="secondary"):
             st.session_state["opt_loads_saved"] = False
             st.switch_page("webserver.py")
     else:

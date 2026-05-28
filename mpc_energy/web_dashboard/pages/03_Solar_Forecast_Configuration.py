@@ -9,7 +9,7 @@ st.title("☀️ Solar Forecast Configuration")
 
 config = config_manager.load_config()
 
-st.info("Ensure the Solcast integration is installed and entities are enabled (including Day 3/4).")
+st.info("Ensure the Solcast integration is installed and entities are enabled (including Day 3 and Day 4).")
 
 new_config = {}
 new_config["solcast_forecast_today_entity_id"] = st.text_input("Today's Forecast Entity", value=config.get("solcast_forecast_today_entity_id", "sensor.solcast_pv_forecast_forecast_today"))
@@ -26,12 +26,12 @@ if st.button("Save Solar Configuration"):
 
 if st.session_state.get("solar_saved"):
     st.balloons()
-    if st.button("🔄 Restart Now", help="Restart the integration to apply solar forecast changes."):
-        config_manager.trigger_restart()
-        st.info("Restarting...")
-
     next_step = config_manager.get_next_setup_step()
     if next_step and next_step != "pages/03_Solar_Forecast_Configuration.py":
         if st.button(f"Proceed to {config_manager.get_page_title(next_step)}"):
             st.session_state["solar_saved"] = False
             st.switch_page(next_step)
+    else:
+        if st.button("🔄 Restart Now", help="Restart the integration to apply changes."):
+            config_manager.trigger_restart()
+            st.info("Restarting...")

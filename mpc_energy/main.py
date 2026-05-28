@@ -118,7 +118,7 @@ if(config_manager.energy_retailer == "amber" and config_manager.amber_site_id ==
         for channel in site['channels']:
             available_channels.append(channel['type'])
         string_data = string_data + f"Site ID: {site['id']},  NMI: {site['nmi']}, Channels: {available_channels}"
-    logger.warning(f"Amber Site ID not selected, please copy the desired site id into the configuration tab:\n({string_data})")
+    logger.warning(f"Amber Site ID not selected, please copy the desired SITE ID into the retailer tab in the web dashboard:\n({string_data})")
     while True:
         handle_restart()
         time.sleep(1)

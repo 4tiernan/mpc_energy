@@ -79,19 +79,6 @@ brand_defaults = {
         "battery_power_sign_convention": "- Charge, + Discharge",
         "grid_power_sign_convention": "- Import, + Export",
         "power_unit_scale": "W"
-    },
-    "Other": {
-        "estimated_daily_load_energy_consumption": 24.0,
-        "battery_discharge_cost": 7.0,
-        "pv_max_power_limit_entry": "",
-        "import_max_power_limit_entry": "",
-        "export_max_power_limit_entry": "",
-        "battery_max_discharge_power_limit_entry": "",
-        "battery_max_charge_power_limit_entry": "",
-        "inverter_max_power_limit_entry": "",
-        "battery_power_sign_convention": "- Charge, + Discharge",
-        "grid_power_sign_convention": "+ Import, - Export",
-        "power_unit_scale": "kW"
     }
 }
 
@@ -110,7 +97,7 @@ def plant_config_page():
     current_config = load_config()
 
     st.subheader("Brand Selection")
-    brands = ["Sigenergy", "Goodwe", "Other"]
+    brands = ["Sigenergy", "Goodwe"]
     current_brand = current_config.get("plant_brand", "Sigenergy")
     plant_brand = st.selectbox("Plant Brand", options=brands, index=brands.index(current_brand) if current_brand in brands else 0)
 
@@ -128,18 +115,18 @@ def plant_config_page():
         with col_gen1:
             daily_load = st.number_input("Estimated Daily Load (kWh) - Only used as a backup if load prediction fails.", value=float(get_val("estimated_daily_load_energy_consumption", 24.0)))
         with col_gen2:
-            discharge_cost = st.number_input("Battery Discharge Cost (c/kWh)", value=float(get_val("battery_discharge_cost", 7.0)))
+            discharge_cost = st.number_input("Battery Discharge Cost (c/kWh)", value=float(get_val("battery_discharge_cost", 7.0)), help="The effective cost of discharging your battery. Increasing this value will make MPC only use your battery when prices are higher.")
 
         st.subheader("Physical Power Limits (Entities or Values)")
         col1, col2 = st.columns(2)
         with col1:
-            pv_limit = st.text_input("PV Max Power Limit Entity/kW", value=get_val("pv_max_power_limit_entry"))
-            import_limit = st.text_input("Import Max Power Limit Entity/kW", value=get_val("import_max_power_limit_entry"))
-            export_limit = st.text_input("Export Max Power Limit Entity/kW", value=get_val("export_max_power_limit_entry"))
+            pv_limit = st.text_input("PV Max Power Limit (Entity or kW value)", value=get_val("pv_max_power_limit_entry"), help="Maximum DC power your system can produce from your solar panels. This is not your the amount of installed solar power, but the MPPT maximum power.")
+            import_limit = st.text_input("Import Max Power Limit (Entity or kW value)", value=get_val("import_max_power_limit_entry"), help="Maximum power your system can import from the grid. (Decrease if tripping breakers)")
+            export_limit = st.text_input("Export Max Power Limit (Entity or kW value)", value=get_val("export_max_power_limit_entry"), help="Maximum power your system can export to the grid. (Decrease if tripping breakers)")
         with col2:
-            bat_dis_max = st.text_input("Battery Max Discharge Entity/kW", value=get_val("battery_max_discharge_power_limit_entry"))
-            bat_chg_max = st.text_input("Battery Max Charge Entity/kW", value=get_val("battery_max_charge_power_limit_entry"))
-            inv_limit_max = st.text_input("Inverter Max Power Entity/kW", value=get_val("inverter_max_power_limit_entry"))
+            bat_dis_max = st.text_input("Battery Max Discharge (Entity or kW value)", value=get_val("battery_max_discharge_power_limit_entry"), help="Maximum power your battery can discharge.")
+            bat_chg_max = st.text_input("Battery Max Charge (Entity or kW value)", value=get_val("battery_max_charge_power_limit_entry"), help="Maximum power your battery can charge.")
+            inv_limit_max = st.text_input("Inverter Max Power (Entity or kW value)", value=get_val("inverter_max_power_limit_entry"), help="Maximum power your inverter can consume or produce.")
 
         st.subheader("Hardware Sensors (Power)")
         col3, col4 = st.columns(2)
@@ -251,6 +238,10 @@ def plant_config_page():
             if st.button(f"Proceed to {config_manager.get_page_title(next_step)}"):
                 st.session_state["plant_saved"] = False
                 st.switch_page(next_step)
+        else:
+            if st.button("🔄 Restart Now", help="Restart the integration to apply changes."):
+                config_manager.trigger_restart()
+                st.info("Restarting...")
 
 if __name__ == "__main__":
     plant_config_page()

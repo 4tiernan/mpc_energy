@@ -164,9 +164,9 @@ def plant_config_page():
         col5, col6 = st.columns(2)
         with col5:
             bat_soc = st.text_input("Battery SOC Entity (%)", value=get_val("battery_soc_entity_id"))
-            backup_soc = st.text_input("Backup SOC Entity (%)", value=get_val("backup_soc_entry"))
-            cutoff_soc = st.text_input("Charge Cutoff SOC Entity (%)", value=get_val("charge_cutoff_soc_entry"))
-            bat_cap = st.text_input("Battery Rated Capacity Entity", value=get_val("battery_rated_capacity_entry"))
+            backup_soc = st.text_input("Backup SOC (Entity or % value)", value=get_val("backup_soc_entry"))
+            cutoff_soc = st.text_input("Charge Cutoff SOC (Entity or % value)", value=get_val("charge_cutoff_soc_entry"))
+            bat_cap = st.text_input("Battery Rated Capacity (Entity or kWh value)", value=get_val("battery_rated_capacity_entry"))
         with col6:
             bat_till_full = bat_stored = daily_import = daily_export = ""
             if plant_brand == "Sigenergy":

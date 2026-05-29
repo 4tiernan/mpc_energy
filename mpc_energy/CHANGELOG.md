@@ -7,7 +7,9 @@
 * Added optimal ev charge level to keep ev's charged during low solar production
 * Improved Flow Energy Price Forecasting
 * Reduced 'Unable to Determine Control Mode' error from occouring
-* Changed config to occour through streamlit dashboard
+* Changed config to occour through streamlit dashboard with a configuration flow.
+* Added Load Profile and Optional Load Loss debugger pages to the dashboard
+* Added manual 'Sync from HA Options' trigger in the General configuration to transistion from HA options to dashboard setup.
 
 ## 0.7.0
 * Added net grid interaction kWh sensor to aid automations.

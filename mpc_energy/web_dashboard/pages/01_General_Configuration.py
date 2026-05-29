@@ -1,12 +1,18 @@
 import streamlit as st
 import config_manager
 from web_dashboard.common import render_sidebar
+import migration
 
 st.set_page_config(page_title="General Configuration", layout="wide", initial_sidebar_state="collapsed")
 render_sidebar()
 
 st.title("⚙️ General Configuration")
 st.write("Configure core system settings, safety acknowledgements, and connectivity.")
+
+if st.button("🔄 Sync from HA Options", help="Imports settings from the Home Assistant Add-on configuration tab into the new Web UI format. Use this if you have settings in config.yaml that aren't showing here."):
+    migration.migrate_config()
+    st.success("Migration check complete! Please review the settings below and save.")
+    st.rerun()
 
 config = config_manager.load_config()
 

@@ -494,7 +494,11 @@ def main_loop_code():
                 try:
                     opt_load.charger.update() # Update the charger state and keep track of wheather a car is currently plugged in or not to feed into the optional load logic and MPC planning
                 except Exception as e:
-                    logger.error(f"Error updating charger state for {opt_load.name}: {e}")
+                    # Rate limit error logging for charger updates to once every 10 minutes to avoid log spam
+                    if time.time() - opt_load.charger.last_update_error_time > 600:
+                        logger.error(f"Error updating charger state for {opt_load.name}: {e}")
+                        logger.error("Rate limiting further charger update error logs to once every 10 minutes to avoid log spam.")
+                        opt_load.charger.last_update_error_time = time.time()
                     pass
     
     if(ha.ha_api_went_down()): # If the API went offline, clear the sensor cache to force a publish of all MQTT sensor data

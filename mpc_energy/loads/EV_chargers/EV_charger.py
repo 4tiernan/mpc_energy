@@ -17,6 +17,7 @@ class EVCharger(ABC):
         self.max_charge_power_kw = max_charge_power_kw
         self.target_charge_rate = 0.0 # Current target charge rate in kW
         self.debias_load = debias_load # Whether to debias the home load history to the EV charger load history, IE is the charger power counted in the home load power. 
+        self.last_update_error_time = 0.0
 
         logger.debug(f"Initialized EV Charger '{self.name}' with min_charge_power_kw={self.min_charge_power_kw} kW, max_charge_power_kw={self.max_charge_power_kw} kW, debias_load={self.debias_load}")
     

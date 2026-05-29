@@ -137,7 +137,7 @@ class CreateSelectInput():
             
             # Wait for message
             if not message_received_flag.wait(timeout=timeout):
-                logger.warning(f"No retained message received within {timeout}s for {state_topic}. Using default.")
+                logger.debug(f"No retained message received within {timeout}s for {state_topic}. Using default.")
             
         except Exception as e:
             logger.error(f"Error reading retained state for {state_topic}: {e}")

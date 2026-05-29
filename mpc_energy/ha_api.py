@@ -97,7 +97,7 @@ class HomeAssistantAPI:
                         response_text = e.response.text
 
                     raise HAAPIError(
-                        f"HA service call '{service_path}' failed for entity '{entity_id}'"
+                        f"HA call url: '{url}' with method: '{method}' and data: '{data}' failed for entity '{entity_id}'"
                         f" with status '{status_code}'. Error details: '{str(e)}'"
                         f" Response body: '{response_text}'"
                     )
@@ -129,6 +129,29 @@ class HomeAssistantAPI:
             return float(state)
         except (TypeError, ValueError):
             raise HAAPIError(f"Unable to convert state '{state}' for entity '{entity_id}' to float.") from None
+    
+    def get_boolean_state(self, entity_id, default=False) -> bool:
+        if not entity_id:
+            logger.warning("Boolean state requested but entity_id is empty. Returning default value: "+str(default))
+            return default
+        try:
+            state_payload = self.get_state(entity_id)
+            state = str(state_payload.get("state", "")).strip().lower()
+            true_states = {"on", "true", "home", "connected", "plugged", "plugged_in", "yes"}
+            return state in true_states
+        except Exception as e:
+            logger.warning(f"Unable to get boolean state for '{entity_id}' Exception '{str(e)}'. Returning default value: "+str(default))
+            return default
+
+    def get_select_options(self, entity_id: str) -> list[str]:
+        """Fetches the list of available options for a select or input_select entity."""
+        state_payload = self.get_state(entity_id)
+        if isinstance(state_payload, dict):
+            attributes = state_payload.get("attributes", {})
+            options = attributes.get("options", [])
+            if isinstance(options, list):
+                return options
+        return []
 
     def call_service(self, domain, service, data):
         url = f"{self.base_url}/api/services/{domain}/{service}"
@@ -174,7 +197,7 @@ class HomeAssistantAPI:
             }
         )
     
-    def get_history(self, entity_id, start_time=None, end_time=None, type=float):
+    def get_history(self, entity_id, start_time=None, end_time=None, type=float) -> list[History]:
         """Fetch history for a specific entity.
         Home Assistant requires:
         /api/history/period/<start>?end_time=...&filter_entity_id=...
@@ -182,7 +205,7 @@ class HomeAssistantAPI:
         if not start_time:
             raise ValueError("start_time is required for history endpoint")
 
-        url = self.base_url+f"/api/history/period/{start_time}"
+        url = self.base_url+f"/api/history/period/{start_time.isoformat()}"
         params = {"filter_entity_id": entity_id}
         if end_time:
             params["end_time"] = end_time

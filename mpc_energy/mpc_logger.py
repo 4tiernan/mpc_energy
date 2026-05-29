@@ -1,7 +1,20 @@
 import logging
 import colorlog
 
-import config_manager
+import json
+
+with open("/data/options.json") as f:
+    options = json.load(f)
+
+def get_entity_id(key, default=None):
+    value = options.get(key, default)
+    if((value == None or value == "") and default == None):
+        raise Exception(f"Missing required configuration: {key}. \n Please ensure this value has been set in the app configuration page and restart the app.") from None
+    return value
+
+
+configured_log_level = get_entity_id("log_level", default="info")
+
 
 # Create a color formatter
 formatter = colorlog.ColoredFormatter(
@@ -19,8 +32,6 @@ formatter = colorlog.ColoredFormatter(
 handler = logging.StreamHandler()
 handler.setFormatter(formatter)
 
-
-configured_log_level = config_manager.log_level  # e.g. "debug"
 
 LOG_LEVELS = {
     "debug": logging.DEBUG,

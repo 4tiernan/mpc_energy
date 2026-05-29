@@ -1,4 +1,11 @@
 import streamlit as st
+
+st.set_page_config(
+    page_title="MPC Dashboard",
+    layout="wide",
+    initial_sidebar_state="collapsed"
+)
+
 import numpy as np
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
@@ -9,12 +16,14 @@ import queue
 from streamlit_autorefresh import st_autorefresh
 import config_manager
 import const
+from web_dashboard.common import render_sidebar
+# Gatekeeper: Redirect to setup if configuration is missing
+next_step = config_manager.get_next_setup_step()
+if next_step:
+    st.switch_page(next_step)
+    st.stop()
 
-st.set_page_config(
-    page_title="MPC Dashboard",
-    layout="wide"
-)
-
+render_sidebar()
 
 if "mqtt_queue" not in st.session_state:
     st.session_state.mqtt_queue = queue.Queue()
@@ -35,13 +44,15 @@ def on_message(client, userdata, msg):
     mqtt_queue.put(json.loads(msg.payload))
 
 if "mqtt_client" not in st.session_state:
-    client = mqtt.Client(callback_api_version=mqtt.CallbackAPIVersion.VERSION2)
-    client.username_pw_set(config_manager.MQTT_USER, config_manager.MQTT_PASS)
-    client.on_message = on_message
-    client.connect(const.MQTT_HOST, const.MQTT_PORT)
-    client.loop_start()
-    client.subscribe("home/mpc/output")
-    st.session_state.mqtt_client = client
+    # Only attempt connection if we have credentials
+    if config_manager.MQTT_USER and config_manager.MQTT_PASS:
+        client = mqtt.Client(callback_api_version=mqtt.CallbackAPIVersion.VERSION2)
+        client.username_pw_set(config_manager.MQTT_USER, config_manager.MQTT_PASS)
+        client.on_message = on_message
+        client.connect(const.MQTT_HOST, const.MQTT_PORT)
+        client.loop_start()
+        client.subscribe("home/mpc/output")
+        st.session_state.mqtt_client = client
 time.sleep(0.1)
 while not mqtt_queue.empty():
     st.session_state.mpc_output = mqtt_queue.get()
@@ -87,7 +98,7 @@ else:
     except Exception:
         time_index = list(range(len(st.session_state.mpc_output["soc"])))
         
-    import web_plot
+    import web_dashboard.web_plot as web_plot
     web_plot.plot_mpc_results(st, st.session_state.mpc_output)
 
 
@@ -105,11 +116,3 @@ else:
 
 #    p_max = st.slider("Max charge power (kW)", 1.0, 10.0, 5.0)
 #    dt = st.number_input("Timestep (hours)", value=0.5)
-
-
-
-
-
-
-
-

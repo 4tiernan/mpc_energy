@@ -1,12 +1,64 @@
+
+from mpc_logger import logger
+
+logger.info("------------------------  Starting MPC Energy App  ------------------------")
+
 import subprocess
 import sys
 import time
 import datetime
 import traceback
-import config_manager
 import const
 from exceptions import MPCEnergyError
-from mpc_logger import logger
+import loads.optional_loads
+import config_manager
+import json
+import os
+from plants.plant_manager import load_plant_config
+
+
+started = False
+
+streamlit_proc = None
+
+def start_streamlit_dashboard():
+    return subprocess.Popen([
+        sys.executable,
+        "-m",
+        "streamlit",
+        "run",
+        "web_dashboard/webserver.py",
+        "--server.headless=true",
+        "--server.port=8501",
+        "--server.address=0.0.0.0",
+        "--server.enableCORS=false",
+        "--server.enableXsrfProtection=false",
+        "--server.fileWatcherType=none",
+        "--browser.gatherUsageStats=false",
+        "--theme.base=light",
+        "--client.showSidebarNavigation=false"
+    ])
+
+# Start Streamlit dashboard
+streamlit_proc = start_streamlit_dashboard()
+logger.info("Streamlit dashboard started") 
+
+
+def handle_restart():
+    """Checks for a restart signal and performs an in-place restart if found."""
+    if os.path.exists(config_manager.RESTART_SIGNAL_PATH):
+        logger.info("Restart signal received from dashboard. Performing in-place restart...")
+        os.remove(config_manager.RESTART_SIGNAL_PATH)
+        if streamlit_proc:
+            streamlit_proc.terminate()
+            streamlit_proc.wait()  # Wait for Streamlit to release the port
+        os.execv(sys.executable, [sys.executable] + sys.argv)
+
+# Initialize globals as None so error handlers can safely check them if startup fails early
+ha = None
+ha_mqtt = None
+plant = None
+mpc = None
 
 app_start_timestamp = time.time()
 def start_timer():
@@ -22,21 +74,45 @@ def elapsed_time(code_block_name="Code Block"):
     return elapsed
 
 if(not config_manager.accepted_risks):
-    logger.error("You must toggle the accept risks switch to acknowledge the risks associated with use of this software before being able to use the app.")
-    exit()
+    logger.error("Risk acknowledgement required! Please open the web dashboard and navigate to 'General Configuration' to accept the terms of use.")
+    while True:
+        handle_restart()
+        time.sleep(1)
+
+if not load_plant_config().get("plant_brand"):
+    logger.error("Plant configuration not found! Please open the web dashboard and navigate to the 'Plant Configuration' page to set up your inverter and battery details.")
+    while True:
+        handle_restart()
+        time.sleep(1) # Keep the app running so the user can access the dashboard to set up the plant configuration
     
+if not config_manager.energy_retailer:
+    logger.error("Energy Retailer not configured! Please open the web dashboard and navigate to the 'Retailer Configuration' page.")
+    while True:
+        handle_restart()
+        time.sleep(1)
+
+if not config_manager.solcast_forecast_today_entity_id:
+    logger.error("Solar Forecast not configured! Please open the web dashboard and navigate to the 'Solar Forecast Configuration' page.")
+    while True:
+        handle_restart()
+        time.sleep(1)
+
 if(config_manager.energy_retailer != "amber" and config_manager.energy_retailer != "flow"):
-    logger.error("Invalid energy retailer selected. Please select either amber or flow as the energy retailer in the app configuration page.")
-    exit()
+    logger.error("Invalid energy retailer selected. Please select either amber or flow as the energy retailer in the 'Retailer Configuration' page.")
+    while True:
+        handle_restart()
+        time.sleep(1)
 
 # Check to see if an amber site number has been set and print the available ones if not
 if(config_manager.energy_retailer == "amber" and config_manager.amber_site_id == ""):
-    from amber_api import AmberAPI
+    from External_Interfaces.amber_api import AmberAPI
     amber = AmberAPI(config_manager.amber_api_key, "")
     sites = amber.get_sites()
     if(not sites):
         logger.error("No sites were found, amber may not have transfered your connection yet. This can take approximatly 4 days (https://help.amber.com.au/hc/en-us/articles/34942303478797-Solar-and-Battery-Onboarding-What-to-Expect-When-Enrolling-to-SmartShift). Please try again later.")
-        exit()
+        while True:
+            handle_restart()
+            time.sleep(1)
         
     string_data = ""
     #logger.info(sites)    
@@ -45,8 +121,10 @@ if(config_manager.energy_retailer == "amber" and config_manager.amber_site_id ==
         for channel in site['channels']:
             available_channels.append(channel['type'])
         string_data = string_data + f"Site ID: {site['id']},  NMI: {site['nmi']}, Channels: {available_channels}"
-    logger.warning(f"Amber Site ID not selected, please copy the desired site id into the configuration tab:\n({string_data})")
-    exit()
+    logger.warning(f"Amber Site ID not selected, please copy the desired SITE ID into the retailer tab in the web dashboard:\n({string_data})")
+    while True:
+        handle_restart()
+        time.sleep(1)
 
 # HA APP Setup Notes:
 # Proxmox CPU Type must be set to host not kvm64
@@ -58,26 +136,6 @@ if(config_manager.energy_retailer == "amber" and config_manager.amber_site_id ==
 # systemctl status energy-manager
 # source venv/bin/activate (from within cd opt/energy-manager)
 # nano /opt/energy-manager/run.sh
-
-logger.info("------------------------  Starting MPC Energy App  ------------------------")
-started = False
-
-streamlit_proc = None
-
-def start_streamlit_dashboard():
-    return subprocess.Popen([
-        sys.executable,
-        "-m",
-        "streamlit",
-        "run",
-        "webserver.py",
-        "--server.headless=true",
-        "--server.port=8501",
-        "--server.address=0.0.0.0",
-        "--server.enableCORS=false",
-        "--server.enableXsrfProtection=false",
-        "--theme.base=light"
-    ])
 
 def send_mobile_notification(title, message, channel=None):
     try:
@@ -97,6 +155,10 @@ def PrintError(e):
     if(not isinstance(e, MPCEnergyError)):
         traceback.print_exc() # Prints the full traceback to the console for unexpected errors
     
+    # If Home Assistant API object isn't initialized yet, we can't send HA notifications
+    if ha is None:
+        return
+
     try:
         ha.create_persistent_notification(
             title="MPC Energy Error",
@@ -111,17 +173,21 @@ def PrintError(e):
         logger.error(f"Failed to create Home Assistant notification for the error. This likely means that the Home Assistant API is down. Check the API and try again. Error creating notification: {notification_error}")
 
 def FailSafe(e):
-    global EC, ha_mqtt
     PrintError(e)
-    try:
-        if(ha_mqtt.automatic_control_switch.state == True):
-            EC.self_consumption()
-            logger.warning("Succsessfully put system into safe mode after detecting an error.")        
-    except:
-        logger.error("Failed to put system into safe mode after detecting an error.")   
+    
+    # Only attempt safe mode if the Energy Controller and MQTT objects are actually loaded
+    if plant is not None and ha_mqtt is not None:
+        try:
+            if(ha_mqtt.automatic_control_switch.state == True):
+                plant.self_consumption()
+                logger.warning("Succsessfully put system into safe mode after detecting an error.")        
+        except Exception as failsafe_error:
+            logger.error(f"Failed to put system into safe mode after detecting an error: {failsafe_error}")   
 
     logger.warning("Trying again after 30 seconds")
-    time.sleep(30)    
+    for _ in range(30):
+        handle_restart()
+        time.sleep(1)    
         
 
 while(started == False):
@@ -130,9 +196,11 @@ while(started == False):
         from energy_controller import EnergyController
         from ha_api import HomeAssistantAPI
         import ha_mqtt
-        from amber_api import AmberAPI
+        from External_Interfaces.amber_api import AmberAPI
         from PlantControl import Plant
+        from plants.plant_manager import GetPlant
         from control_mode_override import ControlModeOverrideManager
+        from loads.EV_load import EVLoad
 
         from External_Interfaces.flow_power import FlowPowerInterface
 
@@ -140,6 +208,8 @@ while(started == False):
             base_url=const.HA_API_URL,
             token=const.HA_TOKEN,
         )
+
+        opt_loads = loads.optional_loads.load_optional_load_instances(ha, ha.local_tz, ha_mqtt)
 
         demand_tariff = None
 
@@ -165,29 +235,21 @@ while(started == False):
             )
             demand_tariff = flow.demand_tarrif
         
-        plant = Plant(ha) 
-        
-        EC = EnergyController(
-            ha=ha,
-            ha_mqtt=ha_mqtt,
-            plant=plant
-        )
+        plant = GetPlant(ha, opt_loads)
 
-        control_mode_override_manager = ControlModeOverrideManager(ha_mqtt=ha_mqtt, energy_controller=EC, plant=plant)
+        if(ha_mqtt.automatic_control_switch.state == True):
+            plant.self_consumption() # Start in self consumption mode for safety until the main loop runs to set the correct mode based on the selected controller
+
+        control_mode_override_manager = ControlModeOverrideManager(ha_mqtt=ha_mqtt, plant=plant)
 
         mpc = MPC(
             ha=ha,
             plant=plant,
-            EC=EC, 
             local_tz=ha.local_tz,
             demand_tarrif=demand_tariff,
             retailer=config_manager.energy_retailer,
-            ha_mqtt=ha_mqtt
+            optional_loads=opt_loads
         ) 
-
-        # Start Streamlit dashboard
-        streamlit_proc = start_streamlit_dashboard()
-        logger.info("Streamlit dashboard started")  
 
         started = True
     except Exception as e:
@@ -216,15 +278,15 @@ def set_sensor_if_changed(sensor, value):
 def update_sensors(price_data):
     override_status = control_mode_override_manager.state['active']
     override_mode = control_mode_override_manager.state['mode']
-    opperating_mode = override_mode if override_status else EC.working_mode
+    opperating_mode = (override_mode if override_status else plant.working_mode) or "Initialising"
 
     set_sensor_if_changed(ha_mqtt.max_feedIn_sensor, round(price_data.feedIn_max_forecast_price))
     set_sensor_if_changed(ha_mqtt.current_feedIn_sensor, round(price_data.feedIn_price))
     set_sensor_if_changed(ha_mqtt.current_general_price_sensor, round(price_data.general_price))
     set_sensor_if_changed(ha_mqtt.kwh_discharged_sensor, round(plant.kwh_till_full, 2))
-    set_sensor_if_changed(ha_mqtt.kwh_remaining_sensor, round(plant.kwh_stored_available, 2))
-    set_sensor_if_changed(ha_mqtt.kwh_required_overnight_sensor, round(plant.kwh_required_remaining(buffer_percentage=0), 2))    
-    set_sensor_if_changed(ha_mqtt.kwh_required_till_sundown_sensor, round(plant.kwh_required_till_sundown(buffer_percentage=0), 2))
+    set_sensor_if_changed(ha_mqtt.kwh_remaining_sensor, round(plant.stored_available_kwh, 2))
+    set_sensor_if_changed(ha_mqtt.kwh_required_overnight_sensor, round(plant.kwh_required_remaining(), 2))    
+    set_sensor_if_changed(ha_mqtt.kwh_required_till_sundown_sensor, round(plant.kwh_required_till_sundown(), 2))
     set_sensor_if_changed(ha_mqtt.next_grid_interaction_kwh_sensor, round(mpc.next_grid_interaction_kwh, 2))
     set_sensor_if_changed(ha_mqtt.working_mode_sensor, opperating_mode)
 
@@ -233,8 +295,8 @@ def update_sensors(price_data):
     set_sensor_if_changed(ha_mqtt.net_profit_sensor, round(plant.daily_net_profit, 2))
     set_sensor_if_changed(ha_mqtt.profit_remaining_today_sensor, round(mpc.profit_remaining_today, 2))
     set_sensor_if_changed(ha_mqtt.profit_tomorrow_sensor, round(mpc.profit_tomorrow, 2))
-    if(mpc.ev_configured):
-       set_sensor_if_changed(ha_mqtt.target_ev_charge_rate_sensor, round(mpc.target_ev_charge_rate, 2))
+    
+    # Note: Target EV charge rate sensor logic should be moved to iterate over all opt_loads in mpc.py
 
     if(plant.grid_power < 0):
         price = price_data.feedIn_price
@@ -289,11 +351,8 @@ def check_for_spike(price_data):
         else:
             spike_found_timestamp = 0 # Reset the spike found timestamp if no spikes are currently forecasted
                 
-last_ev_charging_mode = ha_mqtt.ev_charging_mode_selector.state
-last_ev_charged_by_time = ha_mqtt.ready_by_time_selector.state                
-
 def run_controller(price_update=False):
-    global automatic_control, last_control_mode, last_ev_charging_mode, last_ev_charged_by_time
+    global automatic_control, last_control_mode
     # If Auto control has been TURNED on, print a msg and reset flag
     selected_controller = ha_mqtt.energy_controller_selector.state
 
@@ -302,16 +361,15 @@ def run_controller(price_update=False):
         if(price_update):
             mpc.run_optimisation(price_data) # Run the MPC optimisation each time the price updates to keep the plot updated
         return
-    
-    if(ha_mqtt.ev_charging_mode_selector.state != last_ev_charging_mode or ha_mqtt.ready_by_time_selector.state != last_ev_charged_by_time):
-        last_ev_charging_mode = ha_mqtt.ev_charging_mode_selector.state
-        last_ev_charged_by_time = ha_mqtt.ready_by_time_selector.state
-           
-        logger.debug(f"EV Charging settings changed. Forcing MPC to update with new settings.")
-        mpc.run_optimisation(price_data) # Run the MPC optimisation to update the EV charging plan with the new settings
-    
-    if(ha_mqtt.ev_charging_mode_selector.state != "Ready by Time" and ha_mqtt.ready_by_time_selector.state != "None"):
-        ha_mqtt.ready_by_time_selector.set_state("NA") # Reset the ready by time selector if the user changes the mode to something other than ready by time to prevent confusion
+
+    ev_settings_changed = False
+    for load in opt_loads:
+        if load.settings_changed():
+            ev_settings_changed = True
+
+    if ev_settings_changed:
+        logger.debug(f"Optional load settings changed. Forcing MPC to update with new settings.")
+        mpc.run_optimisation(price_data)
     
     if(last_control_mode == "Manual Override"):
         if(ha_mqtt.automatic_control_switch.state == True):
@@ -319,14 +377,17 @@ def run_controller(price_update=False):
 
             if(selected_controller == "MPC"):
                 mpc.run(price_data)
+            elif(selected_controller == "Safe Mode"):
+                plant.self_consumption()
             else:
-                EC.self_consumption()
+                logger.warning(f"Unknown controller selected: '{selected_controller}'. Defaulting to safe mode.")
+                plant.self_consumption()
 
             last_control_mode = selected_controller
 
         else: # If automatic control is off, turn back to safe mode
             logger.warning(f"Manual override finished. Returning control to Safe Mode.")
-            EC.self_consumption()
+            plant.self_consumption()
 
 
     if(ha_mqtt.automatic_control_switch.state == True):
@@ -339,20 +400,22 @@ def run_controller(price_update=False):
             if(last_control_mode != selected_controller or price_update == True):
                 mpc.run(price_data) # Run the MPC Controller if the price updates (every 5 min) or if it was just selected as the new controller
 
-        else: # Selected Controller must be safe mode
-            EC.self_consumption()
+        elif(selected_controller == "Safe Mode"):
+            plant.self_consumption()
+        else:
+            logger.warning(f"Unknown controller selected: '{selected_controller}'. Defaulting to safe mode.")
+            plant.self_consumption()
 
         if(last_control_mode != selected_controller and last_control_mode != "" and automatic_control == True):
             logger.warning(f"Controller changed from {last_control_mode} to {selected_controller}")
             
         last_control_mode = selected_controller # Reset the controller tracker
  
-        # If auto control is on, run the energy controller and RBC (every 2 seconds as we need to keep track of some things)
-        EC.run(amber_data=price_data)
+        # If auto control is on, run the plant controller to maintain the current control mode
+        plant.run()
 
     else: # Automatic Control Turned off
         if(automatic_control == True):
-            #EC.self_consumption()
             automatic_control = False
             logger.warning(f"Automatic Control turned off.")
 
@@ -404,7 +467,7 @@ def main_loop_code():
 
             if(time.time() - last_real_price_timestamp > 600): # If it's been more than 10 minutes since we've received a real price update, trigger safe mode
                 logger.warning("Putting system in safe mode due to lack of real price updates.")
-                EC.self_consumption() # Put the system into safe mode
+                plant.self_consumption() # Put the system into safe mode
                 
         else: # If prices are real, use them
             last_real_price_timestamp = time.time() # Update the last real price timestamp to prevent false triggering of safe mode
@@ -424,7 +487,19 @@ def main_loop_code():
             logger.info("....")
     
     
-    run_controller() # Run the selected controller  
+    run_controller() # Run the selected controller 
+    if(ha_mqtt.automatic_control_switch.state == True):
+        for opt_load in opt_loads:
+            if(opt_load.load_type == "ev" and opt_load.charger is not None):
+                try:
+                    opt_load.charger.update() # Update the charger state and keep track of wheather a car is currently plugged in or not to feed into the optional load logic and MPC planning
+                except Exception as e:
+                    # Rate limit error logging for charger updates to once every 10 minutes to avoid log spam
+                    if time.time() - opt_load.charger.last_update_error_time > 600:
+                        logger.error(f"Error updating charger state for {opt_load.name}: {e}")
+                        logger.error("Rate limiting further charger update error logs to once every 10 minutes to avoid log spam.")
+                        opt_load.charger.last_update_error_time = time.time()
+                    pass
     
     if(ha.ha_api_went_down()): # If the API went offline, clear the sensor cache to force a publish of all MQTT sensor data
         logger.warning("Detected Home Assistant API recovery. Clearing MQTT sensor cache to republish states.")
@@ -436,12 +511,21 @@ last_loop_timestamp = 0
 last_alive_time_timestamp = 0
 while True:
     try:
+        # Check for restart signal from the web dashboard
+        handle_restart()
+
         regular_loop_update_due = time.time() - last_loop_timestamp >= 10
         seconds_till_price_update = next_amber_update_timestamp - time.time()
 
         # Run main code if a price update is due or if its been more than 10s since the last loop (but not close to the price update so we're free to run asap for the price update)
         if(time.time() >= next_amber_update_timestamp or (regular_loop_update_due and seconds_till_price_update > 20)): 
             last_loop_timestamp = time.time()
+
+            # Check if streamlit is still running and restart if it has crashed
+            if streamlit_proc is not None and streamlit_proc.poll() is not None:
+                logger.warning(f"Streamlit dashboard process exited with code {streamlit_proc.poll()}. Restarting...")
+                streamlit_proc = start_streamlit_dashboard()
+
             main_loop_code()
         
         if(time.time() - int(last_alive_time_timestamp) >= 1):

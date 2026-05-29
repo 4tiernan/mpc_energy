@@ -69,13 +69,15 @@ class AmberAPI:
                 logger.info("The selected site is on a demand tarrif. Adjusting MPC accordingly.")
                 if(demand_price == ""):
                     logger.error("The Amber API has specified that you are on a demand tarrif but no demand price has been entered into the config. Please enter a demand price ($/kW)")
-                    exit()
+                    while True:
+                        time.sleep(1)
                 else:
                     try: 
                         self.demand_tarrif_price = float(demand_price)
                     except:
                         logger.error(f"The demand price enertered in the configuration: '{demand_price}' could not be converted to a float. Please only enter a numeric value.")    
-                        exit()
+                        while True:
+                            time.sleep(1)
                 
             else:
                 logger.info("No demand tarrif detected continuning normally.")
@@ -128,7 +130,9 @@ class AmberAPI:
 
         elif r.status_code == 403:
             logger.error("API key provided for Amber API does not have authorisation to access the Amber API. Please check the key is correct or create a new key.")
-            exit()
+            while True:
+                time.sleep(1)
+
         
         return r.json()
 

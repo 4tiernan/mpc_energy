@@ -1,0 +1,100 @@
+from abc import ABC, abstractmethod
+from ha_api import HomeAssistantAPI
+from mpc_logger import logger
+from typing import Any
+
+charger_models = ["Tesla API", "SigEnergy AC Charger", "Generic Binary"]
+
+class EVCharger(ABC):
+    """
+    Base class for EV Chargers. 
+    Specific charger models should inherit from this class.
+    """
+    def __init__(self, name: str, ha: HomeAssistantAPI, min_charge_power_kw: float, max_charge_power_kw: float, debias_load: bool):
+        self.name = name
+        self.ha: HomeAssistantAPI = ha
+        self.min_charge_power_kw = min_charge_power_kw
+        self.max_charge_power_kw = max_charge_power_kw
+        self.target_charge_rate = 0.0 # Current target charge rate in kW
+        self.debias_load = debias_load # Whether to debias the home load history to the EV charger load history, IE is the charger power counted in the home load power. 
+        self.last_update_error_time = 0.0
+
+        logger.debug(f"Initialized EV Charger '{self.name}' with min_charge_power_kw={self.min_charge_power_kw} kW, max_charge_power_kw={self.max_charge_power_kw} kW, debias_load={self.debias_load}")
+    
+    def set_target_charge_rate(self, kw: float, charging_mode: str):
+        """
+        Sets the charging rate of the EV charger in kW.
+        """
+        self.target_charge_rate = kw
+        self.charging_mode = charging_mode
+        logger.debug(f"Set target charge rate for '{self.name}' to {self.target_charge_rate} kW in mode '{self.charging_mode}'")
+            
+    @abstractmethod
+    def update_state(self):
+        """
+        Update the charger's internal state (like power limits) by fetching the latest data from Home Assistant.
+        This should not perform any control actions.
+        """
+        raise NotImplementedError("Subclasses must implement update_state")
+
+    @abstractmethod    
+    def update(self):
+        """
+        Update the charger state by fetching the latest data from Home Assistant and syncing with the Tesla API if needed.
+        This is a placeholder implementation and should be replaced with actual API calls and logic.
+        """
+        raise NotImplementedError("Subclasses must implement update")
+
+def create_charger_instance(config: dict[str, Any], ha: HomeAssistantAPI) -> "EVCharger | None":
+    """
+    Factory function to create a specific EVCharger instance based on a configuration dictionary.
+    """
+    charger_model = config.get("charger_model", "")
+
+    if charger_model == "Tesla API":
+        from loads.EV_chargers.teslaAPI_charger import TeslaAPICharger
+        return TeslaAPICharger(
+            name=config.get("name", ""),
+            ha=ha,
+            plugged_in_entity_id=config.get("plugged_in_entity_id", ""),
+            nominal_ac_voltage=float(config.get("nominal_ac_voltage", 230.0) or 230.0),
+            min_charge_current=float(config.get("min_charge_current", 0.0) or 0.0),
+            max_charge_current=float(config.get("max_charge_current", 0.0) or 0.0),
+            power_entity_id=config.get("power_entity_id", ""),
+            three_phase_available_entity_id=config.get("three_phase_available_entity_id", ""),
+            charge_current_entity_id=config.get("charge_current_entity_id", ""),
+            charge_enable_entity_id=config.get("charge_enable_entity_id", ""),
+            charger_model=charger_model,
+            debias_load=config.get("debias_load", True)
+        )
+    elif charger_model == "SigEnergy AC Charger":
+        from loads.EV_chargers.sigenergy_ac_charger import SigEnergyACCharger
+        return SigEnergyACCharger(
+            name=config.get("name", ""),
+            ha=ha,
+            plugged_in_entity_id=config.get("plugged_in_entity_id", ""),
+            nominal_ac_voltage=float(config.get("nominal_ac_voltage", 230.0) or 230.0),
+            min_charge_current=float(config.get("min_charge_current", 0.0) or 0.0),
+            max_charge_current=float(config.get("max_charge_current", 0.0) or 0.0),
+            power_entity_id=config.get("power_entity_id", ""),
+            three_phase_available=config.get("three_phase_available", False),
+            charge_current_entity_id=config.get("charge_current_entity_id", ""),
+            charge_enable_entity_id=config.get("charge_enable_entity_id", ""),
+            charger_model=charger_model,
+            debias_load=config.get("debias_load", False)
+        )
+    elif charger_model == "Generic Binary":
+        from loads.EV_chargers.generic_binary import GenericBinaryCharger
+        return GenericBinaryCharger(
+            name=config.get("name", ""),
+            ha=ha,
+            switch_entity_id=config.get("charge_enable_entity_id", ""),
+            nominal_voltage=float(config.get("nominal_ac_voltage", 230.0) or 230.0),
+            rated_current=float(config.get("max_charge_current", 32.0) or 32.0),
+            debias_load=config.get("debias_load", True),
+            plugged_in_entity_id=config.get("plugged_in_entity_id", ""),
+            power_entity_id=config.get("power_entity_id", "")
+        )
+    else:
+        logger.warning(f"Unknown charger model '{charger_model}' for load '{config.get('name', 'Unknown')}'. Skipping charger instantiation.")
+        return None

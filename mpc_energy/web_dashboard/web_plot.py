@@ -2,27 +2,29 @@ import streamlit as st
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import datetime
-from energy_controller import ControlMode
+from plants.base_plant import BasePlant
 import numpy as np
 
 CONTROL_MODE_ORDER = [
-    ControlMode.GRID_IMPORT.value,
-    ControlMode.SELF_CONSUMPTION.value,
-    ControlMode.SOLAR_TO_LOAD.value,
-    ControlMode.EXPORT_EXCESS_SOLAR.value,
-    ControlMode.EXPORT_ALL_SOLAR.value,
-    ControlMode.DISPATCH.value,
+    BasePlant.ControlMode.GRID_IMPORT,
+    BasePlant.ControlMode.PARTIAL_GRID_IMPORT,
+    BasePlant.ControlMode.SELF_CONSUMPTION,
+    BasePlant.ControlMode.SOLAR_TO_LOAD,
+    BasePlant.ControlMode.EXPORT_EXCESS_SOLAR,
+    BasePlant.ControlMode.EXPORT_ALL_SOLAR,
+    BasePlant.ControlMode.DISPATCH,
     "Unable to determine",
 ]
 
 CONTROL_MODE_COLORS = {
-    ControlMode.GRID_IMPORT.value:        "#fa6be0",  # blue
-    ControlMode.SELF_CONSUMPTION.value:   "#a6ebfc",  # green
-    ControlMode.SOLAR_TO_LOAD.value:      "#D6FFA4",  # darker green
-    ControlMode.EXPORT_EXCESS_SOLAR.value:"#7efd1d",  # orange
-    ControlMode.EXPORT_ALL_SOLAR.value:   "#02d938",  # dark orange
-    ControlMode.DISPATCH.value:            "#fbe94a",  # yellow
-    "Unable to determine":                 "#ff0000",  # grey
+    BasePlant.ControlMode.GRID_IMPORT:        "#fa6be0",  # pink
+    BasePlant.ControlMode.PARTIAL_GRID_IMPORT: "#ffb7ed", # lighter pink
+    BasePlant.ControlMode.SELF_CONSUMPTION:   "#a6ebfc",  # blue
+    BasePlant.ControlMode.SOLAR_TO_LOAD:      "#D6FFA4",  # lighter green
+    BasePlant.ControlMode.EXPORT_EXCESS_SOLAR: "#7efd1d",  # green
+    BasePlant.ControlMode.EXPORT_ALL_SOLAR:   "#02d938",  # dark green
+    BasePlant.ControlMode.DISPATCH:            "#fbe94a",  # yellow
+    "Unable to determine":                 "#ff0000",  # red
 }
 
 def contiguous_segments(values):
@@ -321,15 +323,16 @@ def plot_mpc_results(st, output):
         line=dict(color="orange", shape="hv")
     ), row=1, col=1, secondary_y=False)
 
-    ev_charging_power = output.get("ev_charging_power")
-    if ev_charging_power is not None:
-        fig.add_trace(go.Scatter(
-            x=time_index,
-            y=round_list(ev_charging_power),
-            name="EV Charger (kW)",
-            line=dict(color="#8e44ad", width=2, shape="hv")
-        ), row=1, col=1, secondary_y=False)
-
+    # Add traces for optional loads (power)
+    if "optional_loads" in output:
+        for load_name, load_data in output["optional_loads"].items():
+            if "power" in load_data and load_data["power"] is not None:
+                fig.add_trace(go.Scatter(
+                    x=time_index,
+                    y=round_list(load_data["power"]),
+                    name=f"{load_name} Power (kW)",
+                    line=dict(width=2, shape="hv") # Color will be assigned by Plotly default
+                ), row=1, col=1, secondary_y=False)
     fig.add_trace(go.Scatter(
         x=time_index,
         y=round_list(output["solar_forecast"]),
@@ -410,16 +413,27 @@ def plot_mpc_results(st, output):
         fig.add_hline(y=soc_max, row=2, col=1, line_dash="dash", line_color="red")
 
 
-    # ===============================
-    # BOTTOM: EV SOC (if present)
-    # ===============================
-    if output.get("ev_soc_percent") is not None:
-        fig.add_trace(go.Scatter(
-            x=time_index,
-            y=round_list(output["ev_soc_percent"][:-1]),
-            name="EV SOC (%)",
-            line=dict(color="blue")
-        ), row=2, col=1, secondary_y=True)
+    # Add traces for optional loads (SOC)
+    if "optional_loads" in output:
+        for load_name, load_data in output["optional_loads"].items():
+            if "soc_percent" in load_data and load_data["soc_percent"] is not None:
+                # SOC arrays have N+1 elements, so slice to N elements for plotting against time_index
+                fig.add_trace(go.Scatter(
+                    x=time_index,
+                    y=round_list(load_data["soc_percent"][:-1]),
+                    name=f"{load_name} SOC (%)",
+                    line=dict(shape="hv") # Color will be assigned by Plotly default
+                ), row=2, col=1, secondary_y=True)
+
+            if "temp_c" in load_data and load_data["temp_c"] is not None:
+                # Add temperature trace on secondary Y axis
+                fig.add_trace(go.Scatter(
+                    x=time_index,
+                    y=round_list(load_data["temp_c"][:-1]),
+                    name=f"{load_name} Temp (°C)",
+                    line=dict(dash="dot", width=2),
+                    hovertemplate="%{y:.1f} °C<extra></extra>"
+                ), row=2, col=1, secondary_y=True)
 
     # ===============================
     # AXES LIMITS (soft defaults)
@@ -445,7 +459,7 @@ def plot_mpc_results(st, output):
     )
 
     fig.update_yaxes(
-        title_text="EV SOC (%)",
+        title_text="Device SOC (%)",
         range=[0, 101],
         autorange=False,
         row=2, col=1, secondary_y=True

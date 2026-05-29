@@ -1,38 +1,62 @@
-import math
-
 import numpy as np
 import cvxpy as cp
 from datetime import datetime, timedelta
-from zoneinfo import ZoneInfo
+#from zoneinfo import ZoneInfo
 import time
 from energy_controller import ControlMode
+import logging
 from mpc_logger import logger
 import warnings
 
 import json
+from plants.base_plant import BasePlant
+from exceptions import MPCEnergyError, MQTTAuthenticationError, MQTTConnectionError
 import paho.mqtt.client as mqtt
 import const
 import config_manager
-from helper_functions import round_minutes
+import loads.optional_loads
+import data_helpers
+
+mqtt_conn_result = None
+def on_connect(client, userdata, flags, rc, properties=None):
+    global mqtt_conn_result
+    mqtt_conn_result = rc
 
 mqtt_client = mqtt.Client()
+mqtt_client.on_connect = on_connect
 mqtt_client.username_pw_set(config_manager.MQTT_USER, config_manager.MQTT_PASS) 
-mqtt_client.connect(const.MQTT_HOST, const.MQTT_PORT)
-mqtt_client.loop_start()
+
+try:
+    mqtt_client.connect(const.MQTT_HOST, const.MQTT_PORT)
+    mqtt_client.loop_start()
+    
+    # Wait for the CONNACK response from the broker to verify credentials
+    wait_start = time.time()
+    while mqtt_conn_result is None and time.time() - wait_start < 5:
+        time.sleep(0.1)
+        
+    if mqtt_conn_result is not None and mqtt_conn_result != 0:
+        if mqtt_conn_result == 4:
+            raise MQTTAuthenticationError("MQTT Authentication Error: Connection refused (bad username or password). Please check your MQTT credentials in the add-on configuration.")
+        elif mqtt_conn_result == 5:
+            raise MQTTAuthenticationError("MQTT Authentication Error: Connection refused (not authorized).")
+        else:
+            raise MQTTConnectionError(f"MQTT Connection Error: Broker refused connection with return code {mqtt_conn_result}.")
+            
+except Exception as e:
+    if isinstance(e, MPCEnergyError):
+        raise e
+    # Catch connection errors (like DNS failure) and provide a helpful message
+    raise MPCEnergyError(f"Failed to connect to the MQTT broker at '{const.MQTT_HOST}:{const.MQTT_PORT}'. "
+                         f"Please ensure the Mosquitto broker is running and the hostname is correct. Error: {e}") from e
 
 class MPC:
-    EV_MODE_DISABLED = "Charging Disabled"
-    EV_MODE_SOLAR_SMART = "Solar Smart"
-    EV_MODE_READY_BY_TIME = "Ready by Time"
-    EV_MODE_FORCE_ON = "Force On"
-
-    def __init__(self, ha, plant, EC, local_tz, demand_tarrif, retailer, ha_mqtt=None):
+    def __init__(self, ha, plant: BasePlant, local_tz, demand_tarrif, retailer, optional_loads: list[loads.optional_loads.OptionalLoad]):
         self.plant = plant
         self.ha = ha
-        self.EC = EC
         self.local_tz = local_tz
         self.retailer = retailer
-        self.ha_mqtt = ha_mqtt
+        self.optional_loads = optional_loads
 
         self.power_threshold = 0.2 # Threshold when comparing power values
 
@@ -61,24 +85,6 @@ class MPC:
         self.charge_maintain_reward = 0.01 / (self.forecast_hrs*self.steps_per_hr*self.battery_capacity) # $/kWh / interval reward for maintaining higher SOC throughout the day, currently equates to 1c total over the whole day
         self.demand_tarrif = demand_tarrif # True if the selected site has a demand tarrif applied
         self.current_effective_price = 0 # Set to zero until we run an optimisation and determine the current effective price based on the MPC plan and current conditions
-        
-        self.ev_configured = False if(config_manager.ev_soc_entity_id == '') else True
-
-        if(self.ev_configured):
-            self.target_ev_charge_rate = 0 # Target EV charge rate in kW, updated based on the MPC plan and current conditions
-            self.ev_charge_reward = max(float(config_manager.ev_charge_reward_cents_per_kwh), 0.0) / 100.0
-            self.ev_charge_reward += self.grid_import_penalty_cost
-
-            self.ev_battery_capacity_kwh = max(float(getattr(self.plant, "ev_battery_capacity_kwh", 0.0)), 0.0)
-            self.ev_min_soc_target = (min(max(float(config_manager.ev_min_soc), 0.0), 100.0) / 100.0) * self.ev_battery_capacity_kwh
-            self.ev_max_soc_target = (min(max(float(config_manager.ev_max_soc), 0.0), 100.0) / 100.0) * self.ev_battery_capacity_kwh  
-            self.ev_charging_mode = str(getattr(config_manager, "ev_charging_mode", self.EV_MODE_SOLAR_SMART))
-            self.ev_full_by_time = self.ha_mqtt.ready_by_time_selector.state if (self.ha_mqtt is not None and hasattr(self.ha_mqtt, "ready_by_time_selector")) else self.ev_full_by_time
-
-            logger.debug(f"EV configured with: Charge Reward: {self.ev_charge_reward} $/kWh (grid import cost added). EV Min SOC Target: {self.ev_min_soc_target} kWh, EV Max SOC Target: {self.ev_max_soc_target} kWh, EV Charging Mode: {self.ev_charging_mode}, EV Full by Time: {self.ev_full_by_time}")
-            
-            self.ev_soc_init = (getattr(self.plant, "ev_soc", 0.0) / 100.0) * self.ev_battery_capacity_kwh
-            self.ev_charge_maintain_reward = 0.20 / (self.forecast_hrs*self.steps_per_hr*(self.ev_battery_capacity_kwh - self.ev_soc_init)) # $/kWh / interval reward for maintaining higher SOC throughout the day, currently equates to 10c total over the whole day
 
         # User configured values
         self.battery_min_export_cost = config_manager.battery_discharge_cost/100  # $/kWh (Export will only occour ABOVE this value)
@@ -128,7 +134,7 @@ class MPC:
         
         now = datetime.now(self.local_tz).replace(second=0, microsecond=0)
 
-        sim_start = round_minutes(time=now, nearest_minute=5) # Round the sim start time to the nearest 5 minutes to ensure the time steps align with the forecast data
+        sim_start = data_helpers.round_minutes(time=now, nearest_minute=5) # Round the sim start time to the nearest 5 minutes to ensure the time steps align with the forecast data
         #morning_cutoff = sim_start.replace(hour=6, minute=0)
         #horizon_end = morning_cutoff + timedelta(days=3)  # 3 mornings from now
         horizon_end = sim_start + timedelta(hours=72) # Default to 72 hours from now
@@ -139,20 +145,16 @@ class MPC:
         self.N_5min = max(1, int(horizon_seconds // (5 * 60)))
         self.forecast_hrs = self.N_5min * self.dt_5min
 
-        if(self.ev_configured):
-            self.ev_charge_48hr_reward = np.zeros(int(self.N_5min), dtype=float)
-            self.ev_charge_48hr_reward[:int(self.steps_per_hr*48)] = self.ev_charge_reward # Only reward EV charging in the first 48 hrs to avoid charging near the end of the forecast horizon.
-
-        logger.debug(
-            f"MPC forecast horizon set to {round(self.forecast_hrs, 2)} hrs "
-            f"({self.N_5min}x5min) segments from {self.sim_start.strftime('%Y-%m-%d %H:%M %Z')} "
-            f"to {self.sim_end.strftime('%Y-%m-%d %H:%M %Z')}"
-        )
+        # logger.debug(
+        #     f"MPC forecast horizon set to {round(self.forecast_hrs, 2)} hrs "
+        #     f"({self.N_5min}x5min) segments from {self.sim_start.strftime('%Y-%m-%d %H:%M %Z')} "
+        #     f"to {self.sim_end.strftime('%Y-%m-%d %H:%M %Z')}"
+        # )
              
     def update_limits(self):
         # Battery Settings
         self.battery_capacity = self.plant.rated_capacity  # kWh
-        self.soc_min = self.plant.kwh_backup_buffer
+        self.soc_min = self.plant.backup_buffer_kwh
         self.soc_max = self.battery_capacity
         
         self.solar_dc_max = self.plant.max_pv_power             # kW (DC limit for MPPTs)
@@ -166,20 +168,20 @@ class MPC:
     def update_values(self, amber_data, time_index, inject_real_values = True):
         self.update_limits() # Update the limits in case the user has changed any config values that affect the limits since the last update
         
-        current_soc = (self.plant.battery_soc / 100)*self.soc_max
+        current_soc = (self.plant.battery_soc_percent / 100)*self.soc_max
         self.soc_init = min(max(current_soc, self.soc_min), self.soc_max) #constrain the soc to within limits to stop solver from doing weird stuff
 
         # ---------- Historical Data ---------- 
         #self.historical_data = self.plant.historical_data(hours=6) # Get the last 6 hours of historical data (Primarily used for displaying historical data on plot)
         self.historical_data = self.plant.historical_data(hours=0.25)
         self.daily_profit = self.plant.daily_net_profit
-        
+
         # ---------- Forecasts ----------
-        # Load Forecast
+        # Load Forecast - already debiased from optional loads
         load_power_states = self.plant.forecast_load_power(
             forecast_hours_from_now=self.forecast_hrs,
             forecast_start_time=self.sim_start,
-            forecast_end_time=self.sim_end,
+            forecast_end_time=self.sim_end
         )
         
         self.load_5min = [powerstate.avg_state*(1+self.load_inflation_percentage/100.0) for powerstate in load_power_states]
@@ -194,13 +196,17 @@ class MPC:
         # Inject the current real load and solar values into the sim
         if(inject_real_values):
             # Inject the avg of the last 5 minutes of solar and load power
-            self.solar_5min[0] = (self.solar_5min[0] + self.historical_data["solar_power"][-1]) / 2 # Avgerage the last 5 minutes of solar with the forecast to make a more realistic value for the current timestep
-            current_ev_kw = 0
-            if("ev_power" in self.historical_data and len(self.historical_data["ev_power"]) > 0):
-                current_ev_kw = max(self.historical_data["ev_power"][-1], 0.0)
-                self.load_5min[0] = max(self.historical_data["load_power"][-1] - current_ev_kw, 0.0) # Remove EV power from load to avoid load-estimation feedback.
-            else:
-                self.load_5min[0] = self.historical_data["load_power"][-1]
+            self.solar_5min[0] = (self.solar_5min[0] + (self.historical_data["solar_power"][-1] if self.historical_data["solar_power"] else self.solar_5min[0])) / 2 # Avgerage the last 5 minutes of solar with the forecast to make a more realistic value for the current timestep
+            self.load_5min[0] = self.historical_data["load_power"][-1]
+            for load in self.optional_loads:
+                try:  
+                    if(load.debias_load):
+                        opt_load_history = load.get_historical_power(hours=0.25)
+                        opt_load_recent_avg = opt_load_history[0].avg_state if opt_load_history and len(opt_load_history) > 0 and opt_load_history[0].avg_state is not None else 0.0
+                        self.load_5min[0] = self.load_5min[0] - opt_load_recent_avg
+                except Exception as e:
+                    logger.warning(f"Failed to debias optional load '{load.name}' from the load forecast. Error: {e}")
+            
             # Apply near-term correction to load forecast based on current actual-vs-forecast mismatch.
             # This scales early intervals by the current ratio and linearly ramps back to 100% forecast.
             #self.load_5min = self.apply_load_mismatch_ramp(self.load_5min)
@@ -302,61 +308,7 @@ class MPC:
             adjusted_forecast[i] = adjusted_forecast[i] * factor
 
         return adjusted_forecast
-    
-    def _normalise_ev_mode(self):
-        mode = str(self.ev_charging_mode).strip()
-        if(self.ha_mqtt is not None and hasattr(self.ha_mqtt, "ev_charging_mode_selector")):
-            selected_mode = self.ha_mqtt.ev_charging_mode_selector.state
-            if(selected_mode is not None and str(selected_mode).strip() != ""):
-                mode = str(selected_mode).strip()
-        allowed_modes = {
-            self.EV_MODE_DISABLED,
-            self.EV_MODE_SOLAR_SMART,
-            self.EV_MODE_READY_BY_TIME,
-            self.EV_MODE_FORCE_ON,
-        }
-        if(mode not in allowed_modes):
-            logger.warning(f"Unknown EV charging mode '{mode}', defaulting to '{self.EV_MODE_SOLAR_SMART}'.")
-            mode = self.EV_MODE_SOLAR_SMART
-        return mode
-
-    def build_ev_ready_by_time_min_soc_mask(self, time_index):
-        self.ev_full_by_time = self.ha_mqtt.ready_by_time_selector.state if (self.ha_mqtt is not None and hasattr(self.ha_mqtt, "ready_by_time_selector")) else self.ev_full_by_time
-
-        required_mask = np.zeros(int(self.N_5min), dtype=float)
-        if(self.ev_battery_capacity_kwh <= 0):
-            return required_mask
-
-        try:
-            full_hour, full_minute = [int(v) for v in self.ev_full_by_time.split(":")]
-            target_clock = datetime.now(self.local_tz).replace(
-                hour=full_hour,
-                minute=full_minute,
-                second=0,
-                microsecond=0,
-            )
-        except Exception:
-            logger.warning(f"Invalid ev_full_by_time '{self.ev_full_by_time}'. Expected HH:MM, defaulting to 07:00.")
-            target_clock = datetime.now(self.local_tz).replace(hour=7, minute=0, second=0, microsecond=0)
-
-        if(target_clock < self.sim_start):
-            target_clock = target_clock + timedelta(days=1)
-
-        hours_until_target = (target_clock - self.sim_start).total_seconds() / 3600
-        energy_needed = self.ev_max_soc_target - self.ev_soc_init
-        charge_duration_at_max_rate = energy_needed / self.ev_max_charge_power if self.ev_max_charge_power > 0 else float('inf')
-        logger.debug(f"EV charge-by time: {target_clock.strftime('%Y-%m-%d %H:%M')}, which is {hours_until_target:.2f} hours from sim start. Energy needed: {energy_needed:.2f} kWh, Charge duration at max rate: {charge_duration_at_max_rate:.2f} hours.")
-        if(hours_until_target < charge_duration_at_max_rate):
-            logger.warning(f"Target ready-by time of {target_clock.strftime('%H:%M')} is only {hours_until_target:.2f} hours away, which is less than the {charge_duration_at_max_rate:.2f} hours required to fully charge the EV at max rate. The MPC will attempt to charge as much as possible by the target time, but may not reach full charge.")
-            target_clock = target_clock + timedelta(hours=charge_duration_at_max_rate - hours_until_target) # Adjust the target clock to account for the time needed to charge
-
-        hold_end = target_clock + timedelta(hours=1)
-        for idx, step_time in enumerate(time_index):
-            if(target_clock <= step_time <= hold_end):
-                required_mask[idx] = self.ev_max_soc_target
-
-        return required_mask
-    
+   
     def build_optimisation_template(self):
         n = int(self.N_5min)
 
@@ -368,8 +320,6 @@ class MPC:
         self.solar_curtail = cp.Variable(n, nonneg=True)
         self.grid_import = cp.Variable(n, nonneg=True)
         self.grid_export = cp.Variable(n, nonneg=True)
-        self.ev_soc = cp.Variable(n + 1)
-        self.p_ev = cp.Variable(n, nonneg=True)
         self.peak_demand = cp.Variable(nonneg=True)
         self.inverter_power = cp.Variable(n)
 
@@ -412,112 +362,39 @@ class MPC:
         ]
         
 
-        objective_list = (
+        objective_list = [
             cp.multiply(self.grid_import, self.price_buy_param) * self.dt_5min
             - cp.multiply(self.grid_export, self.price_sell_param) * self.dt_5min
             + cp.multiply(self.grid_import, self.grid_import_penalty_cost) * self.dt_5min
             + cp.multiply(self.battery_min_export_cost, self.p_discharge) * self.dt_5min
             - cp.multiply(self.charge_maintain_reward, self.soc[0:-1])
             - cp.multiply(self.full_battery_reward, cp.multiply(self.solar_eod_reward_mask_param, self.soc[0:-1]))
-        )
+        ]
 
-        if(self.ev_configured):
-            # EV Parameters
-            self.ev_p_max_param = cp.Parameter(n, nonneg=True, name="ev_p_max")
-            self.ev_soc_init_param = cp.Parameter(nonneg=True, name="ev_soc_init")
-            self.ev_soc_upper_limit_param = cp.Parameter(nonneg=True, name="ev_soc_upper_limit")
-            self.ev_soc_min_required_param = cp.Parameter(n, nonneg=True, name="ev_soc_min_required")
+        total_load = self.load_forecast_param
+        mpc_instace = self
+        for load in self.optional_loads:
+            try:
+                l_constraints, l_objective_term, l_p_var = load.build_cvxpy(mpc_instace)
+                constraints += l_constraints
+                objective_list.append(l_objective_term)
+                total_load += l_p_var
+            except Exception as e:
+                logger.warning(f"Failed to build CVXPY expressions for optional load '{load.name}'. Error: {e}")
 
-            constraints += [
-                self.grid_import + self.inverter_power == self.load_forecast_param + self.p_ev + self.grid_export,
 
-                self.ev_soc[0] == self.ev_soc_init_param,
-                self.ev_soc[1:] == self.ev_soc[:-1] + (self.dt_5min * self.p_ev), # EV SOC in kWh, p_ev in kW, dt in hours.
-                self.ev_soc[1:] >= 0, # Don't allow negative SOC
-                self.ev_soc[1:] <= self.ev_soc_upper_limit_param,
-                self.ev_soc[1:] >= self.ev_soc_min_required_param, # Ensure that minimum soc is met for time based charging. 
-                
-                self.p_ev >= 0, # EV charge power must be positive (no discharging the EV)
-                self.p_ev <= self.ev_p_max_param,
-                self.soc[1:] >= self.p_ev * self.dt_5min + self.soc_min_param, # Ensure we have enough energy in the battery to cover the EV charging for one interval if solar drops to zero unexpectedly (add a small buffer to ensure numerical stability)
-            ]
-
-            objective_list += (
-                - cp.multiply(self.ev_charge_48hr_reward, self.p_ev) * self.dt_5min
-                - cp.multiply(self.ev_charge_maintain_reward, self.ev_soc[0:-1]) * self.dt_5min
-            )
-        else:
-            constraints += [
-                self.grid_import + self.inverter_power == self.load_forecast_param + self.grid_export,
-            ]
+        # Add the main power balance constraint after considering all the optional loads. 
+        constraints += [
+            self.grid_import + self.inverter_power == total_load + self.grid_export,
+        ]
 
 
         self.objective_expression = (
-            cp.sum(objective_list)
+            sum(cp.sum(item) for item in objective_list)
             + self.peak_demand * self.demand_peak_price_param # not summed as it's a single peak charge
         )
 
         self.prob = cp.Problem(cp.Minimize(self.objective_expression), constraints)
-
-    def build_ev_min_soc_constraint(self, target_soc, ev_p_max_array):
-        target_soc = max(min(target_soc, self.ev_battery_capacity_kwh), 0.0)
-        ev_soc_min_required_arr = [min(self.ev_soc_init + i*ev_p_max_array[i]*0.95 * self.dt_5min, target_soc) for i in range(int(self.N_5min))] *np.ones(int(self.N_5min), dtype=float) # Force minimum SOC constraint based on max charge rate but allow a slight reductuion to ensure feasibility
-        return ev_soc_min_required_arr
-    
-    def update_ev_values(self, time_index):
-        #self.ev_plugged_in = bool(getattr(self.plant, "ev_plugged_in", False))
-        self.ev_plugged_in = True # Assume the EV is always plugged in for the moment
-
-        self.ev_max_charge_power = max(float(getattr(self.plant, "ev_max_charge_power", 0.0)), 0.0)
-        self.ev_min_charge_power = max(float(getattr(self.plant, "ev_min_charge_power", 0.0)), 0.0)
-        ev_soc_percent = min(max(float(getattr(self.plant, "ev_soc", 0.0) or 0.0), 0.0), 100.0)
-        self.ev_soc_init = (ev_soc_percent / 100.0) * self.ev_battery_capacity_kwh # Set the EV SOC in kWh based on the percentage SOC and battery capacity, default to 0 if not available or invalid
-        self.ev_charge_remaining_kwh = 0.0
-
-        if(self.ev_plugged_in and self.ev_soc_init is not None and self.ev_battery_capacity_kwh > 0 and self.ev_max_charge_power > 0):
-            self.ev_charge_remaining_kwh = max(self.ev_max_soc_target - self.ev_soc_init, 0.0)
-
-        elif(self.ev_plugged_in and self.ev_max_charge_power <= 0):
-            logger.warning("EV is marked as plugged in but EV max charge power is 0. EV charging optimisation will be disabled.")
-        
-        self.ev_soc_init_param.value = float(self.ev_soc_init) if self.ev_soc_init is not None else 0.0
-        ev_charge_mode = self._normalise_ev_mode()
-
-        logger.debug(f"EV Soc: {ev_soc_percent}% Charge Remaining: {self.ev_charge_remaining_kwh} kWh, Charge Mode: {ev_charge_mode}")
-        
-        ev_soc_min_required_arr = np.zeros(int(self.N_5min), dtype=float)
-
-        ev_p_max_arr = np.zeros(int(self.N_5min), dtype=float)
-        if(self.ev_plugged_in and self.ev_max_charge_power > 0):
-            for i, load in enumerate(self.load_5min):
-                max_power = self.grid_import_limit - load # Limit the EV charge rate to ensure the home gateway power limits are not exceeded.
-                min_power = 0.0
-                ev_p_max_arr[i] = max(min_power, min(self.ev_max_charge_power, max_power)) # EV Charge power cannot exceed 70% of the grid import limit + inverter power minus the load to ensure we don't exceed limits when charging at high load times.
-        
-        # If the EV soc is below the minimum soc target, charge asap reguardless of the selected mode. 
-        if(self.ev_soc_init < self.ev_min_soc_target):
-            logger.debug(f"EV SOC of {self.ev_soc_init:.2f} kWh is below the minimum SOC target of {self.ev_min_soc_target:.2f} kWh. The MPC will attempt to charge the EV as soon as possible to reach the minimum SOC target.")
-            ev_soc_min_required_arr = self.build_ev_min_soc_constraint(target_soc=self.ev_min_soc_target, ev_p_max_array=ev_p_max_arr)
-        else:
-            if(ev_charge_mode == self.EV_MODE_SOLAR_SMART):
-                pass # No minimum SOC constraint, let the optimiser decide when to charge based on the solar forecast and prices.
-            elif(ev_charge_mode == self.EV_MODE_READY_BY_TIME):
-                ev_soc_min_required_arr = self.build_ev_ready_by_time_min_soc_mask(time_index)
-            elif(ev_charge_mode == self.EV_MODE_FORCE_ON):
-                ev_soc_min_required_arr = self.build_ev_min_soc_constraint(target_soc=self.ev_max_soc_target, ev_p_max_array=ev_p_max_arr)
-                logger.debug("EV Force On Mode Active. required SOC array: " + str(ev_soc_min_required_arr))
-            else:  # Charging Disabled
-                ev_p_max_arr = np.zeros(int(self.N_5min), dtype=float) # No charging allowed, set max power to 0
-        
-        # NOTE:
-        # A strict per-interval "p_ev == 0 OR p_ev >= min" rule is non-convex and would
-        # require mixed-integer optimisation for every 5-minute step.
-        # Keep optimisation convex by using [0, max] in normal modes and an explicit
-        # force-on mask for modes that should pin EV charging to maximum.
-
-        self.ev_p_max_param.value = ev_p_max_arr
-        self.ev_soc_upper_limit_param.value = max(float(self.ev_max_soc_target), 0.0)
-        self.ev_soc_min_required_param.value = ev_soc_min_required_arr
 
     def run_optimisation(self, amber_data):
         start_optimisation = time.time()
@@ -528,7 +405,11 @@ class MPC:
         time_index = [now + timedelta(minutes=5 * i) for i in range(int(self.N_5min))]
 
         self.update_values(amber_data, time_index)
-        if(self.ev_configured): self.update_ev_values(time_index)
+        for load in self.optional_loads:
+            try:
+                load.update_mpc_values(self, time_index)
+            except Exception as e:
+                logger.warning(f"Failed to update optional load '{load.name}'s values for MPC. Error: {e}")
 
         #logger.error("Messing with prices!!")
         #self.prices_sell[180:] = 0.02 # Allow testing of various pricings
@@ -609,19 +490,56 @@ class MPC:
         # Prefer ECOS for speed, but fall back to CLARABEL when ECOS reports an
         # inaccurate solution to avoid propagating unstable plans.
         ecos_inaccurate = False
-        with warnings.catch_warnings(record=True) as caught_warnings:
-            warnings.simplefilter("always", UserWarning)
-            self.prob.solve(solver=cp.ECOS, warm_start=True, max_iters=300) # Increased max iters to allow more time for solving
-            ecos_inaccurate = any("Solution may be inaccurate" in str(w.message) for w in caught_warnings)
+        def solve(self, verbose=False):
 
-        if self.prob.status == "optimal_inaccurate" or ecos_inaccurate:
-            logger.warning(
-                f"ECOS returned {self.prob.status} (inaccurate={ecos_inaccurate}); retrying with CLARABEL."
-            )
-            self.prob.solve(solver=cp.CLARABEL, warm_start=True)
+            with warnings.catch_warnings(record=True) as caught_warnings:
+                warnings.simplefilter("always", UserWarning)
+                self.prob.solve(solver=cp.ECOS, warm_start=True, max_iters=300, verbose=verbose) # Increased max iters to allow more time for solving
+                ecos_inaccurate = any("Solution may be inaccurate" in str(w.message) for w in caught_warnings)
+
+            if self.prob.status == "optimal_inaccurate" or ecos_inaccurate:
+                logger.warning(
+                    f"ECOS returned {self.prob.status} (inaccurate={ecos_inaccurate}); retrying with CLARABEL."
+                )
+                self.prob.solve(solver=cp.CLARABEL, warm_start=True, verbose=verbose)
+
+        solve(self)
 
         # Don't continue if the solver failed
         if self.prob.status not in ("optimal", "optimal_inaccurate"):
+            # Log parameter state to help debug infeasibility
+            logger.error(f"MPC solve failed with status: {self.prob.status}. Dumping parameters...")
+            logger.error(f"  soc_init: {self.soc_init_param.value:.4f}")
+            logger.error(f"  soc_min: {self.soc_min_param.value:.4f}")
+            logger.error(f"  soc_max: {self.soc_max_param.value:.4f}")
+            logger.error(f"  grid_import_limit: {self.grid_import_limit_param.value}")
+            logger.error(f"  p_max_charge: {self.p_max_charge_param.value}")
+            logger.error(f"  p_max_discharge: {self.p_max_discharge_param.value}")
+            
+            for load in self.optional_loads:
+                if hasattr(load, 'soc_init_param') and load.soc_init_param.value is not None:
+                    logger.error(f"  Optional Load '{load.name}':")
+                    logger.error(f"    soc_init: {load.soc_init_param.value:.4f}")
+                    if hasattr(load, 'soc_min_required_param') and load.soc_min_required_param.value is not None:
+                        logger.error(f"    soc_min_req[0]: {load.soc_min_required_param.value[0]:.4f}")
+                    if hasattr(load, 'p_max_param') and load.p_max_param.value is not None:
+                        logger.error(f"    p_max_param[0]: {load.p_max_param.value[0]:.4f}")
+            
+            logger.error("Solver failed, dumping first 10 values of key parameters for debugging:")
+            for i in range(min(10, int(self.N_5min))):
+                logger.error(
+                    f"  Index {i}: solar={self.solar_forecast_param.value[i]:.2f}, "
+                    f"load={self.load_forecast_param.value[i]:.2f}, "
+                    f"price_buy={self.price_buy_param.value[i]:.4f}, "
+                    f"price_sell={self.price_sell_param.value[i]:.4f}, "
+                    f"demand_mask={self.demand_mask_param.value[i]}, "
+                    f"solar_eod_reward_mask={self.solar_eod_reward_mask_param.value[i]}"
+                )
+            
+            
+            logger.info("Running Solver again in verbose mode to get more details on the failure...")
+            solve(self, verbose=True)
+            
             raise RuntimeError(f"MPC solve failed: {self.prob.status}")
         
         else: # Sim successfull 
@@ -667,43 +585,20 @@ class MPC:
             solar_forecast_power = [round(x, 2) for x in self.solar_5min]
             solar_used_power = [round(x, 2) for x in self.solar_used.value.tolist()]
 
-            if(self.ev_configured):
-                ev_power = [round(x, 2) for x in self.p_ev.value.tolist()]
-                ev_soc_percent = [round((x / self.ev_battery_capacity_kwh)*100, 2) for x in self.ev_soc.value.tolist()]
-                load_power = [round(load+ev_power, 2) for load, ev_power in zip(self.load_5min, ev_power)] # Add the EV power back into the load for reporting and plotting purposes
-                if(self.ev_min_charge_power > 0):
-                    clipped_count = 0
-                    for i, p in enumerate(ev_power):
-                        if(p > self.power_threshold and p < self.ev_min_charge_power):
-                            ev_power[i] = 0.0
-                            clipped_count += 1
-                    if(clipped_count > 0):
-                        logger.debug(
-                            f"EV plan post-processing snapped {clipped_count} intervals below EV min charge power "
-                            f"({self.ev_min_charge_power} kW) to 0 kW."
-                        )
-                ev_power_constrained = [round(x, 2) for x in ev_power]
-
-
-                if(self._normalise_ev_mode() == self.EV_MODE_FORCE_ON):
-                    self.target_ev_charge_rate = self.ev_max_charge_power # In force on mode, set the target charge rate to the max
-                else:
-                    if ev_power_constrained: # Only set the EV charge rate if the EV power plan exists
-                        self.target_ev_charge_rate = ev_power_constrained[0]
-                        # if battery_soc[0] > self.soc_min + 2:
-                        #     self.target_ev_charge_rate = ev_power_constrained[0]
-                        # else:
-                        #     logger.debug(f"Battery SOC is too low ({battery_soc[0]:.2f} kWh), not charging EV to preserve backup buffer. Adjusting first interval EV charge power from {ev_power_constrained[0]:.2f} kW to 0 kW.")
-                        #     self.target_ev_charge_rate = 0.0
-                        #     ev_power_constrained[0] = 0.0
-
+            load_power = [round(load, 2) for load in self.load_5min]
+            
+            optional_loads_results = {}
+            for load in self.optional_loads:
+                try:
+                    res = load.get_results(self.dt_5min)
+                    if "raw_power" in res:
+                        # Aggregating power for the total site load forecast, using the raw load power that hasn't been clipped
+                        load_power = [round(lp + p, 2) for lp, p in zip(load_power, res["raw_power"])]
                     else:
-                        self.target_ev_charge_rate = 0.0
-            else:
-                ev_power = None
-                ev_soc_percent = None
-                ev_power_constrained = None
-                load_power = [round(load, 2) for load in self.load_5min]
+                        logger.error(f"Optional load '{load.name}' did not return 'raw_power' in results, cannot include in total load forecast. Results returned: {res}")
+                    optional_loads_results[load.name] = res
+                except Exception as e:
+                    logger.warning(f"Failed to get results from optional load '{load.name}'. Error: {e}")
 
             self.profit_remaining_today = round(float(forecast_profit_today), 2)
             self.profit_tomorrow = round(float(forecast_profit_tomorrow), 2)
@@ -727,10 +622,9 @@ class MPC:
                 "solar_forecast": solar_forecast_power,
                 "solar_used": solar_used_power,
                 "load_power": load_power,
-                "ev_charging_power": ev_power_constrained,
-                "ev_soc_percent": ev_soc_percent,
                 "soc_min": self.soc_min,
                 "soc_max": self.soc_max,
+                "optional_loads": optional_loads_results,
             }
             output = self.convert_to_python(output) # Ensure all arrays and data is in the plain python format, ie no numpy
             plan_modes = self.determine_plan_modes(output) # Determine the control mode for each time period
@@ -782,7 +676,7 @@ class MPC:
             return [self.convert_to_python(v) for v in obj]
         return obj
     
-    def determine_control_mode(self, data, increment=0, control_active=True):
+    def determine_control_mode(self, data, increment=0, control_active=True, power_threshold=0.2) -> str:
         inverter_power = data["inverter_power"][increment]
         used_solar_power = data["solar_used"][increment]
         solar_available = data["solar_forecast"][increment]
@@ -790,53 +684,53 @@ class MPC:
         grid_net = data["grid_net"][increment] # if grid_net is positive we are importing power 
         battery_power = data["battery_power"][increment]
 
-        if((approx_equal(inverter_power, used_solar_power) and used_solar_power > load_power + self.power_threshold and grid_net < -self.power_threshold) or (approx_equal(inverter_power, self.plant.max_inverter_power) and used_solar_power > self.plant.max_inverter_power)):
+        if((data_helpers.approx_equal(inverter_power, used_solar_power) and used_solar_power >= load_power + power_threshold and grid_net <= -power_threshold) or (data_helpers.approx_equal(inverter_power, self.plant.max_inverter_power) and used_solar_power > self.plant.max_inverter_power)):
             if(control_active):
-                self.EC.export_all_solar() # Export if all solar is being exported or > max inverter and charging bat with excess
-            return ControlMode.EXPORT_ALL_SOLAR.value
+                self.plant.export_all_solar() # Export if all solar is being exported or > max inverter and charging bat with excess
+            return self.plant.ControlMode.EXPORT_ALL_SOLAR
         
-        elif(approx_equal(inverter_power, load_power) and approx_equal(load_power, used_solar_power) and used_solar_power + self.power_threshold < solar_available):
+        elif(data_helpers.approx_equal(inverter_power, load_power) and data_helpers.approx_equal(load_power, used_solar_power) and used_solar_power + power_threshold <= solar_available):
             if(control_active):
-                self.EC.solar_to_load() # If battery is not charging and solar is being curtailed, send solar straight to load
-            return ControlMode.SOLAR_TO_LOAD.value
+                self.plant.solar_to_load() # If battery is not charging and solar is being curtailed, send solar straight to load
+            return self.plant.ControlMode.SOLAR_TO_LOAD
         
-        elif(approx_equal(inverter_power, load_power) and approx_equal(used_solar_power+battery_power, load_power)):
+        elif(data_helpers.approx_equal(inverter_power, load_power) and data_helpers.approx_equal(used_solar_power+battery_power, load_power)):
             if(control_active):
-                self.EC.self_consumption()
-            return ControlMode.SELF_CONSUMPTION.value                
+                self.plant.self_consumption()
+            return self.plant.ControlMode.SELF_CONSUMPTION                
         
-        elif(inverter_power > used_solar_power + self.power_threshold and inverter_power > load_power + self.power_threshold):
+        elif(inverter_power >= used_solar_power + power_threshold and inverter_power >= load_power + power_threshold):
             if(control_active):
                 export_limit = abs(grid_net)
-                if(approx_equal(inverter_power, self.inverter_p_max)): # If Inverter is at 100% in the plan make sure it is in reality
+                if(data_helpers.approx_equal(inverter_power, self.inverter_p_max)): # If Inverter is at 100% in the plan make sure it is in reality
                     export_limit = self.grid_export_limit
                 
-                self.EC.dispatch(grid_export_limit = export_limit)
-            return ControlMode.DISPATCH.value
+                self.plant.dispatch(grid_export_limit = export_limit)
+            return self.plant.ControlMode.DISPATCH
         
-        elif(grid_net < -self.power_threshold and used_solar_power > inverter_power + self.power_threshold):
+        elif(grid_net <= -power_threshold and used_solar_power >= inverter_power + power_threshold):
             if(control_active):
-                self.EC.export_excess_solar(battery_charge_limit = abs(battery_power))
-            return ControlMode.EXPORT_EXCESS_SOLAR.value
+                self.plant.export_excess_solar(battery_charge_limit = abs(battery_power))
+            return self.plant.ControlMode.EXPORT_EXCESS_SOLAR
         
-        elif(grid_net > self.power_threshold): # if grid_net is positive we are importing power
+        elif(grid_net >= power_threshold and inverter_power > -self.power_threshold):
             if(control_active):
-                if(approx_equal(abs(grid_net), load_power)):
-                    self.EC.import_power(battery_charge_limit = max(-battery_power, 0))
-                elif(approx_equal(-inverter_power, self.inverter_p_max)): # If the plan calls for max charging, set the battery charge limit to the max.
-                    self.EC.import_power(battery_charge_limit = self.p_max_charge, grid_import_limit = self.grid_import_limit)
-                else:   
-                    self.EC.import_power(battery_charge_limit = max(-battery_power, 0), grid_import_limit = abs(grid_net)) # Battery power (- = Charge, + = Discharge)
-            return ControlMode.GRID_IMPORT.value
-        
-        elif(inverter_power < 0 and battery_power < self.power_threshold):
-            if(control_active):
-                self.EC.import_power(battery_charge_limit = max(-battery_power, 0), pv_limit = used_solar_power)
-            return ControlMode.GRID_IMPORT.value
+                self.plant.partial_grid_import() # If the plan calls for grid import but the inverter isn't discharging, use partial grid import mode to allow the inverter to charge the battery with solar if possible to reduce grid import
+            
+            return self.plant.ControlMode.PARTIAL_GRID_IMPORT
 
+
+        elif(grid_net >= power_threshold): # if grid_net is positive we are importing power
+            if(control_active):
+                if(data_helpers.approx_equal(-inverter_power, self.inverter_p_max)): # If the plan calls for max charging, set the battery charge limit to the max.
+                    self.plant.import_power(battery_charge_limit = self.p_max_charge, grid_import_limit = self.grid_import_limit)
+                else:   
+                    self.plant.import_power(battery_charge_limit = None, grid_import_limit = abs(grid_net)) # Battery power (- = Charge, + = Discharge)
+            return self.plant.ControlMode.GRID_IMPORT
+        
         else:
             if(control_active):
-                self.EC.self_consumption()
+                self.plant.self_consumption()
                 error_msg = f"Unable to determine control mode from MPC plan at increment {increment}, time: {data['time_index'][increment]}. Defaulting to self consumption mode. Plan values: inverter_power: {inverter_power}, used_solar_power: {used_solar_power}, solar_available: {solar_available}, load_power: {load_power}, grid_net: {grid_net}, battery_power: {battery_power}, self.plant.max_inverter_power: {self.plant.max_inverter_power}"
                 raise Exception(error_msg) from None
             return "Unable to determine"
@@ -901,38 +795,5 @@ class MPC:
                     return 0
                 
         return general_price_list[0] # Default to current grid price if no significant import or export is occouring
-
-def approx_equal(a, b, threshold = 0.2):
-    return abs(a-b) < threshold
-
-'''
-from amber_api import AmberAPI  
-from ha_api import HomeAssistantAPI
-import ha_mqtt
-from energy_controller import EnergyController
-import PlantControl
-from api_token_secrets import HA_URL, HA_TOKEN, AMBER_API_TOKEN, SITE_ID
-
-
-amber = AmberAPI(AMBER_API_TOKEN, SITE_ID, errors=True)
-
-plant = PlantControl.Plant(HA_URL, HA_TOKEN, errors=True) 
-ha = HomeAssistantAPI(
-        base_url=HA_URL,
-        token=HA_TOKEN,
-        errors=True
-    )
-EC = EnergyController(
-    ha=ha,
-    ha_mqtt=ha_mqtt, 
-    plant=plant,
-)
-
-mpc = MPC(ha, plant, EC)
-
-amber_data = amber.get_data(forecast_hrs=mpc.forecast_hrs)
-
-output = mpc.run_optimisation(amber_data)
-print(mpc.determine_plan_modes(output))
-#mpc.display_results(output)
-'''
+    
+    

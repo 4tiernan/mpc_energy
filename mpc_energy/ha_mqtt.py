@@ -4,6 +4,7 @@ from ha_mqtt_discoverable import Settings, DeviceInfo
 from ha_mqtt_discoverable.sensors import Select, SelectInfo, SensorInfo, Sensor, NumberInfo, Number, Switch, SwitchInfo
 import time
 import const
+import threading
 import config_manager
 from mpc_logger import logger
 
@@ -19,26 +20,144 @@ def uid(name):
 # Define the device. At least one of `identifiers` or `connections` must be supplied
 device_info = DeviceInfo(name="MPC Energy Manager Device", identifiers="mpc-energy-py")
 
+def check_entity_exists(state_topic, broker_host, port=1883, username=None, password=None, timeout=2):
+    """Return True if a retained message exists for this entity, False otherwise."""
+    result = {"exists": False}
+
+    def on_connect(client, userdata, flags, rc):
+        client.subscribe(state_topic)
+
+    def on_message(client, userdata, msg):
+        result["exists"] = True
+        client.disconnect()  # stop after first message
+
+    client = mqtt.Client()
+    if username and password:
+        client.username_pw_set(username, password)
+
+    client.on_connect = on_connect
+    client.on_message = on_message
+
+    try:
+        client.connect(broker_host, port, keepalive=timeout)
+        client.loop_start()
+
+        # wait for message or timeout
+        start = time.time()
+        while time.time() - start < timeout:
+            if result["exists"]:
+                break
+            time.sleep(0.1)
+    except Exception:
+        pass
+
+    client.loop_stop()
+    client.disconnect()
+
+    return result["exists"]
+
+ENTITIES_EXIST = check_entity_exists("homeassistant/switch/MPC-Energy-Manager-Device/Automatic-Control/config", const.MQTT_HOST, const.MQTT_PORT, config_manager.MQTT_USER, config_manager.MQTT_PASS)
 
 def CreateSensor(name, unique_id, unit_of_measurement, state_class="measurement", device_class=None):
-    sensor_info = SensorInfo(name=name, unique_id=uid(unique_id), device=device_info, unit_of_measurement=unit_of_measurement, state_class=state_class, device_class=device_class)
+    sensor_info = SensorInfo(name=name, unique_id=uid(unique_id), device=device_info, unit_of_measurement=unit_of_measurement, state_class=state_class, device_class=device_class, retain=True)
     sensor_settings = Settings(mqtt=mqtt_settings, entity=sensor_info)
     return Sensor(sensor_settings)
 
 class CreateSelectInput():
     def __init__(self, name, unique_id, options):
-        self.state = None
         self.options = options
         self.name = name
         select_info = SelectInfo(name=name, unique_id=uid(unique_id), device=device_info, options=options, device_class=None,retain=True)
         settings = Settings(mqtt=mqtt_settings, entity=select_info)
+        
+        # Initialize self.state with a default (first option)
+        # This will be used if no retained message is found or if it's invalid
+        self.state = options[0]
+
+        # Create the Select entity, which also sets up its MQTT client and subscription
+        # The command_callback will handle future commands from HA
         self.entity = Select(settings, self.callback_function)
-        self.entity.select_option(options[0])
+        
+        if ENTITIES_EXIST:
+            # Attempt to read the retained state from the MQTT broker for this entity's state_topic
+            # This needs to happen *after* self.entity is initialized, as it provides state_topic
+            retained_state = self._get_retained_state_for_select(self.entity.state_topic, self.options, self.state)
+            
+            # Update internal state based on retained message, if found and valid
+            if retained_state in self.options:
+                self.state = retained_state
+            else:
+                # Log a warning if the retained state is invalid, but proceed with the default
+                logger.warning(f"Retained state '{retained_state}' for select entity '{self.name}' is not a valid option. Defaulting to '{self.state}'.")
+
+        # Publish the determined initial state to HA. This ensures HA's displayed state
+        # matches the app's internal state, and updates any invalid retained messages.
+        self.publish_state(self.state)
         self.entity.write_config()
         
+    def _get_retained_state_for_select(self, state_topic, valid_options, default_value, timeout=2):
+        """
+        Connects a temporary MQTT client to read the retained message on a given state_topic.
+        Returns the decoded payload if found and valid, otherwise the default_value.
+        """
+        retained_payload = {"value": default_value}
+        connected_flag = threading.Event()
+        message_received_flag = threading.Event()
+        
+        temp_client = mqtt.Client(client_id=f"temp_reader_select_{time.time_ns()}")
+        if mqtt_settings.username and mqtt_settings.password:
+            temp_client.username_pw_set(mqtt_settings.username, mqtt_settings.password)
+
+        def on_message_temp(client, userdata, msg):
+            retained_payload["value"] = msg.payload.decode()
+            message_received_flag.set()
+            client.loop_stop() # Stop the loop after receiving the message
+            client.disconnect()
+
+        def on_connect_temp(client, userdata, flags, rc, properties=None):
+            if rc == 0:
+                client.subscribe(state_topic)
+                connected_flag.set()
+            else:
+                logger.error(f"Failed to connect temporary MQTT client (rc: {rc}) to read retained state for {state_topic}.")
+                client.loop_stop()
+                client.disconnect()
+
+        temp_client.on_connect = on_connect_temp
+        temp_client.on_message = on_message_temp
+
+        try:
+            temp_client.connect(mqtt_settings.host, mqtt_settings.port, keepalive=timeout)
+            temp_client.loop_start() # Start a non-blocking loop
+            
+            # Wait for connection
+            if not connected_flag.wait(timeout=timeout):
+                logger.warning(f"Temporary MQTT client failed to connect within {timeout}s for {state_topic}.")
+                return default_value # Return default if not connected
+            
+            # Wait for message
+            if not message_received_flag.wait(timeout=timeout):
+                logger.debug(f"No retained message received within {timeout}s for {state_topic}. Using default.")
+            
+        except Exception as e:
+            logger.error(f"Error reading retained state for {state_topic}: {e}")
+        finally:
+            # Ensure client is stopped and disconnected
+            if temp_client.is_connected():
+                temp_client.disconnect()
+            temp_client.loop_stop() # Ensure loop is stopped even if message not received
+            
+        return retained_payload["value"]
+
     def callback_function(self, client: Client, user_data, message: MQTTMessage):
-        self.state = message.payload.decode()
-        self.entity.select_option(self.state)
+        # This callback is for commands from HA to change the select option
+        new_state = message.payload.decode()
+        if new_state in self.options:
+            self.set_state(new_state, publish_command=False) # Update internal state and publish to HA
+        else:
+            logger.warning(f"Received invalid command '{new_state}' for select entity '{self.name}'. Valid options: {self.options}. Ignoring command.")
+            # Optionally, publish the current valid state back to HA to correct its display
+            self.publish_state(self.state)
     
     def publish_command(self, command):
         command_topic = getattr(self.entity, "_command_topic", None)
@@ -49,15 +168,25 @@ class CreateSelectInput():
         else:
             logger.warning(f"Unable to publish command for {self.name}: missing MQTT command topic/client")
 
+    def publish_state(self, state):
+        state_topic = getattr(self.entity, "state_topic", None)
+        mqtt_client = getattr(self.entity, "mqtt_client", None)
+
+        if state_topic is not None and mqtt_client is not None:
+            mqtt_client.publish(state_topic, payload=state, qos=0, retain=True)
+        else:
+            logger.warning(f"Unable to publish state for {self.name}: missing MQTT state topic/client")
+            logger.warning(f"Unable to publish command for {self.name}: missing MQTT command topic/client")
+
         
-    def set_state(self, state, publish_command=False):
+    def set_state(self, state, publish_command=True):
         if(state in self.options):
             if publish_command:
                 self.publish_command(state)
-            self.entity.select_option(state)
+            self.publish_state(state)
             self.state = state
         else:
-            raise(f"{state} option is not a valid option: {self.options} for {self.name} selector")
+            raise ValueError(f"{state} option is not a valid option: {self.options} for {self.name} selector")
 
 
 class CreateNumberInput():
@@ -278,6 +407,7 @@ control_mode_override_selector = CreateSelectInput(
         "Exporting All Solar",
         "Dispatching",
         "Grid Import",
+        "Partial Grid Import",
         "Solar To Load"
     ]
 )
@@ -286,56 +416,6 @@ control_mode_override_duration_selector = CreateSelectInput(
     name="Control Mode Override Duration",
     unique_id="control_mode_override_duration",
     options=["5", "15", "30", "60", "120", "240", "360", "Till Price Change"]
-)
-
-ev_charging_mode_selector = CreateSelectInput(
-    name="EV Charging Mode",
-    unique_id="ev_charging_mode",
-    options=[
-        "Charging Disabled",
-        "Solar Smart",
-        "Ready by Time",
-        "Force On",
-    ]
-)
-
-
-ready_by_time_selector = CreateSelectInput(
-    name="EV Ready By Time",
-    unique_id="ev_ready_by_time",
-    options=[
-        "NA",
-        "00:00", "00:30",
-        "01:00", "01:30",
-        "02:00", "02:30",
-        "03:00", "03:30",
-        "04:00", "04:30",
-        "05:00", "05:30",
-        "06:00", "06:30",
-        "07:00", "07:30",
-        "08:00", "08:30",
-        "09:00", "09:30",
-        "10:00", "10:30",
-        "11:00", "11:30",
-        "12:00", "12:30",
-        "13:00", "13:30",
-        "14:00", "14:30",
-        "15:00", "15:30",
-        "16:00", "16:30",
-        "17:00", "17:30",
-        "18:00", "18:30",
-        "19:00", "19:30",
-        "20:00", "20:30",
-        "21:00", "21:30",
-        "22:00", "22:30",
-        "23:00", "23:30"
-    ]
-)
-
-target_ev_charge_rate_sensor = CreateSensor(
-    name = "Target EV Charge Rate",
-    unique_id="target_ev_charge_rate",
-    unit_of_measurement="kW"
 )
 
 def initalise_entities(): # Initalise entities and get them discovered by the ha mqtt service
@@ -365,51 +445,10 @@ def initalise_entities(): # Initalise entities and get them discovered by the ha
     control_mode_override_duration_selector.set_state("15")
     curtailment_status_sensor.set_state(0)
     curtailment_reason_sensor.set_state("None")
-    target_ev_charge_rate_sensor.set_state(0)
-    ev_charging_mode_selector.set_state("Solar Smart")
-    ready_by_time_selector.set_state("NA")
 
     time.sleep(10)
 
-
-
-def check_entity_exists(state_topic, broker_host, port=1883, username=None, password=None, timeout=5):
-    """Return True if a retained message exists for this entity, False otherwise."""
-    result = {"exists": False}
-
-    def on_connect(client, userdata, flags, rc):
-        client.subscribe(state_topic)
-
-    def on_message(client, userdata, msg):
-        result["exists"] = True
-        client.disconnect()  # stop after first message
-
-    client = mqtt.Client()
-    if username and password:
-        client.username_pw_set(username, password)
-
-    client.on_connect = on_connect
-    client.on_message = on_message
-
-    client.connect(broker_host, port, keepalive=timeout)
-    client.loop_start()
-
-    # wait for message or timeout
-    start = time.time()
-    while time.time() - start < timeout:
-        if result["exists"]:
-            break
-        time.sleep(0.1)
-
-
-    client.loop_stop()
-    client.disconnect()
-
-    return result["exists"]
-
-state_topic = "homeassistant/switch/MPC-Energy-Manager-Device/Automatic-Control/config" # Check to see if the switch exists on the mqtt brocker, if not, set inital values for all entities
-
-if not check_entity_exists(state_topic, const.MQTT_HOST, const.MQTT_PORT, config_manager.MQTT_USER, config_manager.MQTT_PASS):
+if not ENTITIES_EXIST:
     logger.warning("MQTT Topics were not found on the brocker, creating required entities.")
     # Sensor doesn’t exist — set initial values
     initalise_entities()

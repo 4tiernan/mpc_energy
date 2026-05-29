@@ -1,3 +1,16 @@
+## 0.8.0
+* Added ability to setup Plant and multiple optional loads including EV's, through Web UI
+* Added support for GoodWe batteries
+* Improved Streamlit crashing detection
+* Resolved bug causing grid import mode to curtail solar
+* Added support for Sigenergy EV AC charger and Tesla API charger. 
+* Added optimal ev charge level to keep ev's charged during low solar production
+* Improved Flow Energy Price Forecasting
+* Reduced 'Unable to Determine Control Mode' error from occouring
+* Changed config to occour through streamlit dashboard with a configuration flow.
+* Added Load Profile and Optional Load Loss debugger pages to the dashboard
+* Added manual 'Sync from HA Options' trigger in the General configuration to transistion from HA options to dashboard setup.
+
 ## 0.7.0
 * Added net grid interaction kWh sensor to aid automations.
 * Added EV charging with target charge rate sensor. (Currently requires HA automation to control EV charger) 

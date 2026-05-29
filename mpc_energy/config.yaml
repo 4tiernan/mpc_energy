@@ -1,8 +1,8 @@
 name: "MPC Energy"
 description: "A profit optimiser for home batteries with wholesale electricity pricing."
-version: "0.7.0"
+version: "0.8.0"
 slug: "mpc_energy"
-url: "https://github.com/4tiernan/mpc_energy"
+url: "https://github.com/4tiernan/mpc_energy" #HA URL for dev branch: https://github.com/4tiernan/mpc_energy#dev 
 init: false
 arch:
   - amd64
@@ -188,9 +188,3 @@ schema:
   import_limiter_entity_id: str
 
   log_level: list(debug|info|warning)
-
-
-
-
-
-

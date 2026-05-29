@@ -3,6 +3,7 @@ import json
 import os
 import config_manager
 from web_dashboard.common import render_sidebar
+import migration
 
 CONFIG_PATH = "/data/plant_config.json"
 
@@ -90,7 +91,13 @@ def plant_config_page():
     st.title("🏭 Plant Configuration")
     st.write("Configure your hardware brand, entities, and physical plant constraints.")
 
-    if st.button("Reset Configuration to Defaults", help="Deletes the saved configuration file and reloads default values."):
+    col_h1, col_h2 = st.columns(2)
+    if col_h1.button("🔄 Sync from HA Options", help="Imports settings from the Home Assistant Add-on configuration tab into the new Web UI format. Use this if you have settings in config.yaml that aren't showing here."):
+        migration.migrate_config()
+        st.success("Migration check complete! Please review the settings below and save.")
+        st.rerun()
+
+    if col_h2.button("Reset Configuration to Defaults", help="Deletes the saved configuration file and reloads default values."):
         if os.path.exists(CONFIG_PATH):
             os.remove(CONFIG_PATH)
         st.rerun()

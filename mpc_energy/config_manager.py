@@ -40,9 +40,6 @@ def load_config():
 
     return config
 
-# Run migration before loading to ensure local files are up to date with HA options
-migration.migrate_config()
-
 options = load_config()
 
 def save_local_config(new_config):

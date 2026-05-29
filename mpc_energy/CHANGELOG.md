@@ -1,4 +1,5 @@
 ## 0.8.0
+* **Please enter the general config page to sync old config through HA with new web dashboard config**.
 * Added ability to setup Plant and multiple optional loads including EV's, through Web UI
 * Added support for GoodWe batteries
 * Improved Streamlit crashing detection

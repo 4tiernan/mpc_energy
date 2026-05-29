@@ -1,3 +1,8 @@
+
+from mpc_logger import logger
+
+logger.info("------------------------  Starting MPC Energy App  ------------------------")
+
 import subprocess
 import sys
 import time
@@ -5,14 +10,12 @@ import datetime
 import traceback
 import const
 from exceptions import MPCEnergyError
-from mpc_logger import logger
 import loads.optional_loads
 import config_manager
 import json
 import os
 from plants.plant_manager import load_plant_config
 
-logger.info("------------------------  Starting MPC Energy App  ------------------------")
 
 started = False
 

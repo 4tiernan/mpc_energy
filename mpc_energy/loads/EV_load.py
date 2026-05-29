@@ -142,11 +142,17 @@ class EVLoad(OptionalLoad):
         self.unachievable_kwh = cp.Variable(n, nonneg=True, name=f"{self.name}_unachievable_kwh")
         
         self.p_max_param = cp.Parameter(n, nonneg=True, name=f"{self.name}_p_max_param")
+        self.p_max_param.value = np.zeros(n)
         self.soc_init_param = cp.Parameter(nonneg=True, name=f"{self.name}_soc_init_param")
+        self.soc_init_param.value = 0.0
         self.soc_upper_limit_param = cp.Parameter(nonneg=True, name=f"{self.name}_soc_upper_limit_param")
+        self.soc_upper_limit_param.value = max(self.capacity_kwh, 0.0)
         self.soc_min_required_param = cp.Parameter(n, nonneg=True, name=f"{self.name}_soc_min_required_param")
+        self.soc_min_required_param.value = np.zeros(n)
         self.soc_optimal_min_param = cp.Parameter(n, nonneg=True, name=f"{self.name}_soc_optimal_min_param")
+        self.soc_optimal_min_param.value = np.zeros(n)
         self.draw_forecast_param = cp.Parameter(n, name=f"{self.name}_draw_forecast")
+        self.draw_forecast_param.value = np.zeros(n)
 
         constraints = [
             self.ev_soc[0] == self.soc_init_param,

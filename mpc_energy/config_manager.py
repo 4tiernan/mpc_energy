@@ -114,14 +114,14 @@ MQTT_PASS = get_entity_id("ha_mqtt_pass")
 
 # Retailer Configuration (Moved to Web UI)
 energy_retailer = get_entity_id("energy_retailer")
-demand_price = get_entity_id("demand_price")
-demand_window_start = get_entity_id("demand_window_start")
-demand_window_end = get_entity_id("demand_window_end")
-amber_api_key = get_entity_id("amber_api_key")
-amber_site_id = get_entity_id("amber_site_id")
-flow_import_price_entity_id = get_entity_id("flow_import_price_entity_id")
-flow_export_price_entity_id = get_entity_id("flow_export_price_entity_id")
-flow_price_forecast_entity_id = get_entity_id("flow_price_forecast_entity_id")
+demand_price = get_entity_id("demand_price", "")  # Optional, only needed for certain retailers
+demand_window_start = get_entity_id("demand_window_start", "")  # Optional, only needed for certain retailers
+demand_window_end = get_entity_id("demand_window_end", "")  # Optional, only needed for certain retailers
+amber_api_key = get_entity_id("amber_api_key", "")  # Optional, only needed for certain retailers
+amber_site_id = get_entity_id("amber_site_id", "")  # Optional, only needed for certain retailers
+flow_import_price_entity_id = get_entity_id("flow_import_price_entity_id", "")  # Optional, only needed for certain retailers
+flow_export_price_entity_id = get_entity_id("flow_export_price_entity_id", "")  # Optional, only needed for certain retailers
+flow_price_forecast_entity_id = get_entity_id("flow_price_forecast_entity_id", "")  # Optional, only needed for certain retailers
 
 # Solar Forecast Configuration (Moved to Web UI)
 solcast_forecast_today_entity_id = get_entity_id("solcast_forecast_today_entity_id")

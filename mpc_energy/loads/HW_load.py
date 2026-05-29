@@ -101,10 +101,14 @@ class HWLoad(OptionalLoad):
         self.shortfall = cp.Variable(n, nonneg=True, name=f"{self.name}_shortfall")
         
         self.soc_init_param = cp.Parameter(nonneg=True, name=f"{self.name}_soc_init")
+        self.soc_init_param.value = 0.0 # Will be updated with actual initial charge before optimization, but must be initialized to a valid value to avoid cvxpy errors.
         self.capacity_param = cp.Parameter(nonneg=True, name=f"{self.name}_capacity")
+        self.capacity_param.value = max(self.capacity_kwh, 0.001)
         self.draw_forecast_param = cp.Parameter(n, name=f"{self.name}_draw_forecast") # Allow negative values for solar gains
+        self.draw_forecast_param.value = np.zeros(n)
         self.p_max_limit_param = cp.Parameter(nonneg=True, name=f"{self.name}_p_max_limit")
-        
+        self.p_max_limit_param.value = 0.0
+
         constraints = [
             self.hw_energy[0] == self.soc_init_param,
             self.hw_energy[1:] == self.hw_energy[:-1] + (self.p_hw * dt) - (self.draw_forecast_param * dt) + (self.shortfall * dt),

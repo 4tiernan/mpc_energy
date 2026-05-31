@@ -1,3 +1,5 @@
+## 0.9.0
+
 ## 0.8.0
 * Added ability to setup Plant and multiple optional loads including EV's, through Web UI
 * Added support for GoodWe batteries

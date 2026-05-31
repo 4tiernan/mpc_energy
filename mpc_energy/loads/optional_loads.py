@@ -137,7 +137,7 @@ class OptionalLoad:
         binned = data_helpers.bin_data(history, bin_period, start, end, interpolation_method="step")
         return binned
 
-    def get_level_delta_avg(self, days_ago=3, hours_update_interval=24):
+    def get_level_delta_avg(self, days_ago=14, hours_update_interval=24):
         """
         Calculates the average rate of change (loss/degradation) for the level entity 
         when the device is NOT consuming power.

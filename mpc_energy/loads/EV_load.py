@@ -56,6 +56,7 @@ class EVLoad(OptionalLoad):
         self.min_charge_power_kw = 0.0
         self.max_charge_power_kw = 0.0
         self.last_charge_mode = None
+        self.target_charge_rate = 0.0
 
         logger.debug(f"Initialized EV Load '{name}' with capacity {capacity_kwh} kWh," 
                      f" current level limits {min_level_limit}% to {max_level_limit}%,"

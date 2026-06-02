@@ -1,4 +1,6 @@
 ## 0.9.0
+* Improved EV charging logic. 
+* Stopped effective price from going to zero overnight.
 
 ## 0.8.0
 * **!!!Please enter the general config page to sync old config through HA with new web dashboard config!!!**.

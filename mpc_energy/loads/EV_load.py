@@ -1,5 +1,6 @@
 from typing import Any, Tuple, List
 from loads.optional_loads import OptionalLoad
+from loads.EV_chargers.EV_charger import EVCharger
 import cvxpy as cp
 import numpy as np
 from datetime import datetime, timedelta
@@ -61,9 +62,9 @@ class EVLoad(OptionalLoad):
                      f" Plugged-in entity: '{plugged_in_entity_id}', Power entity: '{power_entity_id}', Level entity: '{level_entity_id}'."
                      )
 
-    def set_charger(self, charger):
+    def set_charger(self, charger: EVCharger):
         """Sets the specific EVCharger object and updates power limits."""
-        self.charger = charger
+        self.charger: EVCharger = charger
         if self.charger:
             self.min_charge_power_kw = self.charger.min_charge_power_kw
             self.max_charge_power_kw = self.charger.max_charge_power_kw
@@ -343,12 +344,6 @@ class EVLoad(OptionalLoad):
         required_mask[achieve_optimal_by_index] = target_kwh
         logger.debug(f"Optimal Daily Min SOC constraint set to {target_kwh:.2f} kWh at index {achieve_optimal_by_index}") 
 
-        # for idx, step_time in enumerate(time_index):
-        #     # Check for 10 PM (EOD)
-        #     if step_time.hour == 22 and 0 <= step_time.minute <= 59:
-        #         # Only apply if it doesn't conflict with a higher critical SOC requirement
-        #         required_mask[idx] = target_kwh
-
         return required_mask
 
     def get_results(self, dt):
@@ -359,9 +354,19 @@ class EVLoad(OptionalLoad):
         p_res = [round(float(x), 2) for x in p_ev.tolist()]
         if self.min_charge_power_kw > 0:
             for i, p in enumerate(p_res):
-                if 0.05 < p < self.min_charge_power_kw:
+                if p < self.min_charge_power_kw:
                     p_res[i] = 0.0
-        
+
+        # If there is a single timestep with a charge power that sits below the min charge power
+        # but is surrounded by timesteps with charge power above the min charge power, 
+        # set that single timestep to the min charge power to avoid chatter.
+        for i, p in enumerate(p_res):
+            if i > 0 and p  == 0.0 and p_res[i-1] > 0.0 and p_res[i+1] > 0.0: # If the last and next timesteps are charging, make the current timestep charge too.
+                p_res[i] = self.min_charge_power_kw
+
+            elif i == 0 and p == 0.0 and self.target_charge_rate > 0.0 and p_res[i+1] > 0.0: # If we were charging and are only going to stop for one timestep, just keep charging.
+                p_res[i] = self.min_charge_power_kw
+
         self.target_charge_rate = p_res[0]
         soc_pct = [round((x / self.capacity_kwh) * 100, 2) if self.capacity_kwh > 0 else 0 for x in soc_ev.tolist()]
 

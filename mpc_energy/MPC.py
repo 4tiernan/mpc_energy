@@ -782,18 +782,24 @@ class MPC:
         solar_used_list = output["solar_used"]
         solar_forecast_list = output["solar_forecast"]
 
+        effective_price = general_price_list[0] # Default to current grid price
+
         for i, grid_net in enumerate(grid_net_list):
             if(grid_net > self.power_threshold): # If there is significant grid import, set price to grid import price
-                return general_price_list[i]
+                effective_price = general_price_list[i]
             elif(grid_net < -self.power_threshold): # If there is significant grid export, set price to grid export price
                 if(feedIn_price_list[0] > feedIn_price_list[i]): # If the current feed in price is higher than the future feed in price, use the current feed in price as the effective price as if power was lower we would be exporting now.
-                    return feedIn_price_list[0]
+                    effective_price = feedIn_price_list[0]
                 else:   
-                    return feedIn_price_list[i]
+                    effective_price = feedIn_price_list[i]
             else: # If there is no significant import or export, set price based on solar conditions
                 if(solar_used_list[i] < solar_forecast_list[i] - self.power_threshold): # If solar is being curtailed, set price to zero as using more power won't cost anything
-                    return 0
-                
-        return general_price_list[0] # Default to current grid price if no significant import or export is occouring
+                    effective_price = 0
+        
+        # If solar is negligible and we are using the battery, constrain the effective price to be at least the battery minimum export cost to avoid using the battery when it's not profitable to do so. 
+        if solar_used_list[0] < self.power_threshold and effective_price < self.battery_min_export_cost: 
+            effective_price = self.battery_min_export_cost
+
+        return effective_price # Return the determined effective price
     
     

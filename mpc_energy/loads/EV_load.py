@@ -216,10 +216,15 @@ class EVLoad(OptionalLoad):
             max_avail = grid_import_limit - load
             p_max_arr[i] = max(0.0, min(self.max_charge_power_kw, max_avail))
 
-        # Constrain EV charging power to 0 after 48 hours
-        after_48h_idx = 48 * mpc.steps_per_hr
-        if after_48h_idx < len(p_max_arr):
-            p_max_arr[after_48h_idx:] = 0.0
+        # Constrain EV charging power to 0 after the last 6am timestep present in the plot
+        last_6am_idx = None
+        for i in range(len(time_index) - 1, -1, -1):
+            if time_index[i].hour == 6 and time_index[i].minute == 0:
+                last_6am_idx = i
+                break
+
+        if last_6am_idx is not None:
+            p_max_arr[last_6am_idx + 1:] = 0.0
         
         # If the EV is not connected, constrain the first and second charge power steps to zero.
         # This allows future planning if it's plugged in later, but prevents immediate commands.

@@ -2,7 +2,6 @@ from abc import ABC, abstractmethod
 from ha_api import HomeAssistantAPI
 from mpc_logger import logger
 from typing import Any
-from loads.EV_load import EVLoad
 
 
 charger_models = ["Tesla API", "SigEnergy AC Charger", "Generic Binary"]
@@ -18,7 +17,7 @@ class EVCharger(ABC):
         self.min_charge_power_kw = min_charge_power_kw
         self.max_charge_power_kw = max_charge_power_kw
         self.target_charge_rate = 0.0 # Current target charge rate in kW
-        self.charging_mode = EVLoad.EV_MODE_DISABLED
+        self.charging_mode = "Charging Disabled"
         self.debias_load = debias_load # Whether to debias the home load history to the EV charger load history, IE is the charger power counted in the home load power. 
         self.last_update_error_time = 0.0
 

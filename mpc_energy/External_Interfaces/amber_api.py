@@ -3,6 +3,8 @@ import time
 import numpy as np
 import math
 from datetime import datetime, timezone, timedelta
+from zoneinfo import ZoneInfo
+from typing import List, Optional, Union, Any, Dict
 from dataclasses import dataclass
 from mpc_logger import logger
 from exceptions import (
@@ -36,7 +38,7 @@ class amber_data:
     feedIn_extrapolated_forecast: list[float]
     demand_window_extrapolated_forecast: list[bool]  # True for each 5-min interval that falls in a demand window
 
-def normalise_time(ts: datetime):
+def normalise_time(ts: datetime) -> datetime:
     # Amber can return timestamps with small offsets (seconds and
     # occasionally minute drift). Snap to the 5-minute grid used by MPC
     # so dictionary keys line up with ordered_times bins.
@@ -44,7 +46,7 @@ def normalise_time(ts: datetime):
     return ts - timedelta(minutes=ts.minute % 5)  
 
 class AmberAPI:
-    def __init__(self, api_key, site_id, local_tz=None, demand_price="", errors=True):
+    def __init__(self, api_key: str, site_id: str, local_tz: Optional[ZoneInfo] = None, demand_price: str = "", errors: bool = True):
         self.api_key = api_key
         self.site_id = site_id
         self.local_tz = local_tz
@@ -82,7 +84,7 @@ class AmberAPI:
             else:
                 logger.info("No demand tarrif detected continuning normally.")
 
-    def send_request(self, url):
+    def send_request(self, url: str) -> Union[Dict[str, Any], List[Dict[str, Any]]]:
         connect_timeout = 10
         response_timeout = 30
 
@@ -136,7 +138,7 @@ class AmberAPI:
         
         return r.json()
 
-    def get_sites(self):
+    def get_sites(self) -> List[Dict[str, Any]]:
         """Return all sites linked to your Amber account."""
         url = f"{self.base}/sites"
         response = self.send_request(url)
@@ -145,7 +147,7 @@ class AmberAPI:
         else:
             raise AmberAPIError("Failed to retrieve sites from API.")
             
-    def check_for_demand_tarrif(self):
+    def check_for_demand_tarrif(self) -> bool:
         """Returns True if the site selected has a demand tarrif, else False"""
         url = (f"{self.base}/sites/{self.site_id}/prices/current?next=0&previous={48}&resolution={30}")
 
@@ -162,7 +164,7 @@ class AmberAPI:
         else:
             raise AmberAPIError("Failed to check for demand tarrif.")
 
-    def get_past_prices(self, previous_intervals, resolution):
+    def get_past_prices(self, previous_intervals: int, resolution: int) -> List[List[PriceForecast]]:
         """Return historic prices for a given site."""
         if(resolution != 30 and resolution != 5):
             if(self.errors):
@@ -198,7 +200,7 @@ class AmberAPI:
         else:
             raise AmberAPIError("Failed to get past price data.")
     
-    def demand_window_present(self, interval):
+    def demand_window_present(self, interval: Dict[str, Any]) -> bool:
         demand_window = False
         if(self.demand_tarrif):
             try:
@@ -208,7 +210,7 @@ class AmberAPI:
         
         return demand_window
                 
-    def get_forecast(self, next_intervals, resolution, advanced_forecast = False):
+    def get_forecast(self, next_intervals: int, resolution: int, advanced_forecast: bool = False) -> List[List[PriceForecast]]:
         """Return 12 hours of prices from now for a given site."""
         if(resolution != 30 and resolution != 5):
             if(self.errors):
@@ -250,7 +252,7 @@ class AmberAPI:
         else:
             raise AmberAPIError("Failed to get price forecast data")
 
-    def get_forecast_duration_hours(self, forecast_data):
+    def get_forecast_duration_hours(self, forecast_data: List[PriceForecast]) -> float:
         """Return the forecast span in hours from the first interval start to the last interval end."""
         if not forecast_data:
             return 0.0
@@ -261,7 +263,7 @@ class AmberAPI:
         return (end_time - start_time).total_seconds() / 3600
     
     # Get the 5 min, 30 min and past prices and combine into a 5 minutely 'forecast' that extends past the 12 hr limit
-    def get_extrapolated_forecast(self, hours, advanced_forecast = False, sim_start=None, sim_end=None): 
+    def get_extrapolated_forecast(self, hours: float, advanced_forecast: bool = False, sim_start: Optional[datetime] = None, sim_end: Optional[datetime] = None) -> List[Any]: 
         if sim_start is not None and sim_end is not None:
             timeline_seconds = max((sim_end - sim_start).total_seconds(), 300)
             N_5min = max(1, int(timeline_seconds // (5 * 60)))
@@ -389,7 +391,7 @@ class AmberAPI:
         return [general_price_extrapolated_forecast, feed_in_price_extrapolated_forecast, demand_window_extrapolated_forecast, ordered_times]
 
 
-    def get_current_prices(self):
+    def get_current_prices(self) -> List[Any]:
         url = (f"{self.base}/sites/{self.site_id}/prices/current")
 
         response = self.send_request(url)
@@ -407,7 +409,7 @@ class AmberAPI:
         else:
             raise AmberAPIError("Failed to get current price data from Amber API")
         
-    def get_data(self, partial_update=False, forecast_hrs=None, sim_start=None, sim_end=None):
+    def get_data(self, partial_update: bool = False, forecast_hrs: Optional[float] = None, sim_start: Optional[datetime] = None, sim_end: Optional[datetime] = None) -> amber_data:
         [general_price, feed_in_price, estimate] = self.get_current_prices()
         
         if(self.data == None or partial_update == False):
@@ -455,45 +457,3 @@ class AmberAPI:
             demand_window_extrapolated_forecast=demand_window_extrapolated_forecast
             )
         return self.data
-
-'''      
-from zoneinfo import ZoneInfo
-HA_TZ = ZoneInfo("Australia/Brisbane")
-
-amber = AmberAPI("", "", HA_TZ,7)
-fg,ff = amber.get_forecast(30,30)
-r = [[i.demand_window, i.start_time] for i in fg]
-
-g,f,d,t = amber.get_extrapolated_forecast(24)
-
-for i in range(len(g)):
-    print(f"{d[i]} {g[i]} {t[i]}")
-'''
-'''
-from api_token_secrets import HA_URL, HA_TOKEN, AMBER_API_TOKEN, SITE_ID
-amber = AmberAPI(AMBER_API_TOKEN, SITE_ID, errors=True)
-url = (f"{amber.base}/sites/{amber.site_id}/prices/current")
-
-response = amber.send_request(url)
-print(response)
-
-[general_price, feed_in_price] = amber.get_current_prices()
-
-
-#Get 12 hour forecast
-[general_price_forecast, feed_in_price_forecast] = amber.get_forecast(next_intervals=24, resolution=30)
-
-storted_feed_in_forecast = feed_in_price_forecast.copy()
-storted_feed_in_forecast.sort(key=lambda x: x.price, reverse=True)
-
-target_dispatch_price = storted_feed_in_forecast[max(round(hrs_of_discharge_available*2 - 1),0)].price
-
-#print(storted_feed_in_forecast)
-
-
-print(f"Current General Price: {round(general_price)} c/kWh")
-print(f"Current FeedIn Price: {round(feed_in_price)} c/kWh")
-print(f"Max Forecasted FeedIn Price: {round(storted_feed_in_forecast[0].price)} c/kWh")
-print(f"Target Dispatch Price: {round(target_dispatch_price)} c/kWh")
-
-'''

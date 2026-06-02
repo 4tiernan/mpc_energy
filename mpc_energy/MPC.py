@@ -1,12 +1,15 @@
 import numpy as np
 import cvxpy as cp
 from datetime import datetime, timedelta
-#from zoneinfo import ZoneInfo
+from zoneinfo import ZoneInfo
+from typing import Any, List, Dict, Tuple, Optional
 import time
 from energy_controller import ControlMode
 import logging
 from mpc_logger import logger
 import warnings
+from External_Interfaces.amber_api import amber_data
+from ha_api import HomeAssistantAPI
 
 import json
 from plants.base_plant import BasePlant
@@ -51,7 +54,7 @@ except Exception as e:
                          f"Please ensure the Mosquitto broker is running and the hostname is correct. Error: {e}") from e
 
 class MPC:
-    def __init__(self, ha, plant: BasePlant, local_tz, demand_tarrif, retailer, optional_loads: list[loads.optional_loads.OptionalLoad]):
+    def __init__(self, ha: HomeAssistantAPI, plant: BasePlant, local_tz: ZoneInfo, demand_tarrif: bool, retailer: str, optional_loads: List[loads.optional_loads.OptionalLoad]):
         self.plant = plant
         self.ha = ha
         self.local_tz = local_tz
@@ -126,7 +129,7 @@ class MPC:
         # This avoids repeated canonicalization overhead at every control interval.
         self.build_optimisation_template()
 
-    def update_forecast_horizon(self):
+    def update_forecast_horizon(self) -> None:
         """
         Set the MPC horizon to finish at 06:00 on the next-next-next morning
         in local time (i.e., the third upcoming 06:00 boundary).
@@ -151,7 +154,7 @@ class MPC:
         #     f"to {self.sim_end.strftime('%Y-%m-%d %H:%M %Z')}"
         # )
              
-    def update_limits(self):
+    def update_limits(self) -> None:
         # Battery Settings
         self.battery_capacity = self.plant.rated_capacity  # kWh
         self.soc_min = self.plant.backup_buffer_kwh
@@ -165,7 +168,7 @@ class MPC:
         self.grid_export_limit = self.plant.max_export_power    # kW (Grid export limit)      
 
     # Update any values or forecasts required to run the sim
-    def update_values(self, amber_data, time_index, inject_real_values = True):
+    def update_values(self, amber_data: amber_data, time_index: List[datetime], inject_real_values: bool = True) -> None:
         self.update_limits() # Update the limits in case the user has changed any config values that affect the limits since the last update
         
         current_soc = (self.plant.battery_soc_percent / 100)*self.soc_max
@@ -276,7 +279,7 @@ class MPC:
         #self.prices_sell[0:5] = 0.01
         #self.soc_init = 0.95*self.soc_max
 
-    def apply_load_mismatch_ramp(self, load_forecast):
+    def apply_load_mismatch_ramp(self, load_forecast: List[float]) -> List[float]:
         """
         Scale forecast by current actual-vs-forecast ratio, then ramp back to 100% forecast over
         load_correction_ramp_hours.
@@ -309,7 +312,7 @@ class MPC:
 
         return adjusted_forecast
    
-    def build_optimisation_template(self):
+    def build_optimisation_template(self) -> None:
         n = int(self.N_5min)
 
         # Variables
@@ -396,7 +399,7 @@ class MPC:
 
         self.prob = cp.Problem(cp.Minimize(self.objective_expression), constraints)
 
-    def run_optimisation(self, amber_data):
+    def run_optimisation(self, amber_data: amber_data) -> List[Any]:
         start_optimisation = time.time()
 
         now = datetime.now(self.local_tz).replace(second=0, microsecond=0)
@@ -667,7 +670,7 @@ class MPC:
 
             return [output, plotted_output]
 
-    def convert_to_python(self, obj): # Convert all np objects to python objects
+    def convert_to_python(self, obj: Any) -> Any: # Convert all np objects to python objects
         if isinstance(obj, np.ndarray):
             return obj.tolist()
         if isinstance(obj, dict):
@@ -676,7 +679,7 @@ class MPC:
             return [self.convert_to_python(v) for v in obj]
         return obj
     
-    def determine_control_mode(self, data, increment=0, control_active=True, power_threshold=0.2) -> str:
+    def determine_control_mode(self, data: Dict[str, Any], increment: int = 0, control_active: bool = True, power_threshold: float = 0.2) -> str:
         inverter_power = data["inverter_power"][increment]
         used_solar_power = data["solar_used"][increment]
         solar_available = data["solar_forecast"][increment]
@@ -735,14 +738,14 @@ class MPC:
                 raise Exception(error_msg) from None
             return "Unable to determine"
         
-    def determine_plan_modes(self, output): # Determine the control modes for the whole plan
+    def determine_plan_modes(self, output: Dict[str, Any]) -> List[str]: # Determine the control modes for the whole plan
         plan_modes = []
         for i in range(len(output["inverter_power"])):
             mode = self.determine_control_mode(output, increment=i, control_active=False)
             plan_modes.append(mode)
         return plan_modes
     
-    def calculate_next_grid_interaction_kwh(self, grid_net):
+    def calculate_next_grid_interaction_kwh(self, grid_net: List[float]) -> float:
         """Return the upcoming contiguous import/export interaction energy in kWh."""
         start_index = None
         interaction_direction_import = None

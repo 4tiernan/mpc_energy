@@ -1,10 +1,8 @@
 # This file is used to manipulate and manage data from HA entities. 
 import datetime
 import pandas as pd
-
-
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, List, Union, Tuple, Optional
 
 @dataclass
 class BinnedStateClass:
@@ -113,7 +111,7 @@ def bin_data(history, bin_period, start_bin_datetime, end_bin_datetime, string_s
 
     return binned_history
 
-def interpolate_values(values, method="linear"):
+def interpolate_values(values: List[Optional[float]], method: str = "linear") -> List[float]:
     '''takes a list of numeric values with possible None values to interpolate and interpolates the None values using the specified method. Returns a list of the same length with no None values.'''
     s = pd.Series(values)
     # Ensure the series is numeric to avoid "Series cannot interpolate with object dtype" 
@@ -141,7 +139,7 @@ def interpolate_values(values, method="linear"):
         raise ValueError("method must be 'linear' or 'step'")
     
 
-def get_time_range_from_hours(hours: float, tz) -> tuple:
+def get_time_range_from_hours(hours: float, tz: datetime.tzinfo) -> Tuple[datetime.datetime, datetime.datetime]:
     """
     Converts a duration in hours into a start and end datetime pair, 
     rounded to the nearest 5-minute interval.

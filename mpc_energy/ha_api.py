@@ -2,6 +2,7 @@ import requests
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+from typing import Optional, Any, List, Dict, Union, Type
 import time
 from mpc_logger import logger
 from exceptions import *
@@ -16,7 +17,7 @@ class History:
 DEFAULT_TZ = ZoneInfo("Australia/Brisbane") 
 
 class HomeAssistantAPI:
-    def __init__(self, base_url, token):
+    def __init__(self, base_url: str, token: str):
         self.base_url = base_url.rstrip('/')
         self.headers = {
             "Authorization": f"Bearer {token}",
@@ -29,7 +30,7 @@ class HomeAssistantAPI:
         self.local_tz = self.get_timezone()
         self.ha_went_down_flag = False
 
-    def get_timezone(self):
+    def get_timezone(self) -> ZoneInfo:
         url = f"{self.base_url}/api/config"
         try:
             response = self.ha_request(url=url, method='get')
@@ -44,13 +45,13 @@ class HomeAssistantAPI:
 
         return DEFAULT_TZ
     
-    def ha_api_went_down(self):
+    def ha_api_went_down(self) -> bool:
         if(self.ha_went_down_flag):
             self.ha_went_down_flag = False
             return True
         return False
 
-    def check_api_running(self): #Checks to see if we can connect to the ha api
+    def check_api_running(self) -> bool: #Checks to see if we can connect to the ha api
         url = f"{self.base_url}/api/"
         try:
             r = self.session.get(url, headers=self.headers, params=None)
@@ -63,7 +64,7 @@ class HomeAssistantAPI:
             self.ha_went_down = True
         return api_running
 
-    def ha_request(self, url, method, data=None, params = None):
+    def ha_request(self, url: str, method: str, data: Optional[Dict[str, Any]] = None, params: Optional[Dict[str, Any]] = None) -> Any:
         def log_status(r):
             status_code = r.status_code
             if(status_code == 401):
@@ -115,11 +116,11 @@ class HomeAssistantAPI:
                     
                 return self.ha_request(url, method, data, params)
 
-    def get_state(self, entity_id):
+    def get_state(self, entity_id: str) -> Dict[str, Any]:
         url = f"{self.base_url}/api/states/{entity_id}"
         return self.ha_request(url=url, method='get')
     
-    def get_numeric_state(self, entity_id):
+    def get_numeric_state(self, entity_id: str) -> float:
         json_resp = self.get_state(entity_id)
         if not json_resp:
             raise HAAPIError(f"No response returned for '{entity_id}'. Please check if the entity_id is correct")
@@ -130,7 +131,7 @@ class HomeAssistantAPI:
         except (TypeError, ValueError):
             raise HAAPIError(f"Unable to convert state '{state}' for entity '{entity_id}' to float.") from None
     
-    def get_boolean_state(self, entity_id, default=False) -> bool:
+    def get_boolean_state(self, entity_id: str, default: bool = False) -> bool:
         if not entity_id:
             logger.warning("Boolean state requested but entity_id is empty. Returning default value: "+str(default))
             return default
@@ -153,11 +154,11 @@ class HomeAssistantAPI:
                 return options
         return []
 
-    def call_service(self, domain, service, data):
+    def call_service(self, domain: str, service: str, data: Dict[str, Any]) -> Dict[str, Any]:
         url = f"{self.base_url}/api/services/{domain}/{service}"
         return self.ha_request(url=url, data=data, method='post')
 
-    def send_notification(self, title, message, target, channel=None):
+    def send_notification(self, title: str, message: str, target: str, channel: Optional[str] = None) -> None:
         if not target:
             raise HAAPIError("Notification target is empty. Please set a valid Home Assistant notify service.")
 
@@ -186,7 +187,7 @@ class HomeAssistantAPI:
         
         self.call_service("notify", service, payload)
 
-    def create_persistent_notification(self, title, message, notification_id="mpc_energy_error"):
+    def create_persistent_notification(self, title: str, message: str, notification_id: str = "mpc_energy_error") -> Dict[str, Any]:
         return self.call_service(
             "persistent_notification",
             "create",
@@ -197,7 +198,7 @@ class HomeAssistantAPI:
             }
         )
     
-    def get_history(self, entity_id, start_time=None, end_time=None, type=float) -> list[History]:
+    def get_history(self, entity_id: str, start_time: Optional[datetime] = None, end_time: Optional[datetime] = None, type: Type = float) -> List[History]:
         """Fetch history for a specific entity.
         Home Assistant requires:
         /api/history/period/<start>?end_time=...&filter_entity_id=...
@@ -244,19 +245,19 @@ class HomeAssistantAPI:
             if(self.errors):
                 raise("Switch state must be True or False not: "+str(state))
 
-    def set_number(self, entity_id, value):
+    def set_number(self, entity_id: str, value: float) -> Dict[str, Any]:
         return self.call_service("number", "set_value", {
             "entity_id": entity_id,
             "value": value
         })
 
-    def set_input_number(self, entity_id, value):
+    def set_input_number(self, entity_id: str, value: float) -> Dict[str, Any]:
         return self.call_service("input_number", "set_value", {
             "entity_id": entity_id,
             "value": value
         })
     
-    def set_select(self, entity_id, option):
+    def set_select(self, entity_id: str, option: str) -> Dict[str, Any]:
         if entity_id.startswith("input_select."):
             domain = "input_select"
         else:

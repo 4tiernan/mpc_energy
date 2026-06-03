@@ -10,7 +10,7 @@ st.set_page_config(page_title="Opt Load Debugger", layout="wide", initial_sideba
 render_sidebar()
 
 st.title("🧪 Optional Load Loss Debugger")
-st.caption("Analyze background degradation (Phantom Drain) for EVs or thermal losses for Hot Water.")
+st.caption("Analyze background degradation for EVs or thermal losses for Hot Water.")
 
 if "ha" not in st.session_state:
     st.session_state.ha = HomeAssistantAPI(base_url=const.HA_API_URL, token=const.HA_TOKEN)

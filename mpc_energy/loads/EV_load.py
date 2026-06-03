@@ -233,13 +233,13 @@ class EVLoad(OptionalLoad):
             if len(p_max_arr) > 1: p_max_arr[1] = 0.0
             logger.debug(f"EV '{self.name}' is not currently plugged in. Constraining immediate charge power to 0 kW until next update.")
 
-        # Background Degradation (Phantom Drain)
+        # Background Degradation
         # Convert SOC% delta to Power (kW): P = -deltaSOC * Capacity * (60/5) / 100
         soc_delta_forecast = self.forecast_level_delta(time_index)
         draw_forecast = -soc_delta_forecast * self.capacity_kwh * 0.12
         self.draw_forecast_param.value = draw_forecast
         
-        logger.debug(f"EVLoad '{self.name}' phantom drain forecast: avg={np.mean(draw_forecast)*1000:.1f}W")
+        logger.debug(f"EVLoad '{self.name}' drain forecast: avg={np.mean(draw_forecast)*1000:.1f}W")
         
 
         self.min_target_kwh = (self.min_level_limit / 100.0) * self.capacity_kwh

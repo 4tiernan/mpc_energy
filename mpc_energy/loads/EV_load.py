@@ -226,18 +226,12 @@ class EVLoad(OptionalLoad):
         if last_6am_idx is not None:
             p_max_arr[last_6am_idx + 1:] = 0.0
         
-        # If the EV is not connected, constrain the first and second charge power steps to zero.
-        # This allows future planning if it's plugged in later, but prevents immediate commands.
-        if not self.is_plugged_in:
-            if len(p_max_arr) > 0: p_max_arr[0] = 0.0
-            if len(p_max_arr) > 1: p_max_arr[1] = 0.0
-            logger.debug(f"EV '{self.name}' is not currently plugged in. Constraining immediate charge power to 0 kW until next update.")
 
         # Background Degradation
         # Convert SOC% delta to Power (kW): P = -deltaSOC * Capacity * (60/5) / 100
         soc_delta_forecast = self.forecast_level_delta(time_index)
         draw_forecast = -soc_delta_forecast * self.capacity_kwh * 0.12
-        self.draw_forecast_param.value = draw_forecast
+        
         
         logger.debug(f"EVLoad '{self.name}' drain forecast: avg={np.mean(draw_forecast)*1000:.1f}W")
         
@@ -250,8 +244,16 @@ class EVLoad(OptionalLoad):
         ev_soc_min_required_arr = np.ones(int(mpc.N_5min), dtype=float) * self.min_target_kwh
         ev_soc_optimal_min_arr = np.zeros(int(mpc.N_5min), dtype=float)
 
+        if not self.is_plugged_in:
+            # If the EV is not connected, zero out all power limits and SOC targets to remove EV impact from the optimization.
+            p_max_arr[:] = 0.0
+            draw_forecast[:] = 0.0
+            ev_soc_min_required_arr[:] = 0.0
+            ev_soc_optimal_min_arr[:] = 0.0
+            logger.debug(f"EV '{self.name}' is not currently plugged in. Ignoring EV load in MPC optimization.")
+
         # If the EV soc is below the minimum soc target, charge asap reguardless of the selected mode. 
-        if(self.current_ev_soc_kWh is not None and self.current_ev_soc_kWh < self.min_target_kwh):
+        elif (self.current_ev_soc_kWh is not None and self.current_ev_soc_kWh < self.min_target_kwh):
             logger.debug(f"EV SOC of {self.current_ev_soc_kWh:.2f} kWh is below the minimum SOC target of {self.min_target_kwh:.2f} kWh. The MPC will attempt to charge the EV as soon as possible to reach the minimum SOC target.")
             ev_soc_min_required_arr = self.build_ev_min_soc_constraint(target_soc=self.min_target_kwh, p_max_arr=p_max_arr, mpc=mpc)
         else:
@@ -269,6 +271,7 @@ class EVLoad(OptionalLoad):
         if self.optimal_daily_min_soc > 0: 
             ev_soc_optimal_min_arr = self.build_ev_optimal_daily_min_mask(time_index, mpc)
         
+        self.draw_forecast_param.value = draw_forecast
         self.p_max_param.value = p_max_arr
         self.soc_init_param.value = float(self.current_ev_soc_kWh or 0.0)
         # Ensure upper limit is at least as high as current SOC to prevent solver infeasibility if car is over-charged

@@ -130,7 +130,7 @@ for idx, row in enumerate(rows):
                 row["plugged_in_entity_id"] = c_t7.text_input("Charger State Entity ID", value=row.get("plugged_in_entity_id", ""), key=f"ev_avail_{idx}")
                 c_t8, c_t9 = st.columns(2)
                 row["three_phase_available"] = c_t8.checkbox("Three Phase Available", value=row.get("three_phase_available", False), key=f"ev_t_3ph_{idx}")
-                row["debias_load"] = c_t9.checkbox("Debias Load", value=row.get("debias_load", True), key=f"ev_debias_{idx}")
+                row["debias_load"] = c_t9.checkbox("Debias Load", value=row.get("debias_load", False), key=f"ev_debias_{idx}")
 
             elif row["charger_model"] == "Generic Binary":
                 st.write("---")

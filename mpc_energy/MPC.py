@@ -698,9 +698,15 @@ class MPC:
             return self.plant.ControlMode.SOLAR_TO_LOAD
         
         elif(data_helpers.approx_equal(inverter_power, load_power) and data_helpers.approx_equal(used_solar_power+battery_power, load_power)):
-            if(control_active):
-                self.plant.self_consumption()
-            return self.plant.ControlMode.SELF_CONSUMPTION                
+            export_price = data["prices_sell"][increment]
+
+            # If export price is non negative and the battery is within 2kWh of full, allow grid export by selecting Export Excess Solar.
+            if(export_price >= 0 and data["soc"][increment] > self.soc_max - 2):
+                if(control_active): self.plant.export_excess_solar()
+                return self.plant.ControlMode.EXPORT_EXCESS_SOLAR
+            else:
+                if(control_active): self.plant.self_consumption()
+                return self.plant.ControlMode.SELF_CONSUMPTION                
         
         elif(inverter_power >= used_solar_power + power_threshold and inverter_power >= load_power + power_threshold):
             if(control_active):

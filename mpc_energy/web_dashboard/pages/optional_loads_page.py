@@ -127,7 +127,7 @@ for idx, row in enumerate(rows):
                 row["charge_enable_entity_id"] = c_t5.text_input("Charge Enable Entity ID", value=row.get("charge_enable_entity_id", ""), key=f"ev_t_en_ent_{idx}")
                 c_t6, c_t7 = st.columns(2)
                 row["power_entity_id"] = c_t6.text_input("Charger Power Entity ID (kW)", value=row.get("power_entity_id", ""), key=f"ev_pent_{idx}")
-                row["plugged_in_entity_id"] = c_t7.text_input("EV Plugged In Entity ID", value=row.get("plugged_in_entity_id", ""), key=f"ev_avail_{idx}")
+                row["plugged_in_entity_id"] = c_t7.text_input("Charger State Entity ID", value=row.get("plugged_in_entity_id", ""), key=f"ev_avail_{idx}")
                 c_t8, c_t9 = st.columns(2)
                 row["three_phase_available"] = c_t8.checkbox("Three Phase Available", value=row.get("three_phase_available", False), key=f"ev_t_3ph_{idx}")
                 row["debias_load"] = c_t9.checkbox("Debias Load", value=row.get("debias_load", True), key=f"ev_debias_{idx}")

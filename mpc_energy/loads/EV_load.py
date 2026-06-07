@@ -19,7 +19,6 @@ class EVLoad(OptionalLoad):
         load_type: str,
         reward_cents_per_kwh: float,
 
-        plugged_in_entity_id: str,
         power_entity_id: str,
         level_entity_id: str,
         capacity_kwh: float,
@@ -38,7 +37,6 @@ class EVLoad(OptionalLoad):
         super().__init__(name, load_type, reward_cents_per_kwh, debias_load)
         
         # EV specific params
-        self.plugged_in_entity_id = plugged_in_entity_id
         self.power_entity_id = power_entity_id
         self.level_entity_id = level_entity_id
         self.capacity_kwh = capacity_kwh
@@ -60,7 +58,7 @@ class EVLoad(OptionalLoad):
 
         logger.debug(f"Initialized EV Load '{name}' with capacity {capacity_kwh} kWh," 
                      f" current level limits {min_level_limit}% to {max_level_limit}%,"
-                     f" Plugged-in entity: '{plugged_in_entity_id}', Power entity: '{power_entity_id}', Level entity: '{level_entity_id}'."
+                     f" Power entity: '{power_entity_id}', Level entity: '{level_entity_id}'."
                      )
 
     def set_charger(self, charger: EVCharger):
@@ -291,12 +289,9 @@ class EVLoad(OptionalLoad):
             self.charger.update_state()
             self.min_charge_power_kw = self.charger.min_charge_power_kw
             self.max_charge_power_kw = self.charger.max_charge_power_kw
-            self.is_plugged_in = getattr(self.charger, 'car_plugged_in', True)
+            self.is_plugged_in = self.charger.car_plugged_in
         else:
-            if self.plugged_in_entity_id:
-                self.is_plugged_in = self.ha.get_boolean_state(self.plugged_in_entity_id)
-            else:
-                self.is_plugged_in = True  # Assume always plugged in if no sensor provided
+            self.is_plugged_in = True  # Fallback to always connected
 
     def build_ev_min_soc_constraint(self, target_soc, p_max_arr, mpc):
         target_soc = max(min(target_soc, self.capacity_kwh), 0.0)
@@ -405,7 +400,6 @@ class EVLoad(OptionalLoad):
             "load_type": self.load_type,
             "reward_cents_per_kwh": self.reward_cents_per_kwh,
 
-            "plugged_in_entity_id": self.plugged_in_entity_id,
             "power_entity_id": self.power_entity_id,
             "level_entity_id": self.level_entity_id,
             "capacity_kwh": self.capacity_kwh,
@@ -437,7 +431,6 @@ class EVLoad(OptionalLoad):
             load_type=str(item.get("load_type", "ev")).strip(),
             reward_cents_per_kwh=float(item.get("reward_cents_per_kwh", 0.0) or 0.0),
 
-            plugged_in_entity_id=str(item.get("plugged_in_entity_id", "")).strip(),
             power_entity_id=str(item.get("power_entity_id", "")).strip(),
             level_entity_id=str(item.get("level_entity_id", "")).strip(),
             capacity_kwh=float(item.get("capacity_kwh", 0.0) or 0.0),

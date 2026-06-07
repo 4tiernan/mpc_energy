@@ -20,31 +20,31 @@ class GenericBinaryCharger(EVCharger):
         
         self.state = "off"
         self.current_charge_rate_kw = 0.0        
-        self.car_plugged_in = True
 
     def update_state(self):
         """
         Update the charger's internal state. 
-        Binary chargers typically don't have complex internal states to sync.
         """
-        pass
+        if self.plugged_in_entity_id:
+            self.car_plugged_in = self.ha.get_boolean_state(self.plugged_in_entity_id)
+
+        if self.power_entity_id:
+            self.current_charge_rate_kw = self.ha.get_numeric_state(self.power_entity_id)
+
+        state_payload = self.ha.get_state(self.switch_entity_id)
+        if isinstance(state_payload, dict):
+            self.state = state_payload.get("state", "off").lower()
+        else:
+            self.state = "off"
+        
+        # If no power entity is provided, estimate power based on switch state
+        if not self.power_entity_id:
+            self.current_charge_rate_kw = self.nominal_power if self.state == "on" else 0.0
 
     def update(self):
         """Update charger state from Home Assistant."""
         try:
-            if self.plugged_in_entity_id:
-                self.car_plugged_in = self.ha.get_boolean_state(self.plugged_in_entity_id)
-
-            if self.power_entity_id:
-                self.current_charge_rate_kw = self.ha.get_numeric_state(self.power_entity_id)
-
-            state_payload = self.ha.get_state(self.switch_entity_id)
-            if isinstance(state_payload, dict):
-                self.state = state_payload.get("state", "off").lower()
-            else:
-                self.state = "off"
-            
-            self.current_charge_rate_kw = self.nominal_power if self.state == "on" else 0.0
+            self.update_state()
         except Exception as e:
             logger.error(f"Failed to update Generic Binary Charger '{self.name}': {e}")
 

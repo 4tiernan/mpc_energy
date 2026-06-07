@@ -1,6 +1,7 @@
 ## 0.9.0
 * Improved EV charging logic. 
 * Stopped effective price from going to zero overnight.
+* Changed SigEnergy Charger to not require additional helper.
 
 ## 0.8.0
 * **!!!Please enter the general config page to sync old config through HA with new web dashboard config!!!**.

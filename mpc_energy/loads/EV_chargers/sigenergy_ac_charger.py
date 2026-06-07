@@ -28,7 +28,7 @@ class SigEnergyACCharger(EVCharger):
             ):
         
         
-        self.plugged_in_entity_id = plugged_in_entity_id
+        self.charger_state_entity_id = plugged_in_entity_id
         self.nominal_ac_voltage = nominal_ac_voltage
         self.min_charge_current = min_charge_current
         self.max_charge_current = max_charge_current
@@ -52,7 +52,10 @@ class SigEnergyACCharger(EVCharger):
         """
         Update the charger state by fetching the latest data from Home Assistant and checking whether a car is plugged in and adapting power limits.
         """
-        self.car_plugged_in = self.ha.get_boolean_state(self.plugged_in_entity_id)
+        state_payload = self.ha.get_state(self.charger_state_entity_id)
+        charger_state = state_payload.get("state", "") if isinstance(state_payload, dict) else ""
+        # For SigEnergy AC Chargers, these strings indicate a connection
+        self.car_plugged_in = charger_state in ["EV Ready", "Charging", "Reserving"]
 
         self.available_phases = 3 if self.three_phase_available else 1
 

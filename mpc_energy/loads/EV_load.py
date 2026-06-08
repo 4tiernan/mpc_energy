@@ -245,7 +245,7 @@ class EVLoad(OptionalLoad):
         if not self.is_plugged_in:
             # If the EV is not connected, zero out all power limits and SOC targets to remove EV impact from the optimization.
             p_max_arr[:] = 0.0
-            draw_forecast[:] = 0.0
+            #draw_forecast[:] = 0.0
             ev_soc_min_required_arr[:] = 0.0
             ev_soc_optimal_min_arr[:] = 0.0
             logger.debug(f"EV '{self.name}' is not currently plugged in. Ignoring EV load in MPC optimization.")

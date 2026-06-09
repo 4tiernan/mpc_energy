@@ -426,9 +426,9 @@ class GoodWePlant(BasePlant):
         self.working_mode = self.ControlMode.SOLAR_TO_LOAD
         self.check_control_limits(
             working_mode=self.working_mode,
-            control_mode="auto",
+            control_mode="battery_standby",
             ems_limit=0, 
-            export_limit=self.max_export_power
+            export_limit=0
         )
     
     def partial_grid_import(self):

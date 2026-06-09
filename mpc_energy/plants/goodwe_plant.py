@@ -474,7 +474,7 @@ class GoodWePlant(BasePlant):
             working_mode=self.working_mode,
             control_mode="auto",
             ems_limit=0,
-            export_limit=self.max_export_power
+            export_limit=0
         )
     
     def run(self):

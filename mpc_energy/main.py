@@ -371,7 +371,7 @@ def run_controller(price_update=False):
         logger.debug(f"Optional load settings changed. Forcing MPC to update with new settings.")
         mpc.run_optimisation(price_data)
     
-    if(last_control_mode == "Manual Override"):
+    if(last_control_mode == "Manual Override" and ha_mqtt.automatic_control_switch.state == True):
         if(ha_mqtt.automatic_control_switch.state == True):
             logger.warning(f"Manual override finished. Returning control to {selected_controller}.")
 

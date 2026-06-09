@@ -451,6 +451,11 @@ class SigEnergyPlant(BasePlant):
         if(battery_charge_limit == None):
             battery_charge_limit = self.max_charge_power
         else:
+            # If current solar production is higher than what can be consumed, stored, or exported
+            # under planned limits, we relax the battery charge limit to avoid curtailment.
+            if self.solar_kw > (self.load_power + battery_charge_limit + self.max_export_power - 0.2):
+                battery_charge_limit = self.solar_kw - (self.load_power + self.max_export_power) + 1 #Add a 1kW buffer
+
             battery_charge_limit = min(max(battery_charge_limit, 0), self.max_charge_power)
 
         self.working_mode = self.ControlMode.EXPORT_EXCESS_SOLAR
@@ -528,6 +533,8 @@ class SigEnergyPlant(BasePlant):
     def run(self):
         self.maintain_control_mode()
 
-    def maintain_control_mode(self): # Maintain the current control mode (mainly export all solar)
+    def maintain_control_mode(self): # Maintain the current control mode
         if(self.working_mode == self.ControlMode.EXPORT_ALL_SOLAR):
             self.export_all_solar()
+        elif(self.working_mode == self.ControlMode.EXPORT_EXCESS_SOLAR):
+            self.export_excess_solar() # Run excess solar repeatedly to ensure no solar power is wasted.

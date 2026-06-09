@@ -4,6 +4,7 @@
 * Changed SigEnergy Charger to not require additional helper.
 * Improved Effective Price and Next Grid Interaction calculations.
 * Fixed Grid Import Mode for GoodWe Systems.
+* Fixed issue with Export Excess Solar that limited solar power.
 
 ## 0.8.0
 * **!!!Please enter the general config page to sync old config through HA with new web dashboard config!!!**.

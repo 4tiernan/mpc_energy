@@ -3,6 +3,7 @@
 * Stopped effective price from going to zero overnight.
 * Changed SigEnergy Charger to not require additional helper.
 * Improved Effective Price and Next Grid Interaction calculations.
+* Fixed Grid Import Mode for GoodWe Systems.
 
 ## 0.8.0
 * **!!!Please enter the general config page to sync old config through HA with new web dashboard config!!!**.

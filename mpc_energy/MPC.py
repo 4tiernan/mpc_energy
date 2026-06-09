@@ -753,30 +753,43 @@ class MPC:
         return plan_modes
     
     def calculate_next_grid_interaction_kwh(self, grid_net: List[float]) -> float:
-        """Return the upcoming contiguous import/export interaction energy in kWh."""
-        start_index = None
-        interaction_direction_import = None
+        """Return the upcoming contiguous import/export interaction energy in kWh, ignoring blips < 0.5 kWh."""
+        interaction = self._get_next_significant_interaction(grid_net)
+        if interaction:
+            return round(float(interaction["energy_kwh"]), 2)
+        return 0.0
 
-        for index, net_power in enumerate(grid_net):
-            if abs(net_power) > self.power_threshold:
-                start_index = index
-                interaction_direction_import = net_power > 0
-                break
-
-        if start_index is None:
-            return 0.0
-
-        interaction_kwh = 0.0
-        for net_power in grid_net[start_index:]:
-            if abs(net_power) <= self.power_threshold:
-                break
-
-            if (net_power > 0) != interaction_direction_import:
-                break
-
-            interaction_kwh += abs(net_power) * self.dt_5min
-
-        return round(float(interaction_kwh), 2)
+    def _get_next_significant_interaction(self, grid_net: List[float]) -> Optional[Dict[str, Any]]:
+        """Helper to find the first contiguous grid interaction >= 0.5 kWh."""
+        idx = 0
+        n = len(grid_net)
+        while idx < n:
+            # Find the start of an interaction
+            if abs(grid_net[idx]) <= self.power_threshold:
+                idx += 1
+                continue
+            
+            start_index = idx
+            is_import = grid_net[idx] > 0
+            interaction_kwh = 0.0
+            
+            # Consume the contiguous interaction
+            while idx < n:
+                power = grid_net[idx]
+                if abs(power) <= self.power_threshold or (power > 0) != is_import:
+                    break
+                interaction_kwh += abs(power) * self.dt_5min
+                idx += 1
+            
+            # If this interaction is significant enough, return its details
+            if interaction_kwh >= 0.5:
+                return {
+                    "start_idx": start_index,
+                    "energy_kwh": interaction_kwh,
+                    "is_import": is_import
+                }
+                
+        return None
 
     def run(self, amber_data):
         [output, plotted_output] = self.run_optimisation(amber_data)
@@ -792,21 +805,22 @@ class MPC:
         solar_used_list = output["solar_used"]
         solar_forecast_list = output["solar_forecast"]
 
-        effective_price = general_price_list[0] # Default to current grid price
-
-        for i, grid_net in enumerate(grid_net_list):
-            if(grid_net > self.power_threshold): # If there is significant grid import, set price to grid import price
+        # Find the next significant grid interaction (>= 0.5 kWh) to set the price
+        interaction = self._get_next_significant_interaction(grid_net_list)
+        
+        if interaction:
+            i = interaction["start_idx"]
+            if interaction["is_import"]:
                 effective_price = general_price_list[i]
-                break
-            elif(grid_net < -self.power_threshold): # If there is significant grid export, set price to grid export price
-                if(feedIn_price_list[0] > feedIn_price_list[i]): # If the current feed in price is higher than the future feed in price, use the current feed in price as the effective price as if power was lower we would be exporting now.
-                    effective_price = feedIn_price_list[0]
-                    break
-                else:   
-                    effective_price = feedIn_price_list[i]
-                    break
-            else: # If there is no significant import or export, set price based on solar conditions
-                if(solar_used_list[i] < solar_forecast_list[i] - self.power_threshold): # If solar is being curtailed, set price to zero as using more power won't cost anything
+            else:
+                # If the current feed in price is higher than the future feed in price, 
+                # use the current feed in price as the effective price.
+                effective_price = max(feedIn_price_list[0], feedIn_price_list[i])
+        else:
+            # If no significant grid interaction is found, check for solar curtailment
+            effective_price = general_price_list[0] # Default to current grid price
+            for i in range(len(grid_net_list)):
+                if solar_used_list[i] < solar_forecast_list[i] - self.power_threshold:
                     effective_price = 0
                     break
         

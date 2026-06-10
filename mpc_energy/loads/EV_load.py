@@ -140,6 +140,7 @@ class EVLoad(OptionalLoad):
         self.p_ev = cp.Variable(n, nonneg=True, name=f"{self.name}_p_ev")
         self.ev_soc = cp.Variable(n + 1, name=f"{self.name}_ev_soc")
         self.unachievable_kwh = cp.Variable(n, nonneg=True, name=f"{self.name}_unachievable_kwh")
+        self.energy_balance_slack = cp.Variable(n, nonneg=True, name=f"{self.name}_energy_balance_slack")
         
         self.p_max_param = cp.Parameter(n, nonneg=True, name=f"{self.name}_p_max_param")
         self.p_max_param.value = np.zeros(n)
@@ -156,11 +157,11 @@ class EVLoad(OptionalLoad):
 
         constraints = [
             self.ev_soc[0] == self.soc_init_param,
-            self.ev_soc[1:] == self.ev_soc[:-1] + (mpc.dt_5min * self.p_ev) - (mpc.dt_5min * self.draw_forecast_param) + self.unachievable_kwh,
+            self.ev_soc[1:] == self.ev_soc[:-1] + (mpc.dt_5min * self.p_ev) - (mpc.dt_5min * self.draw_forecast_param) + self.energy_balance_slack,
             self.ev_soc[1:] >= -0.001, # Small epsilon to prevent precision-based infeasibility
             self.ev_soc[1:] <= self.soc_upper_limit_param,
-            self.ev_soc[1:] >= self.soc_min_required_param,
-            self.ev_soc[1:] >= self.soc_optimal_min_param,
+            self.ev_soc[1:] >= self.soc_min_required_param - self.unachievable_kwh,
+            self.ev_soc[1:] >= self.soc_optimal_min_param - self.unachievable_kwh,
             self.p_ev >= 0,
             self.p_ev <= self.p_max_param
         ]
@@ -168,7 +169,8 @@ class EVLoad(OptionalLoad):
         objective_term = (
             - cp.sum(cp.multiply(self.ev_charge_48hr_reward, self.p_ev)) * mpc.dt_5min
             - cp.sum(cp.multiply(self.charge_maintain_reward, self.ev_soc[0:-1])) * mpc.dt_5min
-            + cp.sum(self.unachievable_kwh) * 10000.0  # Large penalty for missing targets
+            + cp.sum(self.unachievable_kwh) * 10000.0  # Penalty for missing user targets
+            + cp.sum(self.energy_balance_slack) * 1000000.0 # Extreme penalty for keeping SOC within constraints to avoid infeasibility
         )
 
         return constraints, objective_term, self.p_ev

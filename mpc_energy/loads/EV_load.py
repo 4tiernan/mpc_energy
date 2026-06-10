@@ -156,11 +156,11 @@ class EVLoad(OptionalLoad):
 
         constraints = [
             self.ev_soc[0] == self.soc_init_param,
-            self.ev_soc[1:] == self.ev_soc[:-1] + (mpc.dt_5min * self.p_ev) - (mpc.dt_5min * self.draw_forecast_param),
-            self.ev_soc[1:] >= 0,
+            self.ev_soc[1:] == self.ev_soc[:-1] + (mpc.dt_5min * self.p_ev) - (mpc.dt_5min * self.draw_forecast_param) + self.unachievable_kwh,
+            self.ev_soc[1:] >= -0.001, # Small epsilon to prevent precision-based infeasibility
             self.ev_soc[1:] <= self.soc_upper_limit_param,
-            self.ev_soc[1:] >= self.soc_min_required_param - self.unachievable_kwh, # Allow for some unachievable kWh to ensure feasibility if targets can't be met
-            self.ev_soc[1:] >= self.soc_optimal_min_param - self.unachievable_kwh,
+            self.ev_soc[1:] >= self.soc_min_required_param,
+            self.ev_soc[1:] >= self.soc_optimal_min_param,
             self.p_ev >= 0,
             self.p_ev <= self.p_max_param
         ]

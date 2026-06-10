@@ -157,13 +157,11 @@ class EVLoad(OptionalLoad):
 
         constraints = [
             self.ev_soc[0] == self.soc_init_param,
-            # Physical SOC propagation (slack is no longer cumulative)
-            self.ev_soc[1:] == self.ev_soc[:-1] + (mpc.dt_5min * self.p_ev) - (mpc.dt_5min * self.draw_forecast_param),
-            # Use non-cumulative slack to satisfy constraints
-            (self.ev_soc[1:] + self.energy_balance_slack) >= -0.001, 
-            (self.ev_soc[1:] + self.energy_balance_slack) <= self.soc_upper_limit_param,
-            (self.ev_soc[1:] + self.energy_balance_slack) >= self.soc_min_required_param - self.unachievable_kwh,
-            (self.ev_soc[1:] + self.energy_balance_slack) >= self.soc_optimal_min_param - self.unachievable_kwh,
+            self.ev_soc[1:] == self.ev_soc[:-1] + (mpc.dt_5min * self.p_ev) - (mpc.dt_5min * self.draw_forecast_param) + self.energy_balance_slack,
+            self.ev_soc[1:] >= 0 - self.unachievable_kwh, # to prevent infeasibility
+            self.ev_soc[1:] <= self.soc_upper_limit_param,
+            self.ev_soc[1:] >= self.soc_min_required_param - self.unachievable_kwh,
+            self.ev_soc[1:] >= self.soc_optimal_min_param - self.unachievable_kwh,
             self.p_ev >= 0,
             self.p_ev <= self.p_max_param
         ]
@@ -356,12 +354,8 @@ class EVLoad(OptionalLoad):
 
     def get_results(self, dt):
         p_ev = self.p_ev.value
-        soc_ev_raw = self.ev_soc.value
-        slack = self.energy_balance_slack.value
-        if p_ev is None or soc_ev_raw is None or slack is None: return {}
-
-        # Reconstruct the "visual" SOC for the dashboard by adding the non-cumulative slack
-        soc_ev = np.concatenate((soc_ev_raw[0:1], soc_ev_raw[1:] + slack))
+        soc_ev = self.ev_soc.value
+        if p_ev is None: return {}
 
         p_res = [round(float(x), 2) for x in p_ev.tolist()]
         if self.min_charge_power_kw > 0:

@@ -140,7 +140,6 @@ class EVLoad(OptionalLoad):
         self.p_ev = cp.Variable(n, nonneg=True, name=f"{self.name}_p_ev")
         self.ev_soc = cp.Variable(n + 1, name=f"{self.name}_ev_soc")
         self.unachievable_kwh = cp.Variable(n, nonneg=True, name=f"{self.name}_unachievable_kwh")
-        self.energy_balance_slack = cp.Variable(n, nonneg=True, name=f"{self.name}_energy_balance_slack")
         
         self.p_max_param = cp.Parameter(n, nonneg=True, name=f"{self.name}_p_max_param")
         self.p_max_param.value = np.zeros(n)
@@ -157,7 +156,7 @@ class EVLoad(OptionalLoad):
 
         constraints = [
             self.ev_soc[0] == self.soc_init_param,
-            self.ev_soc[1:] == self.ev_soc[:-1] + (mpc.dt_5min * self.p_ev) - (mpc.dt_5min * self.draw_forecast_param) + self.energy_balance_slack,
+            self.ev_soc[1:] == self.ev_soc[:-1] + (mpc.dt_5min * self.p_ev) - (mpc.dt_5min * self.draw_forecast_param),
             self.ev_soc[1:] >= 0 - self.unachievable_kwh, # to prevent infeasibility
             self.ev_soc[1:] <= self.soc_upper_limit_param,
             self.ev_soc[1:] >= self.soc_min_required_param - self.unachievable_kwh,
@@ -170,7 +169,6 @@ class EVLoad(OptionalLoad):
             - cp.sum(cp.multiply(self.ev_charge_48hr_reward, self.p_ev)) * mpc.dt_5min
             - cp.sum(cp.multiply(self.charge_maintain_reward, self.ev_soc[0:-1])) * mpc.dt_5min
             + cp.sum(self.unachievable_kwh) * 10000.0  # Penalty for missing user targets
-            + cp.sum(self.energy_balance_slack) * 1000000.0 # Extreme penalty for keeping SOC within constraints to avoid infeasibility
         )
 
         return constraints, objective_term, self.p_ev
@@ -374,7 +372,7 @@ class EVLoad(OptionalLoad):
                 p_res[i] = self.min_charge_power_kw
 
         self.target_charge_rate = p_res[0]
-        soc_pct = [round((x / self.capacity_kwh) * 100, 2) if self.capacity_kwh > 0 else 0 for x in soc_ev.tolist()]
+        soc_pct = [max(round((x / self.capacity_kwh) * 100, 2),0) if self.capacity_kwh > 0 else 0 for x in soc_ev.tolist()]
 
         if(self._normalise_ev_mode() == self.EV_MODE_FORCE_ON and self.is_plugged_in):
             self.target_charge_rate = self.max_charge_power_kw

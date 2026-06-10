@@ -399,7 +399,7 @@ class MPC:
 
         self.prob = cp.Problem(cp.Minimize(self.objective_expression), constraints)
 
-    def run_optimisation(self, amber_data: amber_data) -> List[Any]:
+    def run_optimisation(self, amber_data: amber_data, is_fallback: bool = False) -> List[Any]:
         start_optimisation = time.time()
 
         now = datetime.now(self.local_tz).replace(second=0, microsecond=0)
@@ -539,6 +539,20 @@ class MPC:
                     f"solar_eod_reward_mask={self.solar_eod_reward_mask_param.value[i]}"
                 )
             
+            # Fall back to model without optional loads as they are more likely to cause infeasibility.
+            if self.optional_loads and not is_fallback:
+                logger.warning(f"MPC solve failed with status {self.prob.status}. Retrying without optional loads as a fallback.")
+                original_loads = self.optional_loads
+                self.optional_loads = []
+                # Rebuild the problem template without optional load variables and constraints
+                self.build_optimisation_template()
+                try:
+                    return self.run_optimisation(amber_data, is_fallback=True)
+                finally:
+                    # Restore optional loads and rebuild template for the next scheduled interval
+                    self.optional_loads = original_loads
+                    self.build_optimisation_template()
+
             
             logger.info("Running Solver again in verbose mode to get more details on the failure...")
             solve(self, verbose=True)

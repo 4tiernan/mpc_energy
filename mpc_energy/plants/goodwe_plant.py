@@ -431,17 +431,12 @@ class GoodWePlant(BasePlant):
             export_limit=0
         )
     
-    def partial_grid_import(self, import_limit = None): # Don't allow battery discharging and only allow grid import to cover load not met by solar, prioritising self consumption of solar over grid import.
-        if(import_limit == None):
-            import_limit = self.max_import_power
-        else:
-            import_limit = min(max(import_limit, 0), self.max_import_power)
-
+    def partial_grid_import(self):
         self.working_mode = self.ControlMode.PARTIAL_GRID_IMPORT
         self.check_control_limits(
             working_mode=self.working_mode,
             control_mode="buy_power",
-            ems_limit=import_limit, # Grid Import Power
+            ems_limit=0, # Grid Import Power
             export_limit=self.max_export_power
         )
 

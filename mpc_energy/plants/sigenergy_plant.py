@@ -479,11 +479,7 @@ class SigEnergyPlant(BasePlant):
             grid_export=0,
             grid_import=0)
     
-    def partial_grid_import(self, import_limit = None): # Don't allow battery discharging and only allow grid import to cover load not met by solar, prioritising self consumption of solar over grid import.
-        if(import_limit == None):
-            import_limit = self.max_import_power
-        else:
-            import_limit = min(max(import_limit, 0), self.max_import_power)
+    def partial_grid_import(self): # Don't allow battery discharging and only allow grid import to cover load not met by solar, prioritising self consumption of solar over grid import.
         self.working_mode = self.ControlMode.PARTIAL_GRID_IMPORT
         self.check_control_limits(
             working_mode=self.working_mode,
@@ -492,7 +488,7 @@ class SigEnergyPlant(BasePlant):
             charge=self.max_charge_power,
             pv=self.max_pv_power,
             grid_export=0,
-            grid_import=import_limit)
+            grid_import=self.max_import_power)
         
     def import_power(self, battery_charge_limit = None, pv_limit = None, grid_import_limit = None):
         if(battery_charge_limit == None):

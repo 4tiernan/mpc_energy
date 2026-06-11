@@ -739,7 +739,7 @@ class MPC:
         
         elif(grid_net >= power_threshold and inverter_power > -self.power_threshold):
             if(control_active):
-                self.plant.partial_grid_import() # If the plan calls for grid import but the inverter isn't discharging, use partial grid import mode to allow the inverter to charge the battery with solar if possible to reduce grid import
+                self.plant.partial_grid_import(import_limit = abs(grid_net)) # If the plan calls for grid import but the inverter isn't charging, use partial grid import mode to allow the inverter to charge the battery with solar if possible to reduce grid import
             
             return self.plant.ControlMode.PARTIAL_GRID_IMPORT
 

@@ -127,6 +127,14 @@ class HWLoad(OptionalLoad):
 
         return constraints, objective_term, self.p_hw
 
+    def disable_load(self, mpc):
+        """Sets internal CVXPY parameters to neutral values to effectively remove the load from optimization."""
+        n = int(mpc.N_5min)
+        self.soc_init_param.value = float(getattr(self, 'current_charge_kwh', 0.0) or 0.0)
+        self.capacity_param.value = max(float(self.capacity_kwh), 0.001)
+        self.p_max_limit_param.value = 0.0
+        self.draw_forecast_param.value = np.zeros(n)
+
     def update_mpc_values(self, mpc, time_index):
         self.update_data()
         n = mpc.N_5min

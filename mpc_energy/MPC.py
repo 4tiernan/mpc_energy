@@ -412,7 +412,8 @@ class MPC:
             try:
                 load.update_mpc_values(self, time_index)
             except Exception as e:
-                logger.warning(f"Failed to update optional load '{load.name}'s values for MPC. Error: {e}")
+                logger.warning(f"Failed to update optional load '{load.name}'s values for MPC. Error: {e}. Disabling this load for current MPC run.")
+                load.disable_load(self)
 
         #logger.error("Messing with prices!!")
         #self.prices_sell[180:] = 0.02 # Allow testing of various pricings

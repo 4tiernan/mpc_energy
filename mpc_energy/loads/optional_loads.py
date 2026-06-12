@@ -220,6 +220,10 @@ class OptionalLoad:
         """Define CVXPY variables, constraints and rewards."""
         raise NotImplementedError("Must implement build_cvxpy in subclass")
 
+    def disable_load(self, mpc):
+        """Sets internal CVXPY parameters to neutral values to effectively remove the load from optimization."""
+        raise NotImplementedError("Must implement disable_load in subclass")
+
     def update_mpc_values(self, n, dt, time_index, load_5min):
         """Update CVXPY parameters based on latest forecasts/state."""
         raise NotImplementedError("Must implement update_mpc_values in subclass")

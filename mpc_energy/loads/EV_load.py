@@ -172,6 +172,17 @@ class EVLoad(OptionalLoad):
         )
 
         return constraints, objective_term, self.p_ev
+
+    def disable_load(self, mpc):
+        """Sets internal CVXPY parameters to neutral values to effectively remove the load from optimization."""
+        n = int(mpc.N_5min)
+        self.p_max_param.value = np.zeros(n, dtype=float)
+        soc_init = float(getattr(self, 'current_ev_soc_kWh', 0.0) or 0.0)
+        self.soc_init_param.value = soc_init
+        self.soc_upper_limit_param.value = max(soc_init, 0.001)
+        self.soc_min_required_param.value = np.zeros(n, dtype=float)
+        self.soc_optimal_min_param.value = np.zeros(n, dtype=float)
+        self.draw_forecast_param.value = np.zeros(n, dtype=float)
     
     def _normalise_ev_mode(self):
         mode = self.EV_MODE_SOLAR_SMART

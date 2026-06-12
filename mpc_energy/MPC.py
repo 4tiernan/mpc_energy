@@ -700,7 +700,7 @@ class MPC:
         solar_available = data["solar_forecast"][increment]
         load_power = data["load_power"][increment]
         grid_net = data["grid_net"][increment] # if grid_net is positive we are importing power 
-        battery_power = data["battery_power"][increment]
+        battery_power = data["battery_power"][increment] # If battery_power is positive we are discharging, if negative we are charging
 
         if((data_helpers.approx_equal(inverter_power, used_solar_power) and used_solar_power >= load_power + power_threshold and grid_net <= -power_threshold) or (data_helpers.approx_equal(inverter_power, self.plant.max_inverter_power) and used_solar_power > self.plant.max_inverter_power)):
             if(control_active):
@@ -738,7 +738,7 @@ class MPC:
                 self.plant.export_excess_solar(battery_charge_limit = abs(battery_power))
             return self.plant.ControlMode.EXPORT_EXCESS_SOLAR
         
-        elif(grid_net >= power_threshold and solar_available > self.power_threshold and inverter_power > -self.power_threshold):
+        elif(grid_net >= power_threshold and data_helpers.approx_equal(grid_net + solar_available, load_power)): # Check we are importing and just enough to cover the current load
             if(control_active):
                 self.plant.partial_grid_import() # If the plan calls for grid import but the inverter isn't charging, use partial grid import mode to allow the inverter to charge the battery with solar if possible to reduce grid import
             

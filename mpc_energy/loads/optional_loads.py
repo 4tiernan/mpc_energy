@@ -32,6 +32,9 @@ def create_load_instance(item: dict[str, Any]) -> "OptionalLoad | None":
     elif l_type == "ev":    
         from loads.EV_load import EVLoad
         return EVLoad.from_dict(item)
+    elif l_type == "timed":
+        from loads.timed_load import TimedLoad
+        return TimedLoad.from_dict(item)
     else:
         logger.warning(f"Unknown load_type '{l_type}' in item: {item}. Skipping.")
         return None

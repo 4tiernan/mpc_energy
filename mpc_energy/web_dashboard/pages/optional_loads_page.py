@@ -27,8 +27,15 @@ rows = st.session_state.optional_load_rows
 # To prevent st.tabs from jumping back to index 0 when a name is edited, 
 # we must keep the tab labels stable until a save occurs.
 def refresh_tab_titles():
+    def get_icon(r):
+        l_type = r.get("load_type")
+        if l_type == "ev": return "🚗"
+        if l_type == "hot_water": return "🛁"
+        if l_type == "timed": return "⏱️"
+        return "❓"
+
     st.session_state.stable_tab_titles = ["📋 Overview"] + [
-        f"{'🚗' if r.get('load_type')=='ev' else '🛁'} {r.get('name', 'New Load')}" 
+        f"{get_icon(r)} {r.get('name', 'New Load')}" 
         for r in st.session_state.optional_load_rows
     ]
 
@@ -70,8 +77,8 @@ for idx, row in enumerate(rows):
         col_t1, col_t2, col_t3 = st.columns([2, 2, 0.4])
         row["load_type"] = col_t1.selectbox(
             "Load Type",
-            options=["ev", "hot_water"],
-            index=["ev", "hot_water"].index(row.get("load_type", "ev") if row.get("load_type") != "generic" else "ev"),
+            options=["ev", "hot_water", "timed"],
+            index=["ev", "hot_water", "timed"].index(row.get("load_type", "ev") if row.get("load_type") != "generic" else "ev"),
             key=f"optional_load_type_{idx}",
             format_func=lambda x: "EV" if x == "ev" else x.replace("_", " ").title()
         )
@@ -157,6 +164,19 @@ for idx, row in enumerate(rows):
             row["power_entity_id"] = c6.text_input("Heater Power Entity ID", value=row.get("power_entity_id", ""), key=f"hw_hpent_{idx}")
             row["hw_power_unit_scale"] = c7.selectbox("Unit", options=["kW", "W"], index=0 if row.get("hw_power_unit_scale") == "kW" else 1, key=f"hw_unit_{idx}")
             row["reward_cents_per_kwh"] = st.text_input("Charge Reward (c/kWh)", value=str(row.get("reward_cents_per_kwh", "0.0")), key=f"hw_rew_{idx}")
+
+        elif row["load_type"] == "timed":
+            c1, c2, c3 = st.columns(3)
+            row["power_kw"] = c1.text_input("Device Power (kW)", value=str(row.get("power_kw", "0.0")), key=f"t_pwr_{idx}")
+            row["run_duration_hours"] = c2.text_input("Required Runtime (hrs)", value=str(row.get("run_duration_hours", "0.0")), key=f"t_dur_{idx}")
+            row["cycle_hours"] = c3.text_input("Cycle Period (hrs)", value=str(row.get("cycle_hours", "0.0")), key=f"t_cyc_{idx}")
+            
+            c4, c5 = st.columns(2)
+            row["switch_entity_id"] = c4.text_input("Switch Entity ID", value=row.get("switch_entity_id", ""), key=f"t_sw_{idx}")
+            row["power_entity_id"] = c5.text_input("Power Entity ID (Optional)", value=row.get("power_entity_id", ""), key=f"t_pent_{idx}")
+            
+            row["reward_cents_per_kwh"] = st.text_input("Run Reward (c/kWh)", value=str(row.get("reward_cents_per_kwh", "0.0")), key=f"t_rew_{idx}")
+            row["debias_load"] = st.checkbox("Debias Load", value=row.get("debias_load", False), key=f"t_deb_{idx}")
 
 st.divider()
 if st.button("💾 Save All Optional Loads", type="primary", width='stretch'):

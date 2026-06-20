@@ -425,7 +425,9 @@ class EVLoad(OptionalLoad):
             "charge_enable_entity_id": self.charge_enable_entity_id,
             "three_phase_available_entity_id": getattr(self.charger, 'three_phase_available_entity_id', None) if self.charger else None,
             "three_phase_available": getattr(self.charger, 'three_phase_available', None) if self.charger else None,
-            "debias_load": self.debias_load 
+            "debias_load": self.debias_load,
+            "charge_start_entity_id": getattr(self.charger, 'charge_start_entity_id', "") if self.charger else "",
+            "charge_stop_entity_id": getattr(self.charger, 'charge_stop_entity_id', "") if self.charger else ""
         }
 
     @classmethod

@@ -24,7 +24,9 @@ class SigEnergyACCharger(EVCharger):
             charge_current_entity_id: str,
             charge_enable_entity_id: str,
             charger_model: str,
-            debias_load: bool
+            debias_load: bool,
+            charge_start_entity_id: str = "",
+            charge_stop_entity_id: str = ""
             ):
         
         
@@ -44,9 +46,20 @@ class SigEnergyACCharger(EVCharger):
         self.charge_current_entity_id = charge_current_entity_id
         self.charge_enable_entity_id = charge_enable_entity_id
         self.charger_model = charger_model
+        self.charge_start_entity_id = charge_start_entity_id
+        self.charge_stop_entity_id = charge_stop_entity_id
+
+        self.use_buttons = bool(charge_start_entity_id and charge_stop_entity_id)
+        self.use_enable_switch = bool(charge_enable_entity_id)
+        if self.use_buttons:
+            logger.debug(f"Using buttons for EV charger {self.name} (start: {self.charge_start_entity_id}, stop: {self.charge_stop_entity_id})")
+        elif self.use_enable_switch:
+            logger.debug(f"Using switch for EV charger {self.name} (enable: {self.charge_enable_entity_id})")
+        else:
+            logger.warning(f"No control entities configured for EV charger {self.name}")
 
         self.last_control_entity_update_time = 0.0 # Timestamp of the last time we sent a control command to the charger, used to rate limit calls
-        self.min_time_between_control_updates = 30.0 # Minimum time in seconds between control updates to avoid hitting the charger controls to frequently.
+        self.min_time_between_control_updates = 60.0 # Minimum time in seconds between control updates to avoid hitting the charger controls to frequently.
 
     def update_state(self):
         """
@@ -56,6 +69,7 @@ class SigEnergyACCharger(EVCharger):
         charger_state = state_payload.get("state", "") if isinstance(state_payload, dict) else ""
         # For SigEnergy AC Chargers, these strings indicate a connection
         self.car_plugged_in = charger_state in ["EV Ready", "Charging", "Reserving", "Preparing"]
+        self.car_charging = charger_state in ["Charging", "Preparing"]
 
         self.available_phases = 3 if self.three_phase_available else 1
 
@@ -78,29 +92,37 @@ class SigEnergyACCharger(EVCharger):
                 logger.debug(f"Calculated target charge current {target_charge_current:.2f}A is out of bounds for charger {self.name}. Setting it within the {self.min_charge_current:.2f}-{self.max_charge_current:.2f}A range limits.")
             target_charge_current = max(self.min_charge_current, min(self.max_charge_current, target_charge_current))
             
-            desired_switch_state = self.target_charge_rate > 0
+            desired_charging_state = self.target_charge_rate > 0
             desired_current_input_state = target_charge_current if target_charge_current > 0 else 0.0
 
 
         else:
-            desired_switch_state = False
+            desired_charging_state = False
             desired_current_input_state = self.min_charge_current # Set to min charge current when not plugged in to avoid errors
 
         if(self.charging_mode != EVLoad.EV_MODE_DISABLED):
-            switch_entity_state = self.ha.get_boolean_state(self.charge_enable_entity_id)
             current_input_entity_state = self.ha.get_numeric_state(self.charge_current_entity_id)
 
-            if((switch_entity_state != desired_switch_state or current_input_entity_state != desired_current_input_state) and (time.time() - self.last_control_entity_update_time) < self.min_time_between_control_updates):
-                logger.debug(f"Warning: Rate limiting control updates for {self.name}. Desired switch state: {desired_switch_state}, current switch state: {switch_entity_state}, desired current input: {desired_current_input_state:.2f}A, current input state: {current_input_entity_state:.2f}A. Will attempt to update again in {(self.min_time_between_control_updates - (time.time() - self.last_control_entity_update_time)):.2f} seconds.")
+            if((self.car_charging != desired_charging_state or current_input_entity_state != desired_current_input_state) and (time.time() - self.last_control_entity_update_time) < self.min_time_between_control_updates):
+                logger.debug(f"Warning: Rate limiting control updates for {self.name}. Desired switch state: {desired_charging_state}, current switch state: {self.car_charging}, desired current input: {desired_current_input_state:.2f}A, current input state: {current_input_entity_state:.2f}A. Will attempt to update again in {(self.min_time_between_control_updates - (time.time() - self.last_control_entity_update_time)):.2f} seconds.")
                 return
 
-            if(switch_entity_state != desired_switch_state):
+            if(self.car_charging != desired_charging_state):
                 try:
-                    self.ha.set_switch_state(self.charge_enable_entity_id, desired_switch_state)
-                    logger.debug(f"Set switch state for {self.name} to {desired_switch_state} from {switch_entity_state} (Plugged in: {self.car_plugged_in}, Target: {self.target_charge_rate:.2f} kW)")
+                    if self.use_buttons:
+                        if desired_charging_state:
+                            self.ha.call_service("button", "press", {"entity_id": self.charge_start_entity_id})
+                            logger.debug(f"Pressed start button for {self.name} (Entity: {self.charge_start_entity_id})")
+                        else:
+                            self.ha.call_service("button", "press", {"entity_id": self.charge_stop_entity_id})
+                            logger.debug(f"Pressed stop button for {self.name} (Entity: {self.charge_stop_entity_id})")
+                    else:
+                        self.ha.set_switch_state(self.charge_enable_entity_id, desired_charging_state)
+                        logger.debug(f"Set switch state for {self.name} to {desired_charging_state} from {self.car_charging} (Plugged in: {self.car_plugged_in}, Target: {self.target_charge_rate:.2f} kW)")
                     self.last_control_entity_update_time = time.time()
                 except Exception as e:
-                    logger.warning(f"Failed to set switch state for SigEnergy Charger '{self.name}': {e}.")
+                    control_method = "button press" if self.use_buttons else "switch state"
+                    logger.warning(f"Failed to set {control_method} for SigEnergy Charger '{self.name}': {e}.")
             
             if(current_input_entity_state != desired_current_input_state):
                 try:

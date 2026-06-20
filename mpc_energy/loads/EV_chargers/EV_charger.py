@@ -84,7 +84,9 @@ def create_charger_instance(config: dict[str, Any], ha: HomeAssistantAPI) -> "EV
             charge_current_entity_id=config.get("charge_current_entity_id", ""),
             charge_enable_entity_id=config.get("charge_enable_entity_id", ""),
             charger_model=charger_model,
-            debias_load=config.get("debias_load", False)
+            debias_load=config.get("debias_load", False),
+            charge_start_entity_id=config.get("charge_start_entity_id", ""),
+            charge_stop_entity_id=config.get("charge_stop_entity_id", "")
         )
     elif charger_model == "Generic Binary":
         from loads.EV_chargers.generic_binary import GenericBinaryCharger

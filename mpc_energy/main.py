@@ -260,6 +260,7 @@ start_time = time.time()
 last_amber_update_timestamp = 0
 automatic_control = True # var to keep track of whether the auto control switch is on
 last_real_price_timestamp = time.time() # var to keep track of when the last real price update was received to trigger safe mode if the price updates stop working
+price_data = None
 
 next_amber_update_timestamp = time.time() #time to run the next amber update
 partial_update = False #Indicates wheather to do a full amber update or just the current prices (if only estimated prices)
@@ -352,7 +353,7 @@ def check_for_spike(price_data):
             spike_found_timestamp = 0 # Reset the spike found timestamp if no spikes are currently forecasted
                 
 def run_controller(price_update=False):
-    global automatic_control, last_control_mode
+    global automatic_control, last_control_mode, price_data
     # If Auto control has been TURNED on, print a msg and reset flag
     selected_controller = ha_mqtt.energy_controller_selector.state
 

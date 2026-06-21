@@ -297,7 +297,6 @@ def update_sensors(price_data):
     set_sensor_if_changed(ha_mqtt.profit_remaining_today_sensor, round(mpc.profit_remaining_today, 2))
     set_sensor_if_changed(ha_mqtt.profit_tomorrow_sensor, round(mpc.profit_tomorrow, 2))
     
-    # Note: Target EV charge rate sensor logic should be moved to iterate over all opt_loads in mpc.py
 
     if(plant.grid_power < 0):
         price = price_data.feedIn_price

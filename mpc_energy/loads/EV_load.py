@@ -240,7 +240,7 @@ class EVLoad(OptionalLoad):
         # Convert SOC% delta to Power (kW): P = -deltaSOC * Capacity * (60/5) / 100
         soc_delta_forecast = self.forecast_level_delta(time_index)
         draw_forecast = -soc_delta_forecast * self.capacity_kwh * 0.12
-        draw_forecast[int(mpc.steps_per_hr*48):-1] = 0.0 # Only consider the first 48 hours of the forecast for EV load impact
+        #draw_forecast[int(mpc.steps_per_hr*48):-1] = 0.0 # Only consider the first 48 hours of the forecast for EV load impact
         
         
         logger.debug(f"EVLoad '{self.name}' drain forecast: avg={np.mean(draw_forecast)*1000:.1f}W")

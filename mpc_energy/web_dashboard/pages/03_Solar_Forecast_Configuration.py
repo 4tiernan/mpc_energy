@@ -21,7 +21,7 @@ new_config["solcast_solar_power_this_hour_entity_id"] = st.text_input("Power Thi
 
 if st.button("Save Solar Configuration"):
     config_manager.save_local_config(new_config)
-    st.success("Configuration saved! Please restart the add-on for changes to take effect.")
+    st.success("Configuration saved. Changes will take effect after restarting the add-on; you can continue configuring other pages and restart when ready.")
     st.session_state["solar_saved"] = True
 
 if st.session_state.get("solar_saved"):
@@ -32,6 +32,6 @@ if st.session_state.get("solar_saved"):
             st.session_state["solar_saved"] = False
             st.switch_page(next_step)
     else:
-        if st.button("🔄 Restart Now", help="Restart the integration to apply changes."):
+        if st.button("🔄 Restart Now", help="Restart the integration to apply changes. You may also restart later when finished configuring other pages."):
             config_manager.trigger_restart()
             st.info("Restarting...")

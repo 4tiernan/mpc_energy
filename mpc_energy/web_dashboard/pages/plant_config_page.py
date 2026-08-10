@@ -18,7 +18,7 @@ def load_config():
 def save_config(config):
     with open(CONFIG_PATH, 'w') as f:
         json.dump(config, f, indent=4)
-    st.success("Plant configuration saved! Please restart the Add-on for changes to take full effect.")
+    st.success("Plant configuration saved. Changes will take effect after restarting the Add-on; you can continue configuring other pages and restart when ready.")
     st.session_state["plant_saved"] = True
 
 brand_defaults = {
@@ -240,7 +240,7 @@ def plant_config_page():
                 st.session_state["plant_saved"] = False
                 st.switch_page(next_step)
         else:
-            if st.button("🔄 Restart Now", help="Restart the integration to apply changes."):
+            if st.button("🔄 Restart Now", help="Restart the integration to apply changes. You may also restart later when finished configuring other pages."):
                 config_manager.trigger_restart()
                 st.info("Restarting...")
 

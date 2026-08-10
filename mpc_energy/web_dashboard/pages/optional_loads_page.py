@@ -199,7 +199,7 @@ if st.button("💾 Save All Optional Loads", type="primary", width='stretch'):
     else:
         optional_loads.save_optional_loads(rows)
         refresh_tab_titles()
-        st.success("Optional loads saved. Please restart MPC to take effect. These are stored under /data so they persist across add-on updates.")
+        st.success("Optional loads saved. Changes will take effect after restarting the MPC; you can continue configuring other pages and restart when ready. These are stored under /data so they persist across add-on updates.")
         st.session_state["opt_loads_saved"] = True
 
 if st.session_state.get("opt_loads_saved"):
@@ -207,7 +207,7 @@ if st.session_state.get("opt_loads_saved"):
     if not next_step:
         st.write("Setup complete! Once the add-on is restarted and values are valid, the MPC will begin optimizing your energy usage.")
         col_final1, col_final2 = st.columns(2)
-        if col_final1.button("🔄 Restart Now", help="Restart the integration to apply changes."):
+        if col_final1.button("🔄 Restart Now", help="Restart the integration to apply changes. You may also restart later when finished configuring other pages."):
             config_manager.trigger_restart()
             st.info("Restarting...")
         if col_final2.button("Go to Dashboard", type="secondary"):

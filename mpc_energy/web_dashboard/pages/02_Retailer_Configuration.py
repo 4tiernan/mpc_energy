@@ -24,9 +24,9 @@ if retailer == "amber":
 
 elif retailer == "flow":
     st.subheader("Flow Power Settings")
-    new_config["flow_import_price_entity_id"] = st.text_input("Import Price Entity ID", value=config.get("flow_import_price_entity_id", ""), help="The Home Assistant entity ID for your Flow Power import price (c/kWh).")
-    new_config["flow_export_price_entity_id"] = st.text_input("Export Price Entity ID", value=config.get("flow_export_price_entity_id", ""), help="The Home Assistant entity ID for your Flow Power export price (c/kWh).")
-    new_config["flow_price_forecast_entity_id"] = st.text_input("Price Forecast Entity ID", value=config.get("flow_price_forecast_entity_id", ""), help="The Home Assistant entity ID for your Flow Power price forecast.")
+    new_config["flow_import_price_entity_id"] = st.text_input("Import Price Entity ID", value=config.get("flow_import_price_entity_id", ""), help="The Home Assistant entity ID for your Flow Power import price (c/kWh) (IE. sensor.flow_power_qld1_import_price but check your flow integration entity id).")
+    new_config["flow_export_price_entity_id"] = st.text_input("Export Price Entity ID", value=config.get("flow_export_price_entity_id", ""), help="The Home Assistant entity ID for your Flow Power export price (c/kWh) (IE. sensor.flow_power_qld1_export_price but check your flow integration entity id).")
+    new_config["flow_price_forecast_entity_id"] = st.text_input("Price Forecast Entity ID", value=config.get("flow_price_forecast_entity_id", ""), help="The Home Assistant entity ID for your Flow Power price forecast. (IE. sensor.flow_power_qld1_price_forecast but check your flow integration entity id).")
 
 elif retailer == "generic":
     st.subheader("Generic TOU Settings")
@@ -131,7 +131,7 @@ if st.button("Save Retailer Configuration"):
         st.error("Fix the errors above before saving.")
     else:
         config_manager.save_local_config(new_config)
-        st.success("Configuration saved! Please restart the add-on for changes to take effect.")
+        st.success("Configuration saved. Changes will take effect after restarting the add-on; you can continue configuring other pages and restart when ready.")
         st.session_state["retailer_saved"] = True
 
 if st.session_state.get("retailer_saved"):
@@ -141,6 +141,6 @@ if st.session_state.get("retailer_saved"):
             st.session_state["retailer_saved"] = False
             st.switch_page(next_step)
     else:
-        if st.button("🔄 Restart Now", help="Restart the integration to apply changes."):
+        if st.button("🔄 Restart Now", help="Restart the integration to apply changes. You may also restart later when finished configuring other pages."):
             config_manager.trigger_restart()
             st.info("Restarting...")

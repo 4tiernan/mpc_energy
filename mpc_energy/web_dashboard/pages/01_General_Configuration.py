@@ -52,7 +52,7 @@ with st.form("general_settings"):
             "log_level": log_level
         }
         config_manager.save_local_config(new_cfg)
-        st.success("General configuration saved! Please restart the integration to apply changes.")
+        st.success("General configuration saved. Changes will take effect after restarting the integration; you can continue configuring other pages and restart when ready.")
         st.session_state["general_saved"] = True
 
 if st.session_state.get("general_saved"):
@@ -62,6 +62,6 @@ if st.session_state.get("general_saved"):
             st.session_state["general_saved"] = False
             st.switch_page(next_step)
     else:
-        if st.button("🔄 Restart Now", help="Restart the integration to apply changes."):
+        if st.button("🔄 Restart Now", help="Restart the integration to apply changes. You may also restart later when finished configuring other pages."):
             config_manager.trigger_restart()
             st.info("Restarting...")

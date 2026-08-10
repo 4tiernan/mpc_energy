@@ -69,9 +69,38 @@ class FlowPowerInterface:
         return value
 
     def _parse_forecast_timestamp(self, ts):
-        # Flow Power exposes timestamps like: 2026-03-29 22:00:00+1000
-        dt = datetime.strptime(ts, "%Y-%m-%d %H:%M:%S%z")
-        return dt.astimezone(self.ha.local_tz)
+        """
+        Parse various timestamp formats returned by Flow Power export attributes.
+        Supported formats:
+        - ISO 8601 with 'T' and colon timezone: 2026-08-10T16:00:00+10:00
+        - Legacy format with space and no colon in offset: 2026-03-29 22:00:00+1000
+        """
+        # Try ISO 8601 first (handles 'T' and '+10:00')
+        try:
+            # datetime.fromisoformat handles offsets like +10:00
+            dt = datetime.fromisoformat(ts)
+            return dt.astimezone(self.ha.local_tz)
+        except Exception:
+            pass
+
+        # Try legacy format with space and no colon in offset
+        try:
+            dt = datetime.strptime(ts, "%Y-%m-%d %H:%M:%S%z")
+            return dt.astimezone(self.ha.local_tz)
+        except Exception:
+            pass
+
+        # Try to normalize offsets like +1000 -> +10:00 and parse again
+        try:
+            if ts and (ts[-5] in ['+', '-'] and ts[-3] != ':'):
+                # Insert colon before last two digits of offset
+                ts2 = ts[:-2] + ":" + ts[-2:]
+                dt = datetime.fromisoformat(ts2)
+                return dt.astimezone(self.ha.local_tz)
+        except Exception:
+            pass
+
+        raise FlowPowerError(f"Unrecognized timestamp format from Flow export attributes: {ts}")
 
     def _extract_forecast_points(self, state_payload):
         attributes = state_payload.get("attributes", {})

@@ -171,8 +171,15 @@ for idx, row in enumerate(rows):
         elif row["load_type"] == "timed":
             c1, c2, c3 = st.columns(3)
             row["power_kw"] = c1.text_input("Device Power (kW)", value=str(row.get("power_kw", "0.0")), key=f"t_pwr_{idx}", help="Rated power draw when the device is running (kW).")
-            row["run_duration_hours"] = c2.text_input("Required Runtime (hrs)", value=str(row.get("run_duration_hours", "0.0")), key=f"t_dur_{idx}", help="Total runtime required within the cycle period (hours).")
-            row["cycle_hours"] = c3.text_input("Cycle Period (hrs)", value=str(row.get("cycle_hours", "0.0")), key=f"t_cyc_{idx}", help="The period within which the runtime must be completed (hours).")
+            row["run_duration_hours"] = c2.text_input("Required Runtime (hrs)", value=str(row.get("run_duration_hours", "0.0")), key=f"t_dur_{idx}", help="Total runtime required to complete a single run (hours).")
+            # Show cycle period as days in the UI but store as hours (days * 24)
+            try:
+                existing_cycle_hours = float(row.get("cycle_hours", 0.0) or 0.0)
+            except Exception:
+                existing_cycle_hours = 0.0
+            existing_cycle_days = existing_cycle_hours / 24.0
+            cycle_days = c3.number_input("Cycle Period (days)", min_value=0.0, step=1.0, value=existing_cycle_days, key=f"t_cyc_{idx}", help="The cycle period in days. This is converted to hours (days × 24) when saved.")
+            row["cycle_hours"] = float(cycle_days) * 24.0
             
             c4, c5 = st.columns(2)
             row["switch_entity_id"] = c4.text_input("Switch Entity ID", value=row.get("switch_entity_id", ""), key=f"t_sw_{idx}")

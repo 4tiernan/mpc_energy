@@ -120,6 +120,10 @@ flow_import_price_entity_id = get_entity_id("flow_import_price_entity_id", "")  
 flow_export_price_entity_id = get_entity_id("flow_export_price_entity_id", "")  # Optional, only needed for certain retailers
 flow_price_forecast_entity_id = get_entity_id("flow_price_forecast_entity_id", "")  # Optional, only needed for certain retailers
 
+# Generic TOU windows (JSON list of {start,end,price} entries saved by UI)
+generic_import_windows = get_entity_id("generic_import_windows", "[]")
+generic_export_windows = get_entity_id("generic_export_windows", "[]")
+
 # Solar Forecast Configuration (Moved to Web UI)
 solcast_forecast_today_entity_id = get_entity_id("solcast_forecast_today_entity_id")
 solcast_forecast_tomorrow_entity_id = get_entity_id("solcast_forecast_tomorrow_entity_id")

@@ -97,8 +97,8 @@ if not config_manager.solcast_forecast_today_entity_id:
         handle_restart()
         time.sleep(1)
 
-if(config_manager.energy_retailer != "amber" and config_manager.energy_retailer != "flow"):
-    logger.error("Invalid energy retailer selected. Please select either amber or flow as the energy retailer in the 'Retailer Configuration' page.")
+if(config_manager.energy_retailer != "amber" and config_manager.energy_retailer != "flow" and config_manager.energy_retailer != "generic"):
+    logger.error("Invalid energy retailer selected. Please select either amber, flow or generic as the energy retailer in the 'Retailer Configuration' page.")
     while True:
         handle_restart()
         time.sleep(1)
@@ -234,6 +234,17 @@ while(started == False):
                 demand_tarrif_window_end=config_manager.demand_window_end,
             )
             demand_tariff = flow.demand_tarrif
+        elif(config_manager.energy_retailer == "generic"):
+            from External_Interfaces.generic_tou import GenericTOUInterface
+            generic = GenericTOUInterface(
+                ha=ha,
+                import_windows_json=config_manager.generic_import_windows,
+                export_windows_json=config_manager.generic_export_windows,
+                demand_tarrif_price=config_manager.demand_price,
+                demand_tarrif_window_start=config_manager.demand_window_start,
+                demand_tarrif_window_end=config_manager.demand_window_end,
+            )
+            demand_tariff = generic.demand_tarrif
         
         plant = GetPlant(ha, opt_loads)
 
@@ -451,6 +462,13 @@ def main_loop_code():
         
         elif(config_manager.energy_retailer == "flow"):
             price_data = flow.get_data(
+                partial_update=True,
+                forecast_hrs=mpc.forecast_hrs,
+                sim_start=mpc.sim_start,
+                sim_end=mpc.sim_end,
+            )
+        elif(config_manager.energy_retailer == "generic"):
+            price_data = generic.get_data(
                 partial_update=True,
                 forecast_hrs=mpc.forecast_hrs,
                 sim_start=mpc.sim_start,

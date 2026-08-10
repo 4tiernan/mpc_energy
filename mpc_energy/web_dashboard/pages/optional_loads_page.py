@@ -120,7 +120,7 @@ for idx, row in enumerate(rows):
                 row["plugged_in_entity_id"] = c_t7.text_input("EV Plugged In Entity ID", value=row.get("plugged_in_entity_id", ""), key=f"ev_avail_{idx}")
                 c_t8, c_t9 = st.columns(2)
                 row["three_phase_available_entity_id"] = c_t8.text_input("Three Phase Available Entity ID", value=row.get("three_phase_available_entity_id", ""), key=f"ev_t_3ph_ent_{idx}")
-                row["debias_load"] = c_t9.checkbox("Debias Load", value=row.get("debias_load", True), key=f"ev_debias_{idx}")
+                row["debias_load"] = c_t9.checkbox("Debias Load", value=row.get("debias_load", True), key=f"ev_debias_{idx}", help="If checked, this load's recent consumption will be subtracted from the site load sensor for MPC forecasting so it is not double-counted.")
 
             elif row["charger_model"] == "SigEnergy AC Charger":
                 st.write("---")
@@ -140,7 +140,7 @@ for idx, row in enumerate(rows):
                 row["plugged_in_entity_id"] = c_t7.text_input("Charger State Entity ID", value=row.get("plugged_in_entity_id", ""), key=f"ev_avail_{idx}")
                 c_t8, c_t9 = st.columns(2)
                 row["three_phase_available"] = c_t8.checkbox("Three Phase Available", value=row.get("three_phase_available", False), key=f"ev_t_3ph_{idx}")
-                row["debias_load"] = c_t9.checkbox("Debias Load", value=row.get("debias_load", False), key=f"ev_debias_{idx}")
+                row["debias_load"] = c_t9.checkbox("Debias Load", value=row.get("debias_load", False), key=f"ev_debias_{idx}", help="If checked, this load's recent consumption will be subtracted from the site load sensor for MPC forecasting so it is not double-counted.")
 
             elif row["charger_model"] == "Generic Binary":
                 st.write("---")
@@ -153,7 +153,7 @@ for idx, row in enumerate(rows):
                 row["power_entity_id"] = c_t4.text_input("Charger Power Entity ID (kW) [Optional]", value=row.get("power_entity_id", ""), key=f"ev_pent_{idx}")
                 c_t5, c_t6 = st.columns(2)
                 row["plugged_in_entity_id"] = c_t5.text_input("EV Plugged In Entity ID [Optional]", value=row.get("plugged_in_entity_id", ""), key=f"ev_avail_{idx}")
-                row["debias_load"] = c_t6.checkbox("Debias Load", value=row.get("debias_load", True), key=f"ev_debias_{idx}")
+                row["debias_load"] = c_t6.checkbox("Debias Load", value=row.get("debias_load", True), key=f"ev_debias_{idx}", help="If checked, this load's recent consumption will be subtracted from the site load sensor for MPC forecasting so it is not double-counted.")
 
         elif row["load_type"] == "hot_water":
             c1, c2 = st.columns(2)
@@ -170,16 +170,16 @@ for idx, row in enumerate(rows):
 
         elif row["load_type"] == "timed":
             c1, c2, c3 = st.columns(3)
-            row["power_kw"] = c1.text_input("Device Power (kW)", value=str(row.get("power_kw", "0.0")), key=f"t_pwr_{idx}")
-            row["run_duration_hours"] = c2.text_input("Required Runtime (hrs)", value=str(row.get("run_duration_hours", "0.0")), key=f"t_dur_{idx}")
-            row["cycle_hours"] = c3.text_input("Cycle Period (hrs)", value=str(row.get("cycle_hours", "0.0")), key=f"t_cyc_{idx}")
+            row["power_kw"] = c1.text_input("Device Power (kW)", value=str(row.get("power_kw", "0.0")), key=f"t_pwr_{idx}", help="Rated power draw when the device is running (kW).")
+            row["run_duration_hours"] = c2.text_input("Required Runtime (hrs)", value=str(row.get("run_duration_hours", "0.0")), key=f"t_dur_{idx}", help="Total runtime required within the cycle period (hours).")
+            row["cycle_hours"] = c3.text_input("Cycle Period (hrs)", value=str(row.get("cycle_hours", "0.0")), key=f"t_cyc_{idx}", help="The period within which the runtime must be completed (hours).")
             
             c4, c5 = st.columns(2)
             row["switch_entity_id"] = c4.text_input("Switch Entity ID", value=row.get("switch_entity_id", ""), key=f"t_sw_{idx}")
             row["power_entity_id"] = c5.text_input("Power Entity ID (Optional)", value=row.get("power_entity_id", ""), key=f"t_pent_{idx}")
             
-            row["reward_cents_per_kwh"] = st.text_input("Run Reward (c/kWh)", value=str(row.get("reward_cents_per_kwh", "0.0")), key=f"t_rew_{idx}")
-            row["debias_load"] = st.checkbox("Debias Load", value=row.get("debias_load", False), key=f"t_deb_{idx}")
+            row["reward_cents_per_kwh"] = st.text_input("Run Reward (c/kWh)", value=str(row.get("reward_cents_per_kwh", "0.0")), key=f"t_rew_{idx}", help="Incentive (cents per kWh) to prioritise scheduling this run. Increase to make MPC favour it.")
+            row["debias_load"] = st.checkbox("Debias Load", value=row.get("debias_load", False), key=f"t_deb_{idx}", help="If checked, this load's measured consumption will be removed from the site power sensor when building the load forecast so MPC doesn't double-count it.")
 
 st.divider()
 if st.button("💾 Save All Optional Loads", type="primary", width='stretch'):

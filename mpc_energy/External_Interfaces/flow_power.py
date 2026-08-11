@@ -114,8 +114,10 @@ class FlowPowerInterface:
         timestamps = attributes.get("timestamps", [])
         forecast = attributes.get("forecast", [])
         if timestamps and forecast:
+            logger.warning(f"Timestamps: {timestamps}, Forecast: {forecast}")
             return list(zip(timestamps, forecast))
 
+        logger.warning("No forecast data found in Flow Power attributes. Returning empty forecast.")
         return []
 
     def _build_forecast(self, points, default_price_cents, periods=None, period_minutes=30):

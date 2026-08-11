@@ -50,11 +50,11 @@ class GenericTOUInterface:
                 continue
 
             if s < e:
-                if s <= t < e:
+                if s <= t <= e:
                     return p
             elif s > e:
                 # overnight window (e.g. 22:00 - 06:00)
-                if t >= s or t < e:
+                if t >= s or t <= e:
                     return p
             else:
                 return p

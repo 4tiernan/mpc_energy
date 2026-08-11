@@ -30,7 +30,7 @@ elif retailer == "flow":
 
 elif retailer == "generic":
     st.subheader("Generic TOU Settings")
-    st.caption("Define time-of-use windows and prices. Times are in HH:MM 24-hour format. Prices are in c/kWh.")
+    st.caption("Define time-of-use windows and prices. Times are in HH:MM 24-hour format. End times are inclusive and windows must cover the day continuously with no gaps.")
 
     # Import windows
     import_windows_count = st.number_input("Number of import windows (daily)", min_value=1, max_value=12, value=max(1, len(json.loads(config.get("generic_import_windows", "[]")) if config.get("generic_import_windows") else [])))
@@ -109,18 +109,22 @@ if st.button("Save Retailer Configuration"):
                     errs.append(f"{label} window {idx+1}: start and end times cannot be identical; use a boundary like 15:59 to 16:00 instead")
                     continue
 
-                # Mark minutes and detect overlap. The end minute is exclusive,
-                # so adjacent windows like 15:59-16:00 and 16:00-16:30 are allowed.
+                # Mark minutes and detect overlap. End times are inclusive, so
+                # adjacent windows like 15:59-16:00 and 16:01-16:00 are allowed,
+                # while 16:00-16:00 or any gap between windows is rejected.
                 if s_min < e_min:
-                    rng = range(s_min, e_min)
+                    rng = range(s_min, e_min + 1)
                 else:
-                    rng = list(range(s_min, 1440)) + list(range(0, e_min))
+                    rng = list(range(s_min, 1440)) + list(range(0, e_min + 1))
 
                 for m in rng:
                     if minutes[m]:
                         errs.append(f"{label} window {idx+1} overlaps another {label.lower()} window")
                         break
                     minutes[m] = True
+
+            if not errs and not all(minutes):
+                errs.append(f"{label} windows must cover the full day with no gaps")
 
             return errs
 

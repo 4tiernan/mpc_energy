@@ -81,6 +81,7 @@ class FlowPowerInterface:
             dt = datetime.fromisoformat(ts)
             return dt.astimezone(self.ha.local_tz)
         except Exception:
+            logger.debug(f"Failed to parse timestamp '{ts}' as ISO 8601. Trying legacy format.")
             pass
 
         # Try legacy format with space and no colon in offset

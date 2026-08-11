@@ -149,7 +149,7 @@ class GenericTOUInterface:
             demand_tarrif_price=self.demand_tarrif_price if self.demand_tarrif else None,
             general_price=round(current_general),
             feedIn_price=round(current_feed_in),
-            prices_estimated=True,
+            prices_estimated=False,  # Generic TOU prices are fixed, not estimated
             general_max_forecast_price=round(sorted_general_forecast[0].price) if sorted_general_forecast else 0,
             feedIn_max_forecast_price=round(sorted_feed_in_forecast[0].price) if sorted_feed_in_forecast else 0,
             general_12hr_forecast=general_price_forecast_full[:24],

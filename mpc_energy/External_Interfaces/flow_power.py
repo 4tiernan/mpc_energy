@@ -109,6 +109,7 @@ class FlowPowerInterface:
 
         forecast_dict = attributes.get("forecast_dict")
         if isinstance(forecast_dict, dict) and forecast_dict:
+            logger.warning(f"Using forecast_dict from Flow Power attributes: {forecast_dict}")
             return list(forecast_dict.items())
 
         timestamps = attributes.get("timestamps", [])

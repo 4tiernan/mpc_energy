@@ -63,6 +63,7 @@ elif retailer == "generic":
     new_config["generic_export_windows"] = json.dumps(export_windows)
 st.divider()
 st.subheader("Demand Tariff (Optional)")
+st.caption("Enter times in 24-hour HH:MM format.")
 new_config["demand_price"] = st.text_input("Demand Price ($/kW)", value=config.get("demand_price", ""), help="This is the price per kW (not kWh) of peak demand during the demand window. (only if you have a demand tariff)")
 
 if retailer == "flow":
@@ -105,10 +106,11 @@ if st.button("Save Retailer Configuration"):
                 e_min = e_dt.hour * 60 + e_dt.minute
 
                 if s_min == e_min:
-                    errs.append(f"{label} window {idx+1}: start and end times are equal")
+                    errs.append(f"{label} window {idx+1}: start and end times cannot be identical; use a boundary like 15:59 to 16:00 instead")
                     continue
 
-                # Mark minutes and detect overlap
+                # Mark minutes and detect overlap. The end minute is exclusive,
+                # so adjacent windows like 15:59-16:00 and 16:00-16:30 are allowed.
                 if s_min < e_min:
                     rng = range(s_min, e_min)
                 else:

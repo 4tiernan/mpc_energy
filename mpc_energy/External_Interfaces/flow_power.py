@@ -109,13 +109,11 @@ class FlowPowerInterface:
 
         forecast_dict = attributes.get("forecast_dict")
         if isinstance(forecast_dict, dict) and forecast_dict:
-            logger.warning(f"Using forecast_dict from Flow Power attributes: {forecast_dict}")
             return list(forecast_dict.items())
 
         timestamps = attributes.get("timestamps", [])
         forecast = attributes.get("forecast", [])
         if timestamps and forecast:
-            logger.warning(f"Timestamps: {timestamps}, Forecast: {forecast}")
             return list(zip(timestamps, forecast))
 
         logger.warning("No forecast data found in Flow Power attributes. Returning empty forecast.")
@@ -196,7 +194,7 @@ class FlowPowerInterface:
                 ts = horizon_start + timedelta(minutes=i * 30)
                 if ts + timedelta(minutes=30) < now: continue
                 
-                ts_str = ts.strftime("%Y-%m-%d %H:%M:%S%z")
+                ts_str = ts.isoformat(timespec="seconds")
                 projected_points[ts_str] = profile.get(ts.time(), global_avg)
 
             # 3. Overlay actual forecast points.

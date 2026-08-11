@@ -8,6 +8,7 @@
 * Added Timed Optional Load.
 * Added Generic Energy Retailer Option.
 * Added abiity to handle new and old flow data timestamps
+* Updated to work with latest forecast timestamps in FlowPower HA integration.
 
 ## 0.8.0
 * **!!!Please enter the general config page to sync old config through HA with new web dashboard config!!!**.

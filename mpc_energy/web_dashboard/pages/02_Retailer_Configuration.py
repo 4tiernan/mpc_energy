@@ -43,7 +43,7 @@ elif retailer == "generic":
         price_val = existing_import[i].get("price") if i < len(existing_import) else ("0")
         start = col1.text_input(f"Import Window {i+1} Start (HH:MM)", value=start_val)
         end = col2.text_input(f"Import Window {i+1} End (HH:MM)", value=end_val)
-        price = col3.text_input(f"Price (c/kWh)", value=str(price_val))
+        price = col3.text_input(f"Price (c/kWh)", value=str(price_val), key=f"import_window_{i}_price")
         import_windows.append({"start": start, "end": end, "price": price})
     new_config["generic_import_windows"] = json.dumps(import_windows)
 
@@ -58,7 +58,7 @@ elif retailer == "generic":
         price_val = existing_export[i].get("price") if i < len(existing_export) else ("0")
         start = col1.text_input(f"Export Window {i+1} Start (HH:MM)", value=start_val)
         end = col2.text_input(f"Export Window {i+1} End (HH:MM)", value=end_val)
-        price = col3.text_input(f"Price (c/kWh)", value=str(price_val))
+        price = col3.text_input(f"Price (c/kWh)", value=str(price_val), key=f"export_window_{i}_price")
         export_windows.append({"start": start, "end": end, "price": price})
     new_config["generic_export_windows"] = json.dumps(export_windows)
 st.divider()

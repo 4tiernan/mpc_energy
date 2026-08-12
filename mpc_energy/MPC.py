@@ -820,6 +820,13 @@ class MPC:
         solar_used_list = output["solar_used"]
         solar_forecast_list = output["solar_forecast"]
 
+        if grid_net_list[0] > self.power_threshold: # If we are importing power, use the current grid price as the effective price
+            effective_price = general_price_list[0]
+            return effective_price
+        elif grid_net_list[0] < -self.power_threshold: # If we are exporting power, use the current feed in price as the effective price
+            effective_price = feedIn_price_list[0]
+            return effective_price
+
         # Find the next significant grid interaction (>= 0.5 kWh) to set the price
         interaction = self._get_next_significant_interaction(grid_net_list)
         

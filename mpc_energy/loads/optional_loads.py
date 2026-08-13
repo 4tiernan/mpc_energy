@@ -74,13 +74,15 @@ def get_mpc_loads(ha, local_tz, ha_mqtt) -> list["OptionalLoad"]:
     return load_optional_load_instances(ha, local_tz, ha_mqtt)
 
 class OptionalLoad:
+    """Base contract for optional loads that can interact with the MPC optimizer."""
+
     def __init__(
         self,
         name: str,
         load_type: str,
         reward_cents_per_kwh: float,
-        debias_load: bool
-    ):
+        debias_load: bool,
+    ) -> None:
         # Configuration parameters
         self.name = name
         self.load_type = load_type
@@ -115,7 +117,14 @@ class OptionalLoad:
         return False
 
     # --- MPC Interface Stubs ---
-    def get_historical_power(self, start=None, end=None, hours=None, bin_period=5):
+    def get_historical_power(
+        self,
+        start: datetime.datetime | None = None,
+        end: datetime.datetime | None = None,
+        hours: float | None = None,
+        bin_period: int = 5,
+    ) -> list[data_helpers.BinnedStateClass] | None:
+        """Fetch and bin historical power data for this optional load."""
         if not self.power_entity_id: return None
         
         if hours is not None and (start is None or end is None):
@@ -140,11 +149,12 @@ class OptionalLoad:
         binned = data_helpers.bin_data(history, bin_period, start, end, interpolation_method="step")
         return binned
 
-    def get_level_delta_avg(self, days_ago=14, hours_update_interval=24):
-        """
-        Calculates the average rate of change (loss/degradation) for the level entity 
-        when the device is NOT consuming power.
-        """
+    def get_level_delta_avg(
+        self,
+        days_ago: int = 14,
+        hours_update_interval: int = 24,
+    ) -> dict[datetime.time, float] | None:
+        """Calculate the average per-time-of-day level-change profile while the load is idle."""
         now_ts = time.time()
         if (self.avg_delta_profile is not None and
             self.last_profile_days_ago == days_ago and

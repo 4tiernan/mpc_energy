@@ -2,6 +2,7 @@ import streamlit as st
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import datetime
+from typing import Any, Sequence
 from plants.base_plant import BasePlant
 import numpy as np
 
@@ -27,10 +28,8 @@ CONTROL_MODE_COLORS = {
     "Unable to determine":                 "#ff0000",  # red
 }
 
-def contiguous_segments(values):
-    """
-    Yield contiguous (start_idx, end_idx_exclusive, value) segments.
-    """
+def contiguous_segments(values) -> list[tuple[int, int, Any]]:
+    """Yield contiguous (start_idx, end_idx_exclusive, value) segments for a sequence."""
     if not values:
         return []
 
@@ -45,32 +44,33 @@ def contiguous_segments(values):
     segments.append((start, len(values), current))
     return segments
 
-def get_segment_end_time(time_index, end_idx_exclusive, default_step_minutes=5):
-    """
-    Return the x1 value for a segment end index.
-    """
+def get_segment_end_time(
+    time_index: Sequence[datetime.datetime],
+    end_idx_exclusive: int,
+    default_step_minutes: int = 5,
+) -> datetime.datetime:
+    """Return the x-axis endpoint for a segment end index."""
     if end_idx_exclusive < len(time_index):
         return time_index[end_idx_exclusive]
 
     return time_index[-1] + datetime.timedelta(minutes=default_step_minutes)
 
-def get_segment_midpoint(start_x, end_x):
+def get_segment_midpoint(start_x: Any, end_x: Any) -> Any:
+    """Return the midpoint between two x-axis values, preserving datetime semantics."""
     if isinstance(start_x, datetime.datetime) and isinstance(end_x, datetime.datetime):
         return start_x + (end_x - start_x) / 2
     return (start_x + end_x) / 2
 
-def get_segment_width(start_x, end_x):
-    """
-    Plotly Bar.width must be numeric.
-    For datetime x-axes, width is in milliseconds.
-    """
+def get_segment_width(start_x: Any, end_x: Any) -> float:
+    """Calculate a Plotly-compatible segment width for bar or rect visuals."""
     if isinstance(start_x, datetime.datetime) and isinstance(end_x, datetime.datetime):
         return (end_x - start_x).total_seconds() * 1000
     return end_x - start_x
 
 
 
-def round_to_nearest_5min(dt: datetime) -> datetime:
+def round_to_nearest_5min(dt: datetime.datetime) -> datetime.datetime:
+    """Round a datetime down to the nearest 5-minute slot."""
     seconds = dt.minute * 60 + dt.second
     rounding = 5 * 60  # 5 minutes in seconds
     rounded_seconds = int((seconds + rounding / 2) // rounding * rounding)
@@ -82,8 +82,14 @@ def round_to_nearest_5min(dt: datetime) -> datetime:
     ) + datetime.timedelta(seconds=rounded_seconds)
 
 
-def calculate_segment_energy_and_profit(plan_modes, grid_net, prices_buy, prices_sell, dt_minutes=5):
-    """Return per-segment energy (kWh) and profit ($) for each contiguous control mode block."""
+def calculate_segment_energy_and_profit(
+    plan_modes: Sequence[Any],
+    grid_net: Sequence[float],
+    prices_buy: Sequence[float],
+    prices_sell: Sequence[float],
+    dt_minutes: int = 5,
+) -> list[dict[str, float | int]]:
+    """Return the energy and profit for each contiguous control-mode segment."""
     dt_hours = dt_minutes / 60.0
     segments = []
     for start_idx, end_idx_exclusive, _mode in contiguous_segments(plan_modes):
@@ -111,10 +117,8 @@ def calculate_segment_energy_and_profit(plan_modes, grid_net, prices_buy, prices
 # -----------------------------
 # Plot: SOC trajectory (functional)
 # -----------------------------
-def plot_mpc_results(st, output):
-    """
-    Plot MPC results using Plotly (dual-axis, 2 subplots)
-    """
+def plot_mpc_results(st: Any, output: dict[str, Any]) -> None:
+    """Render the MPC forecast dashboard, including runtime mode and profit summaries."""
 
     col1, col2, col3, col4, col5, col6, col7 = st.columns(7)
 
@@ -560,5 +564,6 @@ def plot_mpc_results(st, output):
 
     st.plotly_chart(fig, width='stretch')
 
-def round_list(data, dp=2):
-    return [round(d,dp) for d in data]
+def round_list(data: Sequence[float], dp: int = 2) -> list[float]:
+    """Return a rounded copy of a numeric sequence for plotting and display."""
+    return [round(d, dp) for d in data]

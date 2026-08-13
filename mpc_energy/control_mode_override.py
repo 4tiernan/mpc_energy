@@ -3,12 +3,15 @@ from mpc_logger import logger
 
 
 class ControlModeOverrideManager:
-    def __init__(self, ha_mqtt, plant):
+    """Manage manual control overrides and their expiry behaviour for the plant."""
+
+    def __init__(self, ha_mqtt: object, plant: object) -> None:
         self.ha_mqtt = ha_mqtt
         self.plant = plant
         self.reset()
 
-    def parse_override_duration_minutes(self):
+    def parse_override_duration_minutes(self) -> tuple[str, int | None]:
+        """Return the selected duration label and numeric minutes for an override."""
         selected_duration = self.ha_mqtt.control_mode_override_duration_selector.state
         if(selected_duration is None):
             selected_duration = "15"
@@ -28,12 +31,14 @@ class ControlModeOverrideManager:
 
         return str(duration_minutes), duration_minutes
 
-    def get_expiry_timestamp(self, duration_minutes):
+    def get_expiry_timestamp(self, duration_minutes: int | None) -> float:
+        """Return the UNIX timestamp when the override should expire."""
         if(duration_minutes is None):
-            return 0
+            return 0.0
         return time.time() + duration_minutes * 60
 
-    def apply_override_mode(self, mode):
+    def apply_override_mode(self, mode: str) -> None:
+        """Apply the selected plant mode immediately to force a manual override."""
         if(mode == "Dispatching"):
             self.plant.dispatch()
         elif(mode == "Exporting All Solar"):
@@ -51,7 +56,8 @@ class ControlModeOverrideManager:
         else:
             raise Exception(f"Unsupported control mode override '{mode}'")
 
-    def reset(self):
+    def reset(self) -> None:
+        """Clear any active override and reset HA selector state to disabled."""
         self.state = {
             "active": False,
             "mode": None,
@@ -61,7 +67,8 @@ class ControlModeOverrideManager:
         }
         self.ha_mqtt.control_mode_override_selector.set_state("Disabled", publish_command=True)
 
-    def get_price_for_mode(self, mode, price_data):
+    def get_price_for_mode(self, mode: str, price_data: object) -> float:
+        """Return the relevant current price benchmark for the requested mode."""
         import_price_modes = ["Grid Import"]
 
         if(mode in import_price_modes):
@@ -69,7 +76,8 @@ class ControlModeOverrideManager:
 
         return price_data.feedIn_price
 
-    def run(self, price_data):
+    def run(self, price_data: object) -> bool:
+        """Check whether an active override should continue, and apply it if needed."""
         requested_mode = self.ha_mqtt.control_mode_override_selector.state
 
         # Keep active override latched if selector state briefly drops to None.

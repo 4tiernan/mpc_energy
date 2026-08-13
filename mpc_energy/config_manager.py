@@ -1,6 +1,8 @@
 # Module to retreive the config values from the app configuration page, App must be reloaded for changes to take effect
 import json
 import os
+from typing import Any
+
 from mpc_logger import logger
 import migration
 
@@ -9,12 +11,12 @@ OPTIONS_PATH = "/data/options.json"
 PLANT_CONFIG_PATH = "/data/plant_config.json"
 RESTART_SIGNAL_PATH = "/data/restart_signal"
 
-def trigger_restart():
+def trigger_restart() -> None:
     """Writes a restart signal file to be picked up by the main process."""
     with open(RESTART_SIGNAL_PATH, "w") as f:
         f.write("restart")
 
-def load_config():
+def load_config() -> dict[str, Any]:
     """Merges HA options with local dashboard configuration."""
     config = {}
     if os.path.exists(OPTIONS_PATH):
@@ -42,8 +44,8 @@ def load_config():
 
 options = load_config()
 
-def save_local_config(new_config):
-    """Saves web-UI managed configuration to local storage."""
+def save_local_config(new_config: dict[str, Any]) -> None:
+    """Persist dashboard-managed configuration values to the local config file."""
     current_config = {}
     if os.path.exists(CONFIG_PATH):
         with open(CONFIG_PATH) as f:
@@ -53,10 +55,10 @@ def save_local_config(new_config):
     with open(CONFIG_PATH, "w") as f:
         json.dump(current_config, f, indent=4)
 
-def get_next_setup_step():
-    """Returns the streamlit page path for the first missing configuration step."""
+def get_next_setup_step() -> str | None:
+    """Return the next required dashboard page, or None when setup is complete."""
     from plants.plant_manager import load_plant_config
-    
+
     config = load_config()
     plant_config = load_plant_config()
     
@@ -87,8 +89,8 @@ def get_next_setup_step():
 
     return None
 
-def get_page_title(page_path):
-    """Returns a human-readable title for a given streamlit page path."""
+def get_page_title(page_path: str) -> str:
+    """Map a Streamlit page path to the human-readable page heading."""
     titles = {
         "pages/01_General_Configuration.py": "General Configuration",
         "pages/plant_config_page.py": "Plant Configuration",
@@ -98,7 +100,8 @@ def get_page_title(page_path):
     }
     return titles.get(page_path, "Next Step")
 
-def get_entity_id(key, default=None):
+def get_entity_id(key: str, default: Any = None) -> Any:
+    """Read a config value and log when a required value is missing."""
     value = options.get(key, default)
     if (value == None or value == "") and default is None:
         logger.debug(f"Configuration key '{key}' is missing or empty. Please set it in the app configuration page.")
@@ -112,8 +115,8 @@ MQTT_PASS = get_entity_id("ha_mqtt_pass")
 # Retailer Configuration (Moved to Web UI)
 energy_retailer = get_entity_id("energy_retailer")
 
-def get_demand_tariff_enabled(config=None):
-    """Returns whether the demand tariff should be active for the selected retailer.
+def get_demand_tariff_enabled(config: dict[str, Any] | None = None) -> bool:
+    """Return whether the selected retailer has demand tariff support enabled.
 
     New configs store an explicit toggle; older configs inferred enablement from
     the presence of demand price/window values.

@@ -6,25 +6,35 @@ from typing import Any, List, Union, Tuple, Optional
 
 @dataclass
 class BinnedStateClass:
-    states: list[Any] # States that make up the avg
-    avg_state: Any # Avg of the states
-    time: datetime # Start time of the bin
+    """A single time-binned historical sample with the raw values and the aggregated value."""
+    states: list[Any]
+    avg_state: Any
+    time: datetime.datetime
 
-import datetime
 
-def round_minutes(time: datetime.datetime, nearest_minute: int) -> datetime.datetime:
-    return time.replace(
-        minute=(time.minute // nearest_minute) * nearest_minute,
+def round_minutes(value: datetime.datetime, nearest_minute: int) -> datetime.datetime:
+    """Round a datetime down to the nearest minute boundary."""
+    return value.replace(
+        minute=(value.minute // nearest_minute) * nearest_minute,
         second=0,
-        microsecond=0
-        )  
+        microsecond=0,
+    )
 
-def approx_equal(a, b, threshold = 0.2):
-    return abs(a-b) < threshold
 
-def bin_data(history, bin_period, start_bin_datetime, end_bin_datetime, string_state=False, interpolation_method="linear") -> list[BinnedStateClass]: 
-    """
-    Takes a list of historical state data and bins it into specified time intervals, averaging the state values within each bin. Handles both numeric and string states. Also fills in missing bins with None values and can interpolate those values if desired.
+def approx_equal(a: float, b: float, threshold: float = 0.2) -> bool:
+    """Return True when the two numeric values differ by less than the threshold."""
+    return abs(a - b) < threshold
+
+
+def bin_data(
+    history: list[Any],
+    bin_period: int,
+    start_bin_datetime: datetime.datetime,
+    end_bin_datetime: datetime.datetime,
+    string_state: bool = False,
+    interpolation_method: str = "linear",
+) -> list[BinnedStateClass]:
+    """Bin historical data into fixed time windows and optionally interpolate missing values.
 
     history[x].state    -> numeric value (string or float)
     history[x].time     -> datetime object (tz-aware)
@@ -112,7 +122,7 @@ def bin_data(history, bin_period, start_bin_datetime, end_bin_datetime, string_s
     return binned_history
 
 def interpolate_values(values: List[Optional[float]], method: str = "linear") -> List[float]:
-    '''takes a list of numeric values with possible None values to interpolate and interpolates the None values using the specified method. Returns a list of the same length with no None values.'''
+    """Interpolate missing numeric values while preserving the list length."""
     s = pd.Series(values)
     # Ensure the series is numeric to avoid "Series cannot interpolate with object dtype" 
     # which occurs when the list contains only None values or mixed types.

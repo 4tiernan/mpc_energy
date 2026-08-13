@@ -22,6 +22,7 @@ started = False
 streamlit_proc = None
 
 def start_streamlit_dashboard():
+    """Start the Streamlit dashboard used to display the app UI and configuration pages."""
     return subprocess.Popen([
         sys.executable,
         "-m",
@@ -44,8 +45,8 @@ streamlit_proc = start_streamlit_dashboard()
 logger.info("Streamlit dashboard started") 
 
 
-def handle_restart():
-    """Checks for a restart signal and performs an in-place restart if found."""
+def handle_restart() -> None:
+    """Terminate the dashboard and restart the service when a config-triggered restart is requested."""
     if os.path.exists(config_manager.RESTART_SIGNAL_PATH):
         logger.info("Restart signal received from dashboard. Performing in-place restart...")
         os.remove(config_manager.RESTART_SIGNAL_PATH)
@@ -61,12 +62,14 @@ plant = None
 mpc = None
 
 app_start_timestamp = time.time()
-def start_timer():
+def start_timer() -> float:
+    """Start a timing context and return the current wall-clock timestamp."""
     global start_time
     start_time = time.time()
     return start_time
 
-def elapsed_time(code_block_name="Code Block"):
+def elapsed_time(code_block_name: str = "Code Block") -> float:
+    """Log and return the elapsed time since the previous timer start."""
     global start_time
     elapsed = time.time() - start_time
     logger.debug(f"{code_block_name} took {round(elapsed, 2)} seconds")
@@ -137,7 +140,8 @@ if(config_manager.energy_retailer == "amber" and config_manager.amber_site_id ==
 # source venv/bin/activate (from within cd opt/energy-manager)
 # nano /opt/energy-manager/run.sh
 
-def send_mobile_notification(title, message, channel=None):
+def send_mobile_notification(title: str, message: str, channel: str | None = None) -> None:
+    """Send a notification to the configured Home Assistant notify target if configured."""
     try:
         ha.send_notification(
             title=title,
@@ -149,7 +153,8 @@ def send_mobile_notification(title, message, channel=None):
         logger.error(f"Failed to send mobile notification. This likely means that the notification target is incorrect. Check the notification target and try again. Error sending notification: {notification_error}")
 
 last_error_mobile_notification_timestamp = 0
-def PrintError(e):
+def PrintError(e: Exception) -> None:
+    """Log a runtime error and emit a Home Assistant persistent notification if available."""
     global last_error_mobile_notification_timestamp
     logger.error(f"Exception occoured: {e}")
     if(not isinstance(e, MPCEnergyError)):
@@ -172,7 +177,8 @@ def PrintError(e):
     except Exception as notification_error:
         logger.error(f"Failed to create Home Assistant notification for the error. This likely means that the Home Assistant API is down. Check the API and try again. Error creating notification: {notification_error}")
 
-def FailSafe(e):
+def FailSafe(e: Exception) -> None:
+    """Put the plant into a safe state after a critical error and retry after a brief delay."""
     PrintError(e)
     
     # Only attempt safe mode if the Energy Controller and MQTT objects are actually loaded
@@ -285,14 +291,16 @@ last_control_mode = ""
         
 sensor_state_cache = {}
 
-def set_sensor_if_changed(sensor, value):
+def set_sensor_if_changed(sensor: object, value: object) -> None:
+    """Set a sensor state only when a new value differs from the last cached value."""
     cache_key = id(sensor)
     if sensor_state_cache.get(cache_key) != value:
         sensor.set_state(value)
         sensor_state_cache[cache_key] = value   
 
 # Update HA MQTT sensors
-def update_sensors(price_data):
+def update_sensors(price_data: object) -> None:
+    """Push the latest runtime estimates to the Home Assistant MQTT sensor set."""
     override_status = control_mode_override_manager.state['active']
     override_mode = control_mode_override_manager.state['mode']
     opperating_mode = (override_mode if override_status else plant.working_mode) or "Initialising"
@@ -331,7 +339,8 @@ def update_sensors(price_data):
 
 last_spike_warning_timestamp = 0
 spike_found_timestamp = 0
-def check_for_spike(price_data):
+def check_for_spike(price_data: object) -> None:
+    """Warn when a feed-in price spike is expected in the next forecast window."""
     global last_spike_warning_timestamp, spike_found_timestamp
     max_price = -99999
     spike_index = None
@@ -367,7 +376,8 @@ def check_for_spike(price_data):
         else:
             spike_found_timestamp = 0 # Reset the spike found timestamp if no spikes are currently forecasted
                 
-def run_controller(price_update=False):
+def run_controller(price_update: bool = False) -> None:
+    """Run the active plant controller and respect any active manual override state."""
     global automatic_control, last_control_mode, price_data
     # If Auto control has been TURNED on, print a msg and reset flag
     selected_controller = ha_mqtt.energy_controller_selector.state
@@ -443,7 +453,8 @@ def run_controller(price_update=False):
 logger.info("Configuration complete. Running")
 
 # Code runs every 10 seconds (to reduce cpu usage)
-def main_loop_code():
+def main_loop_code() -> None:
+    """Refresh plant data, fetch current pricing, and trigger the selected control logic."""
     global automatic_control, next_amber_update_timestamp, partial_update, price_data, last_control_mode, last_real_price_timestamp
     plant.update_data() # Update the plant data once for everything else to use.
 

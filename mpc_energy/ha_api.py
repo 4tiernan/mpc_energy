@@ -11,12 +11,16 @@ import config_manager
 
 @dataclass
 class History:
-    state: float
+    """A single Home Assistant state record converted into a typed Python object."""
+    state: float | None
     time: datetime
 
-DEFAULT_TZ = ZoneInfo("Australia/Brisbane") 
+DEFAULT_TZ = ZoneInfo("Australia/Brisbane")
+
 
 class HomeAssistantAPI:
+    """Thin wrapper around the Home Assistant REST API used by the MPC app."""
+
     def __init__(self, base_url: str, token: str):
         self.base_url = base_url.rstrip('/')
         self.headers = {
@@ -46,12 +50,14 @@ class HomeAssistantAPI:
         return DEFAULT_TZ
     
     def ha_api_went_down(self) -> bool:
+        """Return whether Home Assistant was previously unreachable and has recovered."""
         if(self.ha_went_down_flag):
             self.ha_went_down_flag = False
             return True
         return False
 
-    def check_api_running(self) -> bool: #Checks to see if we can connect to the ha api
+    def check_api_running(self) -> bool:
+        """Check whether the Home Assistant REST API is reachable."""
         url = f"{self.base_url}/api/"
         try:
             r = self.session.get(url, headers=self.headers, params=None)
@@ -64,8 +70,16 @@ class HomeAssistantAPI:
             self.ha_went_down = True
         return api_running
 
-    def ha_request(self, url: str, method: str, data: Optional[Dict[str, Any]] = None, params: Optional[Dict[str, Any]] = None) -> Any:
-        def log_status(r):
+    def ha_request(
+        self,
+        url: str,
+        method: str,
+        data: Optional[Dict[str, Any]] = None,
+        params: Optional[Dict[str, Any]] = None,
+    ) -> Any:
+        """Send an authenticated request to the Home Assistant REST API."""
+
+        def log_status(r: requests.Response) -> None:
             status_code = r.status_code
             if(status_code == 401):
                 raise HAAPIAuthenticationError("Unauthorized when connecting to HA API. Please check your token and ensure it has the necessary permissions.") from None

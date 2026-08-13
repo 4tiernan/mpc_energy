@@ -23,17 +23,13 @@ class PriceForecast:
     demand_window: bool # True if the current price is in a demand window
 
 @dataclass
-class amber_data:
+class price_data:
     demand_tarrif_price: float
     general_price: float
     feedIn_price: float
     prices_estimated: bool
     general_max_forecast_price: float
     feedIn_max_forecast_price: float
-    general_12hr_forecast: list[PriceForecast]
-    feedIn_12hr_forecast: list[PriceForecast]
-    general_12hr_forecast_sorted: list[PriceForecast]
-    feedIn_12hr_forecast_sorted: list[PriceForecast]
     general_extrapolated_forecast: list[float]
     feedIn_extrapolated_forecast: list[float]
     demand_window_extrapolated_forecast: list[bool]  # True for each 5-min interval that falls in a demand window
@@ -409,22 +405,17 @@ class AmberAPI:
         else:
             raise AmberAPIError("Failed to get current price data from Amber API")
         
-    def get_data(self, partial_update: bool = False, forecast_hrs: Optional[float] = None, sim_start: Optional[datetime] = None, sim_end: Optional[datetime] = None) -> amber_data:
+    def get_data(self, partial_update: bool = False, forecast_hrs: Optional[float] = None, sim_start: Optional[datetime] = None, sim_end: Optional[datetime] = None) -> price_data:
         [general_price, feed_in_price, estimate] = self.get_current_prices()
         
         if(self.data == None or partial_update == False):
             [general_price_forecast, feed_in_price_forecast] = self.get_forecast(next_intervals=24, resolution=30)
-
-            storted_general_forecast = general_price_forecast.copy()
-            storted_general_forecast.sort(key=lambda x: x.price, reverse=True)
-
-            storted_feed_in_forecast = feed_in_price_forecast.copy()
-            storted_feed_in_forecast.sort(key=lambda x: x.price, reverse=True)
         else:
-            general_price_forecast = self.data.general_12hr_forecast
-            feed_in_price_forecast = self.data.feedIn_12hr_forecast
-            storted_general_forecast = self.data.general_12hr_forecast_sorted
-            storted_feed_in_forecast = self.data.feedIn_12hr_forecast_sorted
+            general_price_forecast = self.data.general_extrapolated_forecast
+            feed_in_price_forecast = self.data.feedIn_extrapolated_forecast
+
+        general_max_price = max((pf.price for pf in general_price_forecast[:24]), default=0) #Only get the max price for the next 12 hours as after 12 hrs the forecast is just a projection of past prices and not a true forecast.
+        feed_in_max_price = max((pf.price for pf in feed_in_price_forecast[:24]), default=0)
 
         if(estimate and self.data != None): # if prices are an estimate, just pass the old not estimated prices through
             general_price = self.data.general_price
@@ -441,17 +432,13 @@ class AmberAPI:
             feedIn_extrapolated_forecast = self.data.feedIn_extrapolated_forecast
             demand_window_extrapolated_forecast = self.data.demand_window_extrapolated_forecast
 
-        self.data = amber_data(
+        self.data = price_data(
             demand_tarrif_price=self.demand_tarrif_price,
             general_price=round(general_price),
             feedIn_price=round(feed_in_price),
             prices_estimated=estimate,
-            general_max_forecast_price=round(storted_general_forecast[0].price),
-            feedIn_max_forecast_price=round(storted_feed_in_forecast[0].price),
-            general_12hr_forecast=general_price_forecast,
-            feedIn_12hr_forecast=feed_in_price_forecast,
-            general_12hr_forecast_sorted=storted_general_forecast,
-            feedIn_12hr_forecast_sorted=storted_feed_in_forecast,
+            general_max_forecast_price=round(general_max_price),
+            feedIn_max_forecast_price=round(feed_in_max_price),
             general_extrapolated_forecast=general_extrapolated_forecast,
             feedIn_extrapolated_forecast=feedIn_extrapolated_forecast,
             demand_window_extrapolated_forecast=demand_window_extrapolated_forecast

@@ -1,5 +1,5 @@
 from datetime import datetime, time as datetime_time, timezone, timedelta
-from External_Interfaces.amber_api import PriceForecast, amber_data
+from External_Interfaces.amber_api import PriceForecast, price_data
 from mpc_logger import logger
 import math
 import data_helpers
@@ -402,12 +402,11 @@ class FlowPowerInterface:
             required_30min_periods=required_30min_periods,
         )
 
-        # Keep legacy 12hr fields populated with 24 x 30-minute points.
         general_price_forecast = general_price_forecast_full[:24]
         feed_in_price_forecast = feed_in_price_forecast_full[:24]
 
-        sorted_general_forecast = sorted(general_price_forecast, key=lambda x: x.price, reverse=True)
-        sorted_feed_in_forecast = sorted(feed_in_price_forecast, key=lambda x: x.price, reverse=True)
+        general_max_price = max((pf.price for pf in general_price_forecast[:24]), default=0)
+        feed_in_max_price = max((pf.price for pf in feed_in_price_forecast[:24]), default=0)
 
         timeline_start = sim_start if sim_start is not None else datetime.now(self.ha.local_tz)
         timeline_start = timeline_start.replace(second=0, microsecond=0)
@@ -440,17 +439,13 @@ class FlowPowerInterface:
             if(import_price < export_price):
                 general_extrapolated_forecast[i] = export_price + 10
 
-        self.data = amber_data(
+        self.data = price_data(
             demand_tarrif_price=self.demand_tarrif_price,
             general_price=round(general_price),
             feedIn_price=round(feed_in_price),
             prices_estimated=False,
-            general_max_forecast_price=round(sorted_general_forecast[0].price),
-            feedIn_max_forecast_price=round(sorted_feed_in_forecast[0].price),
-            general_12hr_forecast=general_price_forecast,
-            feedIn_12hr_forecast=feed_in_price_forecast,
-            general_12hr_forecast_sorted=sorted_general_forecast,
-            feedIn_12hr_forecast_sorted=sorted_feed_in_forecast,
+            general_max_forecast_price=round(general_max_price),
+            feedIn_max_forecast_price=round(feed_in_max_price),
             general_extrapolated_forecast=general_extrapolated_forecast,
             feedIn_extrapolated_forecast=feed_in_extrapolated_forecast,
             demand_window_extrapolated_forecast=demand_window_extrapolated_forecast,

@@ -129,7 +129,7 @@ class EnergyController():
             grid_export=0,
             grid_import=0)
     
-    def run(self, amber_data):
+    def run(self, price_data):
         self.last_working_mode = self.working_mode
         self.maintain_control_mode()
 

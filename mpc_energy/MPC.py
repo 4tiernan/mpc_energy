@@ -8,7 +8,7 @@ from energy_controller import ControlMode
 import logging
 from mpc_logger import logger
 import warnings
-from External_Interfaces.amber_api import amber_data
+from External_Interfaces.amber_api import price_data
 from ha_api import HomeAssistantAPI
 
 import json
@@ -168,7 +168,7 @@ class MPC:
         self.grid_export_limit = self.plant.max_export_power    # kW (Grid export limit)      
 
     # Update any values or forecasts required to run the sim
-    def update_values(self, amber_data: amber_data, time_index: List[datetime], inject_real_values: bool = True) -> None:
+    def update_values(self, price_data: price_data, time_index: List[datetime], inject_real_values: bool = True) -> None:
         self.update_limits() # Update the limits in case the user has changed any config values that affect the limits since the last update
         
         current_soc = (self.plant.battery_soc_percent / 100)*self.soc_max
@@ -221,10 +221,10 @@ class MPC:
         self.solar_5min = [max(solar, 0.0) for solar in self.solar_5min]
         
         # Amber Forecast (forecast hrs is set in main.py in the get_data call)
-        self.demand_tarrif_price = amber_data.demand_tarrif_price if amber_data.demand_tarrif_price is not None else 0.0
-        general_price_forecast = amber_data.general_extrapolated_forecast[:int(self.N_5min)]
-        feed_in_price_forecast = amber_data.feedIn_extrapolated_forecast[:int(self.N_5min)]
-        self.demand_window_forecast = np.array(amber_data.demand_window_extrapolated_forecast[:int(self.N_5min)], dtype=float)
+        self.demand_tarrif_price = price_data.demand_tarrif_price if price_data.demand_tarrif_price is not None else 0.0
+        general_price_forecast = price_data.general_extrapolated_forecast[:int(self.N_5min)]
+        feed_in_price_forecast = price_data.feedIn_extrapolated_forecast[:int(self.N_5min)]
+        self.demand_window_forecast = np.array(price_data.demand_window_extrapolated_forecast[:int(self.N_5min)], dtype=float)
 
         # Convert to $/kWh
         self.prices_buy = np.array(general_price_forecast) / 100      # buy price in $ from cents
@@ -399,7 +399,7 @@ class MPC:
 
         self.prob = cp.Problem(cp.Minimize(self.objective_expression), constraints)
 
-    def run_optimisation(self, amber_data: amber_data, is_fallback: bool = False) -> List[Any]:
+    def run_optimisation(self, price_data: price_data, is_fallback: bool = False) -> List[Any]:
         start_optimisation = time.time()
 
         now = datetime.now(self.local_tz).replace(second=0, microsecond=0)
@@ -407,7 +407,7 @@ class MPC:
         now = now.replace(minute=minute)
         time_index = [now + timedelta(minutes=5 * i) for i in range(int(self.N_5min))]
 
-        self.update_values(amber_data, time_index)
+        self.update_values(price_data, time_index)
         for load in self.optional_loads:
             try:
                 load.update_mpc_values(self, time_index)
@@ -548,7 +548,7 @@ class MPC:
                 # Rebuild the problem template without optional load variables and constraints
                 self.build_optimisation_template()
                 try:
-                    return self.run_optimisation(amber_data, is_fallback=True)
+                    return self.run_optimisation(price_data, is_fallback=True)
                 finally:
                     # Restore optional loads and rebuild template for the next scheduled interval
                     self.optional_loads = original_loads
@@ -806,8 +806,8 @@ class MPC:
                 
         return None
 
-    def run(self, amber_data):
-        [output, plotted_output] = self.run_optimisation(amber_data)
+    def run(self, price_data):
+        [output, plotted_output] = self.run_optimisation(price_data)
         control_mode = self.determine_control_mode(output)
         logger.debug(f"Determined control mode: {control_mode} based on MPC plan, with load: {output['load_power'][0]} kW, solar forecast: {output['solar_forecast'][0]} kW, solar used: {output['solar_used'][0]} kW, inverter power: {output['inverter_power'][0]} kW, grid net: {output['grid_net'][0]} kW, battery power: {output['battery_power'][0]} kW.")
         return output, control_mode

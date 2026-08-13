@@ -61,15 +61,15 @@ class ControlModeOverrideManager:
         }
         self.ha_mqtt.control_mode_override_selector.set_state("Disabled", publish_command=True)
 
-    def get_price_for_mode(self, mode, amber_data):
+    def get_price_for_mode(self, mode, price_data):
         import_price_modes = ["Grid Import"]
 
         if(mode in import_price_modes):
-            return amber_data.general_price
+            return price_data.general_price
 
-        return amber_data.feedIn_price
+        return price_data.feedIn_price
 
-    def run(self, amber_data):
+    def run(self, price_data):
         requested_mode = self.ha_mqtt.control_mode_override_selector.state
 
         # Keep active override latched if selector state briefly drops to None.
@@ -85,7 +85,7 @@ class ControlModeOverrideManager:
         duration_selection, duration_minutes = self.parse_override_duration_minutes()
 
         if(not self.state["active"] or self.state["mode"] != requested_mode): # Initalise the override
-            current_price = self.get_price_for_mode(requested_mode, amber_data)
+            current_price = self.get_price_for_mode(requested_mode, price_data)
             self.state = {
                 "active": True,
                 "mode": requested_mode,
@@ -108,7 +108,7 @@ class ControlModeOverrideManager:
             else:
                 logger.warning(f"Control mode override updated: {requested_mode} timer reset to {duration_minutes} minutes.")
 
-        current_price = self.get_price_for_mode(self.state["mode"], amber_data)
+        current_price = self.get_price_for_mode(self.state["mode"], price_data)
 
         if(self.ha_mqtt.control_mode_override_duration_selector.state == "Till Price Change" and current_price != self.state["start_price"]): # If the price trigger is selected and the price changes, end the override
             logger.warning(f"Control mode override ended due to price change from {self.state['start_price']} to {current_price} c/kWh.")

@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 import json
 import math
-from External_Interfaces.amber_api import PriceForecast, amber_data
+from External_Interfaces.amber_api import PriceForecast, price_data
 from mpc_logger import logger
 
 
@@ -175,8 +175,8 @@ class GenericTOUInterface:
             current_price=feed_in_price_forecast_full[0].price if feed_in_price_forecast_full else 0,
         )
 
-        sorted_general_forecast = sorted(general_price_forecast_full, key=lambda x: x.price, reverse=True)
-        sorted_feed_in_forecast = sorted(feed_in_price_forecast_full, key=lambda x: x.price, reverse=True)
+        general_max_price = max((pf.price for pf in general_price_forecast_full), default=0)
+        feed_in_max_price = max((pf.price for pf in feed_in_price_forecast_full), default=0)
 
         # current prices (cents)
         current_general = self._price_for_min(self.import_windows, now)
@@ -187,17 +187,13 @@ class GenericTOUInterface:
             timeline_start=timeline_start,
         )
 
-        self.data = amber_data(
+        self.data = price_data(
             demand_tarrif_price=self.demand_tarrif_price if self.demand_tarrif else None,
             general_price=round(current_general),
             feedIn_price=round(current_feed_in),
             prices_estimated=False,  # Generic TOU prices are fixed, not estimated
-            general_max_forecast_price=round(sorted_general_forecast[0].price) if sorted_general_forecast else 0,
-            feedIn_max_forecast_price=round(sorted_feed_in_forecast[0].price) if sorted_feed_in_forecast else 0,
-            general_12hr_forecast=general_price_forecast_full[:24],
-            feedIn_12hr_forecast=feed_in_price_forecast_full[:24],
-            general_12hr_forecast_sorted=sorted_general_forecast,
-            feedIn_12hr_forecast_sorted=sorted_feed_in_forecast,
+            general_max_forecast_price=round(general_max_price),
+            feedIn_max_forecast_price=round(feed_in_max_price),
             general_extrapolated_forecast=general_extrapolated_forecast,
             feedIn_extrapolated_forecast=feed_in_extrapolated_forecast,
             demand_window_extrapolated_forecast=demand_window_extrapolated_forecast,

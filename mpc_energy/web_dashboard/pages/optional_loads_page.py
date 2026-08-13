@@ -54,7 +54,6 @@ with tabs[0]:
             summary_data.append({
                 "Name": r.get("name"),
                 "Type": r.get("load_type", "").upper(),
-                "Sensor": r.get("level_entity_id", "Not Set")
             })
         st.table(summary_data)
 

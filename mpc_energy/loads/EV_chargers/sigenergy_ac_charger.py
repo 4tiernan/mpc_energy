@@ -66,10 +66,10 @@ class SigEnergyACCharger(EVCharger):
         Update the charger state by fetching the latest data from Home Assistant and checking whether a car is plugged in and adapting power limits.
         """
         state_payload = self.ha.get_state(self.charger_state_entity_id)
-        charger_state = state_payload.get("state", "") if isinstance(state_payload, dict) else ""
+        self.charger_state = state_payload.get("state", "") if isinstance(state_payload, dict) else ""
         # For SigEnergy AC Chargers, these strings indicate a connection
-        self.car_plugged_in = charger_state in ["EV Ready", "Charging", "Reserving", "Preparing"]
-        self.car_charging = charger_state in ["Charging", "Preparing"]
+        self.car_plugged_in = self.charger_state in ["EV Ready", "Charging", "Reserving", "Preparing"]
+        self.car_charging = self.charger_state in ["Charging", "Preparing"]
 
         self.available_phases = 3 if self.three_phase_available else 1
 
@@ -104,7 +104,7 @@ class SigEnergyACCharger(EVCharger):
             current_input_entity_state = self.ha.get_numeric_state(self.charge_current_entity_id)
 
             if((self.car_charging != desired_charging_state or current_input_entity_state != desired_current_input_state) and (time.time() - self.last_control_entity_update_time) < self.min_time_between_control_updates):
-                logger.debug(f"Warning: Rate limiting control updates for {self.name}. Desired switch state: {desired_charging_state}, current switch state: {self.car_charging}, desired current input: {desired_current_input_state:.2f}A, current input state: {current_input_entity_state:.2f}A. Will attempt to update again in {(self.min_time_between_control_updates - (time.time() - self.last_control_entity_update_time)):.2f} seconds.")
+                logger.debug(f"Warning: Rate limiting control updates for {self.name}. Desired switch state: {desired_charging_state}, current switch state: {self.car_charging}, current charger state: '{self.charger_state}', desired current input: {desired_current_input_state:.2f}A, current input state: {current_input_entity_state:.2f}A. Will attempt to update again in {(self.min_time_between_control_updates - (time.time() - self.last_control_entity_update_time)):.2f} seconds.")
                 return
 
             if(self.car_charging != desired_charging_state):

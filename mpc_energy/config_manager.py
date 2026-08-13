@@ -111,9 +111,28 @@ MQTT_PASS = get_entity_id("ha_mqtt_pass")
 
 # Retailer Configuration (Moved to Web UI)
 energy_retailer = get_entity_id("energy_retailer")
+
+def get_demand_tariff_enabled(config=None):
+    """Returns whether the demand tariff should be active for the selected retailer.
+
+    New configs store an explicit toggle; older configs inferred enablement from
+    the presence of demand price/window values.
+    """
+    if config is None:
+        config = options
+    if "demand_tariff_enabled" in config:
+        return bool(config.get("demand_tariff_enabled"))
+    return bool(config.get("demand_price") or config.get("demand_window_start") or config.get("demand_window_end"))
+
+
+demand_tariff_enabled = get_demand_tariff_enabled(options)
 demand_price = get_entity_id("demand_price", "")  # Optional, only needed for certain retailers
 demand_window_start = get_entity_id("demand_window_start", "")  # Optional, only needed for certain retailers
 demand_window_end = get_entity_id("demand_window_end", "")  # Optional, only needed for certain retailers
+if not demand_tariff_enabled:
+    demand_price = ""
+    demand_window_start = ""
+    demand_window_end = ""
 amber_api_key = get_entity_id("amber_api_key", "")  # Optional, only needed for certain retailers
 amber_site_id = get_entity_id("amber_site_id", "")  # Optional, only needed for certain retailers
 flow_import_price_entity_id = get_entity_id("flow_import_price_entity_id", "")  # Optional, only needed for certain retailers
@@ -123,6 +142,7 @@ flow_price_forecast_entity_id = get_entity_id("flow_price_forecast_entity_id", "
 # Generic TOU windows (JSON list of {start,end,price} entries saved by UI)
 generic_import_windows = get_entity_id("generic_import_windows", "[]")
 generic_export_windows = get_entity_id("generic_export_windows", "[]")
+
 
 # Solar Forecast Configuration (Moved to Web UI)
 solcast_forecast_today_entity_id = get_entity_id("solcast_forecast_today_entity_id")

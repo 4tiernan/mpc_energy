@@ -107,7 +107,7 @@ class MPC:
             self.max_price_uncertainty_adjustment = 1           # Cap the absolute buy/sell adjustment (+/-30%)
             #self.charge_maintain_reward = 0 # Remove the charge maintain reward to prioritise immediate arbitrage with known prices, as there is no uncertainty discount on the sell price to encourage near-term sales.
 
-            logger.debug("Flow retailer detected: Disabling sell price uncertainty discount and charge maintain reward to prioritise immediate arbitrage with known prices.")
+            logger.debug(f"{self.retailer} retailer detected: Disabling sell price uncertainty discount and charge maintain reward to prioritise immediate arbitrage with known prices.")
 
         logger.debug(f"Forecast uncertainty: Buy premium: {self.buy_price_uncertainty_premium_per_hour} %/hr, Sell discount: {self.sell_price_uncertainty_discount_per_hour} %/hr, Max adjustment: {self.max_price_uncertainty_adjustment} %")
         

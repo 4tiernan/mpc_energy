@@ -213,12 +213,16 @@ while(started == False):
 
         demand_tariff = None
 
+        demand_price = config_manager.demand_price if config_manager.demand_tariff_enabled else ""
+        demand_window_start = config_manager.demand_window_start if config_manager.demand_tariff_enabled else ""
+        demand_window_end = config_manager.demand_window_end if config_manager.demand_tariff_enabled else ""
+
         if(config_manager.energy_retailer == "amber"):
             amber = AmberAPI(
                 config_manager.amber_api_key,
                 config_manager.amber_site_id,
                 local_tz=ha.local_tz,
-                demand_price=config_manager.demand_price,
+                demand_price=demand_price,
                 errors=True
             )
             demand_tariff = amber.demand_tarrif
@@ -229,9 +233,9 @@ while(started == False):
                 import_price_entity_id=config_manager.flow_import_price_entity_id,
                 export_price_entity_id=config_manager.flow_export_price_entity_id,
                 price_forecast_entity_id=config_manager.flow_price_forecast_entity_id,
-                demand_tarrif_price=config_manager.demand_price,
-                demand_tarrif_window_start=config_manager.demand_window_start,
-                demand_tarrif_window_end=config_manager.demand_window_end,
+                demand_tarrif_price=demand_price,
+                demand_tarrif_window_start=demand_window_start,
+                demand_tarrif_window_end=demand_window_end,
             )
             demand_tariff = flow.demand_tarrif
         elif(config_manager.energy_retailer == "generic"):
@@ -240,9 +244,9 @@ while(started == False):
                 ha=ha,
                 import_windows_json=config_manager.generic_import_windows,
                 export_windows_json=config_manager.generic_export_windows,
-                demand_tarrif_price=config_manager.demand_price,
-                demand_tarrif_window_start=config_manager.demand_window_start,
-                demand_tarrif_window_end=config_manager.demand_window_end,
+                demand_tarrif_price=demand_price,
+                demand_tarrif_window_start=demand_window_start,
+                demand_tarrif_window_end=demand_window_end,
             )
             demand_tariff = generic.demand_tarrif
         
@@ -500,7 +504,9 @@ def main_loop_code():
 
         if(not price_data.prices_estimated): #If the prices are real
             run_controller(price_update=True) # Send the price update flag to indicate that new pricing data has been received.
-            check_for_spike(price_data) # Check for any spikes in the feed in price forecast and send warnings if any are found
+
+            if(config_manager.energy_retailer == "amber"): # Only check for spikes if the retailer is amber, as alternate retailers don't have spikes in their pricing
+                check_for_spike(price_data) # Check for any spikes in the feed in price forecast and send warnings if any are found
 
             logger.info(f"General: {price_data.general_price} c/kWh  Feed In: {price_data.feedIn_price} c/kWh  Max 12hr Feed In: {price_data.feedIn_max_forecast_price} c/kWh, {round(next_amber_update_timestamp - time.time())} seconds till next update.")    
             logger.info("....")

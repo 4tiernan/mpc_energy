@@ -61,15 +61,41 @@ elif retailer == "generic":
         price = col3.text_input(f"Price (c/kWh)", value=str(price_val), key=f"export_window_{i}_price")
         export_windows.append({"start": start, "end": end, "price": price})
     new_config["generic_export_windows"] = json.dumps(export_windows)
+
 st.divider()
 st.subheader("Demand Tariff (Optional)")
 st.caption("Enter times in 24-hour HH:MM format.")
-new_config["demand_price"] = st.text_input("Demand Price ($/kW)", value=config.get("demand_price", ""), help="This is the price per kW (not kWh) of peak demand during the demand window. (only if you have a demand tariff)")
 
-if retailer in ["flow", "generic"]:
+configured_demand_enabled = config_manager.get_demand_tariff_enabled(config)
+demand_tariff_enabled = st.checkbox(
+    "Enable demand tariff",
+    value=bool(configured_demand_enabled),
+    help="Turn this on when your retailer applies a demand charge during a defined peak window.",
+)
+new_config["demand_tariff_enabled"] = demand_tariff_enabled
+
+if demand_tariff_enabled:
+    new_config["demand_price"] = st.text_input(
+        "Demand Price ($/kW)",
+        value=config.get("demand_price", ""),
+        help="This is the price per kW (not kWh) of peak demand during the demand window. (only if you have a demand tariff)",
+    )
+
     col1, col2 = st.columns(2)
-    new_config["demand_window_start"] = col1.text_input("Window Start (HH:MM)", value=config.get("demand_window_start", "16:00"), help="The start time of the demand window.")
-    new_config["demand_window_end"] = col2.text_input("Window End (HH:MM)", value=config.get("demand_window_end", "21:00"), help="The end time of the demand window.")
+    new_config["demand_window_start"] = col1.text_input(
+        "Window Start (HH:MM)",
+        value=config.get("demand_window_start", "16:00"),
+        help="The start time of the demand window.",
+    )
+    new_config["demand_window_end"] = col2.text_input(
+        "Window End (HH:MM)",
+        value=config.get("demand_window_end", "21:00"),
+        help="The end time of the demand window.",
+    )
+else:
+    new_config["demand_price"] = ""
+    new_config["demand_window_start"] = ""
+    new_config["demand_window_end"] = ""
 
 if st.button("Save Retailer Configuration"):
     errors = []

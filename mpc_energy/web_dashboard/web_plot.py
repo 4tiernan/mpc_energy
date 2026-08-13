@@ -151,14 +151,8 @@ def plot_mpc_results(st: Any, output: dict[str, Any]) -> None:
             value=f"{output['peak_demand']:.2f} kW"
         )
 
-    col6.metric(
-        label="Operating Mode",
-        value=str(operating_mode),
-    )
-    col7.metric(
-        label="Override Remaining",
-        value=f"Active: {override_remaining/60:.1f} min remaining" if manual_override and override_remaining > 0 else "Not active",
-    )
+    col6.write(f"<small><b>Operating Mode</b></small><br><small>{str(operating_mode)}</small>", unsafe_allow_html=True)
+    col7.write(f"<small><b>Override Remaining</b></small><br><small>{'Active: ' + str(round(override_remaining/60, 1)) + ' min' if manual_override and override_remaining > 0 else 'Not active'}</small>", unsafe_allow_html=True)
 
     # -------------------------------
     # Extract limits safely

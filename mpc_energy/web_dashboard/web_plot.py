@@ -294,7 +294,7 @@ def plot_mpc_results(st, output):
             ],
             opacity=0.6,
             hovertemplate=(
-                "Segment Grid Energy: %{y:.2f} kWh<br>"
+                "Segment Energy: %{y:.2f} kWh<br>"
                 "Segment Profit: $%{customdata[0]:.2f}<extra></extra>"
             ),
             customdata=[[p] for p in segment_profit],

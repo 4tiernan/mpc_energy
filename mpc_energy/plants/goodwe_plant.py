@@ -290,8 +290,8 @@ class GoodWePlant(BasePlant):
         
         if(hours != None):
             now = datetime.datetime.now(self.local_tz)
-            rounded_now = data_helpers.round_minutes(time=now, nearest_minute=bin_period)
-            start_datetime = data_helpers.round_minutes(time=rounded_now - datetime.timedelta(hours=hours), nearest_minute=bin_period)
+            rounded_now = data_helpers.round_minutes(value=now, nearest_minute=bin_period)
+            start_datetime = data_helpers.round_minutes(value=rounded_now - datetime.timedelta(hours=hours), nearest_minute=bin_period)
             end_datetime = rounded_now
 
         requested_hours = (end_datetime - start_datetime).total_seconds() / 3600

@@ -138,7 +138,7 @@ class MPC:
         
         now = datetime.now(self.local_tz).replace(second=0, microsecond=0)
 
-        sim_start = data_helpers.round_minutes(time=now, nearest_minute=5) # Round the sim start time to the nearest 5 minutes to ensure the time steps align with the forecast data
+        sim_start = data_helpers.round_minutes(value=now, nearest_minute=5) # Round the sim start time to the nearest 5 minutes to ensure the time steps align with the forecast data
         #morning_cutoff = sim_start.replace(hour=6, minute=0)
         #horizon_end = morning_cutoff + timedelta(days=3)  # 3 mornings from now
         horizon_end = sim_start + timedelta(hours=72) # Default to 72 hours from now

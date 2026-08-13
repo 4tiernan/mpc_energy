@@ -180,7 +180,7 @@ class BasePlant(ABC):
     def get_profit_history(self) -> list[data_helpers.BinnedStateClass]:
         """Get the history required for the profit calcs and use cached data if its not too old to avoid the expensive historical data retrieval and processing if possible."""
         now = datetime.datetime.now(self.local_tz)
-        rounded_now = data_helpers.round_minutes(time=now, nearest_minute=self.time_step_minutes)
+        rounded_now = data_helpers.round_minutes(value=now, nearest_minute=self.time_step_minutes)
         today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
 
         if self.history_since_midnight is not None and self.history_since_midnight.get("time_index"):

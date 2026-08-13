@@ -157,8 +157,8 @@ def get_time_range_from_hours(hours: float, tz: datetime.tzinfo) -> Tuple[dateti
     from datetime import datetime, timedelta
 
     now = datetime.now(tz)
-    rounded_now = round_minutes(time=now, nearest_minute=5)
-    start_datetime = round_minutes(time=rounded_now - timedelta(hours=hours), nearest_minute=5)
+    rounded_now = round_minutes(value=now, nearest_minute=5)
+    start_datetime = round_minutes(value=rounded_now - timedelta(hours=hours), nearest_minute=5)
     end_datetime = rounded_now
     
     return start_datetime, end_datetime

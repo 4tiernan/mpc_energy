@@ -227,8 +227,8 @@ class Plant:
         
         if(hours != None):
             now = datetime.datetime.now(self.local_tz)
-            rounded_now = data_helpers.round_minutes(time=now, nearest_minute=bin_period)
-            start_datetime = data_helpers.round_minutes(time=rounded_now - datetime.timedelta(hours=hours), nearest_minute=bin_period)
+            rounded_now = data_helpers.round_minutes(value=now, nearest_minute=bin_period)
+            start_datetime = data_helpers.round_minutes(value=rounded_now - datetime.timedelta(hours=hours), nearest_minute=bin_period)
             end_datetime = rounded_now
 
         requested_hours = (end_datetime - start_datetime).total_seconds() / 3600
@@ -301,7 +301,7 @@ class Plant:
     
     def get_profit_history(self): #Get the history required for the profit calcs and use cached data if its not too old to avoid the expensive historical data retrieval and processing if possible.
         now = datetime.datetime.now(self.local_tz)
-        rounded_now = data_helpers.round_minutes(time=now, nearest_minute=self.time_step_minutes)
+        rounded_now = data_helpers.round_minutes(value=now, nearest_minute=self.time_step_minutes)
         today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
 
         if self.history_since_midnight is not None and self.history_since_midnight.get("time_index"):

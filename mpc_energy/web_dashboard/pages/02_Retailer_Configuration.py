@@ -66,7 +66,7 @@ st.subheader("Demand Tariff (Optional)")
 st.caption("Enter times in 24-hour HH:MM format.")
 new_config["demand_price"] = st.text_input("Demand Price ($/kW)", value=config.get("demand_price", ""), help="This is the price per kW (not kWh) of peak demand during the demand window. (only if you have a demand tariff)")
 
-if retailer == "flow":
+if retailer in ["flow", "generic"]:
     col1, col2 = st.columns(2)
     new_config["demand_window_start"] = col1.text_input("Window Start (HH:MM)", value=config.get("demand_window_start", "16:00"), help="The start time of the demand window.")
     new_config["demand_window_end"] = col2.text_input("Window End (HH:MM)", value=config.get("demand_window_end", "21:00"), help="The end time of the demand window.")

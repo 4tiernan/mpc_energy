@@ -81,6 +81,33 @@ def round_to_nearest_5min(dt: datetime) -> datetime:
         microsecond=0
     ) + datetime.timedelta(seconds=rounded_seconds)
 
+
+def calculate_segment_energy_and_profit(plan_modes, grid_net, prices_buy, prices_sell, dt_minutes=5):
+    """Return per-segment energy (kWh) and profit ($) for each contiguous control mode block."""
+    dt_hours = dt_minutes / 60.0
+    segments = []
+    for start_idx, end_idx_exclusive, _mode in contiguous_segments(plan_modes):
+        segment_grid_net = grid_net[start_idx:end_idx_exclusive]
+        segment_energy_kwh = np.round(np.array(segment_grid_net, dtype=float) * dt_hours, 2).sum()
+
+        segment_prices_buy = prices_buy[start_idx:end_idx_exclusive]
+        segment_prices_sell = prices_sell[start_idx:end_idx_exclusive]
+        segment_kwh_import = np.maximum(np.array(segment_grid_net, dtype=float), 0.0) * dt_hours
+        segment_kwh_export = np.maximum(-np.array(segment_grid_net, dtype=float), 0.0) * dt_hours
+        segment_profit = np.round(
+            np.sum(segment_kwh_export * np.array(segment_prices_sell, dtype=float))
+            - np.sum(segment_kwh_import * np.array(segment_prices_buy, dtype=float)),
+            2,
+        )
+
+        segments.append({
+            "start_idx": start_idx,
+            "end_idx_exclusive": end_idx_exclusive,
+            "energy_kwh": float(segment_energy_kwh),
+            "profit": float(segment_profit),
+        })
+    return segments
+
 # -----------------------------
 # Plot: SOC trajectory (functional)
 # -----------------------------
@@ -233,16 +260,27 @@ def plot_mpc_results(st, output):
     grid_power = np.array(output["grid_net"])
     grid_energy_kwh = np.round(grid_power * DT_HOURS, 2)
     
-    # Aggregate grid energy over each contiguous control-mode segment
+    # Aggregate grid energy and profit over each contiguous control-mode segment
     segment_x = []
     segment_width = []
     segment_energy_kwh = []
-    for start_idx, end_idx_exclusive, _mode in contiguous_segments(output["plan_modes"]):
+    segment_profit = []
+    segment_meta = calculate_segment_energy_and_profit(
+        output["plan_modes"],
+        output["grid_net"],
+        output["prices_buy"],
+        output["prices_sell"],
+    )
+
+    for segment in segment_meta:
+        start_idx = segment["start_idx"]
+        end_idx_exclusive = segment["end_idx_exclusive"]
         x0 = time_index[start_idx]
         x1 = get_segment_end_time(time_index, end_idx_exclusive)
         segment_x.append(get_segment_midpoint(x0, x1))
         segment_width.append(get_segment_width(x0, x1))
-        segment_energy_kwh.append(np.round(grid_energy_kwh[start_idx:end_idx_exclusive].sum(), 2))
+        segment_energy_kwh.append(segment["energy_kwh"])
+        segment_profit.append(segment["profit"])
 
     fig.add_trace(
         go.Bar(
@@ -255,7 +293,11 @@ def plot_mpc_results(st, output):
                 for e in segment_energy_kwh
             ],
             opacity=0.6,
-            hovertemplate="Segment Grid Energy: %{y:.2f} kWh<extra></extra>",
+            hovertemplate=(
+                "Segment Grid Energy: %{y:.2f} kWh<br>"
+                "Segment Profit: $%{customdata[0]:.2f}<extra></extra>"
+            ),
+            customdata=[[p] for p in segment_profit],
         ),
         row=3,
         col=1,

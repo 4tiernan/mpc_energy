@@ -9,7 +9,8 @@
 * Added Generic Energy Retailer Option.
 * Added abiity to handle new and old flow data timestamps
 * Updated to work with latest forecast timestamps in FlowPower HA integration.
-* Improved Effective Price Calculations
+* Improved Effective Price Calculations.
+* Added Profit to grid segment displays.
 
 ## 0.8.0
 * **!!!Please enter the general config page to sync old config through HA with new web dashboard config!!!**.

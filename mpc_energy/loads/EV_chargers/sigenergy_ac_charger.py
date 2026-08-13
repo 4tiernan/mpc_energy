@@ -68,7 +68,7 @@ class SigEnergyACCharger(EVCharger):
         state_payload = self.ha.get_state(self.charger_state_entity_id)
         charger_state = state_payload.get("state", "") if isinstance(state_payload, dict) else ""
         # For SigEnergy AC Chargers, these strings indicate a connection
-        self.car_plugged_in = charger_state in ["EV Ready", "Charging", "Reserving"]
+        self.car_plugged_in = charger_state in ["EV Ready", "Charging", "Reserving", "Preparing"]
         self.car_charging = charger_state in ["Charging", "Preparing"]
 
         self.available_phases = 3 if self.three_phase_available else 1

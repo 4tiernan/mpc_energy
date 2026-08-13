@@ -11,6 +11,7 @@
 * Updated to work with latest forecast timestamps in FlowPower HA integration.
 * Improved Effective Price Calculations.
 * Added Profit to energy segment displays.
+* Added opperating mode and manual override status to web ui.
 
 ## 0.8.0
 * **!!!Please enter the general config page to sync old config through HA with new web dashboard config!!!**.

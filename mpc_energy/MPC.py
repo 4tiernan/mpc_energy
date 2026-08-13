@@ -54,12 +54,13 @@ except Exception as e:
                          f"Please ensure the Mosquitto broker is running and the hostname is correct. Error: {e}") from e
 
 class MPC:
-    def __init__(self, ha: HomeAssistantAPI, plant: BasePlant, local_tz: ZoneInfo, demand_tarrif: bool, retailer: str, optional_loads: List[loads.optional_loads.OptionalLoad]):
+    def __init__(self, ha: HomeAssistantAPI, plant: BasePlant, local_tz: ZoneInfo, demand_tarrif: bool, retailer: str, optional_loads: List[loads.optional_loads.OptionalLoad], override_manager=None):
         self.plant = plant
         self.ha = ha
         self.local_tz = local_tz
         self.retailer = retailer
         self.optional_loads = optional_loads
+        self.override_manager = override_manager
 
         self.power_threshold = 0.2 # Threshold when comparing power values
 
@@ -645,6 +646,7 @@ class MPC:
                 "optional_loads": optional_loads_results,
             }
             output = self.convert_to_python(output) # Ensure all arrays and data is in the plain python format, ie no numpy
+            output.update(self.get_runtime_status())
             plan_modes = self.determine_plan_modes(output) # Determine the control mode for each time period
             output.update({"plan_modes": plan_modes}) # Add the control modes to the output to be plotted
 
@@ -684,6 +686,33 @@ class MPC:
             logger.info(f"Solver took {round(time.time()-start_optimisation,2)} seconds to get data, build and solve. The selected mode is: {output['plan_modes'][0]}")
 
             return [output, plotted_output]
+
+    def get_runtime_status(self) -> Dict[str, Any]:
+        if self.override_manager is None:
+            current_mode = getattr(self.plant, "working_mode", None) or "Initialising"
+            return {
+                "operating_mode": current_mode,
+                "manual_override": False,
+                "override_mode": None,
+                "override_remaining_seconds": 0,
+            }
+
+        state = getattr(self.override_manager, "state", {}) or {}
+        active = bool(state.get("active"))
+        expiry = state.get("expiry_timestamp") or 0
+        remaining = max(0.0, expiry - time.time()) if active and expiry else 0.0
+
+        if active:
+            current_mode = state.get("mode") or getattr(self.plant, "working_mode", None) or "Initialising"
+        else:
+            current_mode = getattr(self.plant, "working_mode", None) or "Initialising"
+
+        return {
+            "operating_mode": current_mode,
+            "manual_override": active,
+            "override_mode": state.get("mode") if active else None,
+            "override_remaining_seconds": round(remaining, 1),
+        }
 
     def convert_to_python(self, obj: Any) -> Any: # Convert all np objects to python objects
         if isinstance(obj, np.ndarray):

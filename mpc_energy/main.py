@@ -263,7 +263,8 @@ while(started == False):
             local_tz=ha.local_tz,
             demand_tarrif=demand_tariff,
             retailer=config_manager.energy_retailer,
-            optional_loads=opt_loads
+            optional_loads=opt_loads,
+            override_manager=control_mode_override_manager,
         ) 
 
         started = True

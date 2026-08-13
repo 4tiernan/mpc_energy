@@ -116,9 +116,15 @@ def plot_mpc_results(st, output):
     Plot MPC results using Plotly (dual-axis, 2 subplots)
     """
 
-    col1, col2, col3, col4, col5 = st.columns(5)
+    col1, col2, col3, col4, col5, col6, col7 = st.columns(7)
 
     col1.subheader("🔋 MPC Plan Dashboard")
+
+    # Live operating status (no extra HA sensors required; pulled from the existing MPC output payload)
+    operating_mode = output.get("operating_mode", "Initialising")
+    manual_override = bool(output.get("manual_override", False))
+    override_mode = output.get("override_mode")
+    override_remaining = output.get("override_remaining_seconds", 0)
 
     col2.metric(
         label="Profit Already Today",
@@ -141,7 +147,14 @@ def plot_mpc_results(st, output):
             value=f"{output['peak_demand']:.2f} kW"
         )
 
-    
+    col6.metric(
+        label="Operating Mode",
+        value=str(operating_mode),
+    )
+    col7.metric(
+        label="Override Remaining",
+        value=f"Active: {override_remaining/60:.1f} min remaining" if manual_override and override_remaining > 0 else "Not active",
+    )
 
     # -------------------------------
     # Extract limits safely

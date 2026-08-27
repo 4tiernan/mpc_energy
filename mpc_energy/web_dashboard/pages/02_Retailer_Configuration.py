@@ -30,7 +30,7 @@ elif retailer == "flow":
 
 elif retailer == "generic":
     st.subheader("Generic TOU Settings")
-    st.caption("Define time-of-use windows and prices. Times are in HH:MM 24-hour format. End times are inclusive and windows must cover the day continuously with no gaps.")
+    st.caption("Define time-of-use windows and prices. Times are in HH:MM 24-hour format. End times are inclusive and windows must cover the day continuously with no gaps. These windows will be converted to 5 minutely prices without rounding, meaning if a window ends at 16:01,  the 16:00-16:05 price will be the same as the 15:55-16:00 price. If you want a price change at 16:00, set the end time of the previous window to 15:59 and the start time of the next window to 16:00.")
 
     # Import windows
     import_windows_count = st.number_input("Number of import windows (daily)", min_value=1, max_value=12, value=max(1, len(json.loads(config.get("generic_import_windows", "[]")) if config.get("generic_import_windows") else [])))

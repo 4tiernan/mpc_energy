@@ -1,4 +1,4 @@
-from datetime import datetime, time as datetime_time, timezone, timedelta
+from datetime import datetime, timedelta
 from External_Interfaces.amber_api import PriceForecast, price_data
 from mpc_logger import logger
 import math
@@ -143,6 +143,7 @@ class FlowPowerInterface:
 
         if not intervals:
             # Fallback to flat forecast if no forecast data was available/parsible.
+            logger.warning(f"No valid forecast intervals found; using flat forecast with default price of {default_price_cents} c/kWh")
             for i in range(periods):
                 start = now + timedelta(minutes=i * period_minutes)
                 end = start + timedelta(minutes=period_minutes)
@@ -185,7 +186,11 @@ class FlowPowerInterface:
                 except: continue
             
             profile = {tod: sum(vals)/len(vals) for tod, vals in tod_bins.items()}
-            global_avg = sum(profile.values()) / len(profile) if profile else 0.45
+            if not profile:
+                logger.warning("No valid historical data found for Flow Power import price; using default average of 0.45 $/kWh.")
+                global_avg = 0.45 #Default avg import price if no history is available
+            else:
+                global_avg = sum(profile.values()) / len(profile)
 
             # 2. Initialize a 72h grid (30-min steps) with the profile values.
             horizon_start = now - timedelta(minutes=now.minute % 30)
@@ -207,6 +212,82 @@ class FlowPowerInterface:
         except Exception as e:
             logger.warning(f"Failed to project Flow Power buy price from history: {e}")
             return import_points
+
+    def _project_export_price_from_history(self, export_points):
+        """Fill the export forecast tail with a recent time-of-day price profile."""
+        now = datetime.now(self.ha.local_tz).replace(second=0, microsecond=0)
+        hist_start = now - timedelta(days=3)
+
+        try:
+            history = self.ha.get_history(self.export_price_entity_id, start_time=hist_start, end_time=now)
+            if not history:
+                return export_points
+
+            state_payload = self.ha.get_state(self.export_price_entity_id)
+            attributes = state_payload.get("attributes", {})
+            unit = attributes.get("unit") or attributes.get("unit_of_measurement")
+            scale_to_dollars = 0.01 if unit == "c/kWh" else 1.0
+
+            binned_5m = data_helpers.bin_data(history, 5, hist_start, now, interpolation_method="step")
+            tod_bins = defaultdict(list)
+            for b in binned_5m:
+                if b.avg_state is None:
+                    continue
+                try:
+                    value = float(b.avg_state) * scale_to_dollars
+                    rounded_time = b.time.replace(second=0, microsecond=0)
+                    rounded_time -= timedelta(minutes=rounded_time.minute % 30)
+                    tod_bins[rounded_time.time()].append(value)
+                except (TypeError, ValueError):
+                    continue
+
+            profile = {tod: sum(values) / len(values) for tod, values in tod_bins.items()}
+            if not profile:
+                return export_points
+
+            global_average = sum(profile.values()) / len(profile)
+            horizon_start = now - timedelta(minutes=now.minute % 30)
+            projected_points = {}
+            for i in range(145):
+                timestamp = horizon_start + timedelta(minutes=i * 30)
+                if timestamp + timedelta(minutes=30) < now:
+                    continue
+                timestamp_string = timestamp.isoformat(timespec="seconds")
+                projected_points[timestamp_string] = profile.get(timestamp.time(), global_average)
+
+            for timestamp, value in export_points:
+                projected_points[timestamp] = value
+
+            projected = list(projected_points.items())
+            logger.debug(
+                f"Export price projection: {len(projected)} grid points generated "
+                f"(history profile + {len(export_points)} forecast points)."
+            )
+            return projected
+        except Exception as e:
+            logger.warning(f"Failed to project Flow Power export price from history: {e}")
+            return export_points
+
+    def _fill_forecast_tail(self, forecast, default_price_cents, required_periods):
+        """Ensure a forecast always covers the complete MPC horizon."""
+        if len(forecast) >= required_periods:
+            return forecast[:required_periods]
+
+        if forecast:
+            next_start = forecast[-1].end_time
+            price = forecast[-1].price
+            completed = list(forecast)
+        else:
+            next_start = datetime.now(self.ha.local_tz).replace(second=0, microsecond=0)
+            price = default_price_cents
+            completed = []
+
+        while len(completed) < required_periods:
+            end = next_start + timedelta(minutes=30)
+            completed.append(PriceForecast(price=price, start_time=next_start, end_time=end, demand_window=False))
+            next_start = end
+
+        return completed
 
     def _build_demand_window_5min(self, intervals_5m, timeline_start):
         if not self.demand_tarrif or not self.demand_tarrif_window_start or not self.demand_tarrif_window_end:
@@ -325,37 +406,6 @@ class FlowPowerInterface:
         
         return values
     
-    def create_fake_forecast(self, extrapolated_general_forecast, sim_start, sim_end):
-        '''Create a fake forecast that reflects reality more closely than the provided flow power forecast. The fake forecast is overridden with the flow power forecast when the flow power forecast is higher.'''
-        fake_forecast = []
-        current_time = sim_start
-        forecast_index = 0
-
-        while current_time < sim_end:
-            current_clock_time = current_time.time()
-            if datetime_time(10, 0) <= current_clock_time < datetime_time(14, 0):
-                base_price = 15
-            elif datetime_time(7, 0) <= current_clock_time < datetime_time(10, 0):
-                base_price = 25
-            elif datetime_time(14, 0) <= current_clock_time < datetime_time(16, 0):
-                base_price = 25
-            elif datetime_time(16, 0) <= current_clock_time < datetime_time(21, 0):
-                base_price = 55
-            else:
-                base_price = 35
-            
-            '''
-            if forecast_index < len(extrapolated_general_forecast) and (current_time - sim_start) < timedelta(hours=12): # Only modify the forecast if its within the known forecast horizon
-                fake_forecast.append(max(base_price, extrapolated_general_forecast[forecast_index]))
-            else:'''
-            
-            fake_forecast.append(base_price)
-
-            forecast_index += 1
-            current_time += timedelta(minutes=5)
-
-        return fake_forecast
-    
     def get_data(self, partial_update=False, forecast_hrs=None, sim_start=None, sim_end=None):
         import_payload = self._get_state_payload(self.import_price_entity_id)
         export_payload = self._get_state_payload(self.export_price_entity_id)
@@ -393,13 +443,19 @@ class FlowPowerInterface:
         # windows are consumed programmatically from HA forecast metadata.
         import_points_projected = self._project_buy_price_from_history(import_points)
         
-        general_price_forecast_full = self._build_forecast(import_points_projected, default_price_cents=45.0, periods=required_30min_periods, period_minutes=30)
-        feed_in_price_forecast_full = self._build_forecast(export_points, default_price_cents=feed_in_price, periods=required_30min_periods, period_minutes=30)
+        general_price_forecast_full = self._build_forecast(import_points_projected, default_price_cents=35.0, periods=required_30min_periods, period_minutes=30)
+        export_points_projected = self._project_export_price_from_history(export_points)
+        feed_in_price_forecast_full = self._build_forecast(export_points_projected, default_price_cents=feed_in_price, periods=required_30min_periods, period_minutes=30)
         feed_in_price_forecast_full = self._extend_export_forecast_with_schedule(
             forecast_30min=feed_in_price_forecast_full,
             export_payload=export_payload,
             default_price_cents=self.happy_hour_off_rate,
             required_30min_periods=required_30min_periods,
+        )
+        feed_in_price_forecast_full = self._fill_forecast_tail(
+            feed_in_price_forecast_full,
+            default_price_cents=feed_in_price,
+            required_periods=required_30min_periods,
         )
 
         general_price_forecast = general_price_forecast_full[:24]
@@ -429,9 +485,6 @@ class FlowPowerInterface:
             intervals_5m=intervals_5m,
             timeline_start=timeline_start,
         )
-
-        #fake_general_forecast = self.create_fake_forecast(general_extrapolated_forecast, sim_start, sim_end)
-        #logger.warning("Using fake prices for flow power general forecast to better reflect daily price patterns.")
 
         # Set the import price to be at least 10c higher than the export price to reflect reality
         for i, import_price in enumerate(general_extrapolated_forecast):

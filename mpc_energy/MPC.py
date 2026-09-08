@@ -104,8 +104,8 @@ class MPC:
 
         if(self.retailer == "flow"):
             self.buy_price_uncertainty_premium_per_hour = -0.01      # +%/hr applied to future buy prices (testing a negative number to encourge buying as late as possible to rely less on load forecast)
-            self.sell_price_uncertainty_discount_per_hour = 0.1 # Flow sell prices are known with certainty
-            self.max_price_uncertainty_adjustment = 10           # Cap the absolute buy/sell adjustment (+/-30%)
+            self.sell_price_uncertainty_discount_per_hour = 0.5 # Flow sell prices are known with certainty
+            self.max_price_uncertainty_adjustment = 20           # Cap the absolute buy/sell adjustment (+/-30%)
             #self.charge_maintain_reward = 0 # Remove the charge maintain reward to prioritise immediate arbitrage with known prices, as there is no uncertainty discount on the sell price to encourage near-term sales.
         if(self.retailer == "generic"):
             self.buy_price_uncertainty_premium_per_hour = -0.01      # +%/hr applied to future buy prices (testing a negative number to encourge buying as late as possible to rely less on load forecast)

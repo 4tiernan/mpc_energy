@@ -1,6 +1,7 @@
 ## 0.10.0
 * Changed Generic TOU retailer to native 5 minute time windows.
 * Added support for new flow pricing.
+* Fixed bug with GoodWe buying too much power.
 
 ## 0.9.0
 * Improved EV charging logic. 

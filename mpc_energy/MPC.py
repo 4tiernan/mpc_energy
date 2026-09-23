@@ -854,9 +854,11 @@ class MPC:
 
         if grid_net_list[0] > self.power_threshold: # If we are importing power, use the current grid price as the effective price
             effective_price = general_price_list[0]
+            logger.debug(f"Effective price calculated from current import price: {effective_price:.4f} $/kWh (grid_net={grid_net_list[0]:.4f} kW, prices_buy[0]={general_price_list[0]:.4f}).")
             return effective_price
         elif grid_net_list[0] < -self.power_threshold: # If we are exporting power, use the current feed in price as the effective price
             effective_price = feedIn_price_list[0]
+            logger.debug(f"Effective price calculated from current feed-in price: {effective_price:.4f} $/kWh (grid_net={grid_net_list[0]:.4f} kW, prices_sell[0]={feedIn_price_list[0]:.4f}).")
             return effective_price
 
         # Find the next significant grid interaction (>= 0.5 kWh) to set the price
@@ -866,21 +868,28 @@ class MPC:
             i = interaction["start_idx"]
             if interaction["is_import"]:
                 effective_price = general_price_list[i]
+                logger.debug(f"Effective price calculated from next significant import: {effective_price:.4f} $/kWh (index={i}, prices_buy[{i}]={general_price_list[i]:.4f}, grid_net[0]={grid_net_list[0]:.4f} kW).")
             else:
                 # If the current feed in price is higher than the future feed in price, 
                 # use the current feed in price as the effective price.
                 effective_price = max(feedIn_price_list[0], feedIn_price_list[i])
+                logger.debug(f"Effective price calculated from next significant export: {effective_price:.4f} $/kWh (index={i}, current prices_sell[0]={feedIn_price_list[0]:.4f}, future prices_sell[{i}]={feedIn_price_list[i]:.4f}, grid_net[0]={grid_net_list[0]:.4f} kW).")
         else:
             # If no significant grid interaction is found, check for solar curtailment
             effective_price = general_price_list[0] # Default to current grid price
+            calculation_reason = "no significant grid interaction; current import price used"
             for i in range(len(grid_net_list)):
                 if solar_used_list[i] < solar_forecast_list[i] - self.power_threshold:
                     effective_price = 0
+                    calculation_reason = f"solar curtailment detected at index {i}; set to zero"
                     break
+            logger.debug(f"Effective price calculated from fallback: {effective_price:.4f} $/kWh ({calculation_reason}, prices_buy[0]={general_price_list[0]:.4f}).")
         
         # If solar is negligible and we are using the battery, constrain the effective price to be at least the battery minimum export cost to avoid using the battery when it's not profitable to do so. 
         if solar_used_list[0] < self.power_threshold and effective_price < self.battery_min_export_cost: 
+            previous_effective_price = effective_price
             effective_price = self.battery_min_export_cost
+            logger.debug(f"Effective price raised to battery discharge cost: {effective_price:.4f} $/kWh (previous={previous_effective_price:.4f}, battery_min_export_cost={self.battery_min_export_cost:.4f}).")
 
         return effective_price # Return the determined effective price
     

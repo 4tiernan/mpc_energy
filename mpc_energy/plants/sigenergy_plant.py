@@ -23,6 +23,7 @@ class SigEnergyPlant(BasePlant):
         self.max_inverter_power = self.get_power_config_entry_value(self.inverter_max_power_limit_entry)
         self.max_export_power = self.get_power_config_entry_value(self.export_max_power_limit_entry)
         self.max_import_power = self.get_power_config_entry_value(self.import_max_power_limit_entry)
+        self.desired_battery_charge_rate = self.max_charge_power
 
         
         self.control_mode_options = [
@@ -458,6 +459,7 @@ class SigEnergyPlant(BasePlant):
 
             battery_charge_limit = min(max(battery_charge_limit, 0), self.max_charge_power)
 
+        self.desired_battery_charge_rate = battery_charge_limit
         self.working_mode = self.ControlMode.EXPORT_EXCESS_SOLAR
         self.check_control_limits(
             working_mode=self.working_mode,
@@ -537,4 +539,4 @@ class SigEnergyPlant(BasePlant):
         if(self.working_mode == self.ControlMode.EXPORT_ALL_SOLAR):
             self.export_all_solar()
         elif(self.working_mode == self.ControlMode.EXPORT_EXCESS_SOLAR):
-            self.export_excess_solar() # Run excess solar repeatedly to ensure no solar power is wasted.
+            self.export_excess_solar(battery_charge_limit=self.desired_battery_charge_rate) # Run excess solar repeatedly to ensure no solar power is wasted.

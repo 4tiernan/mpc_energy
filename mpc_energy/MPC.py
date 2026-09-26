@@ -84,7 +84,7 @@ class MPC:
 
         # Reward and penalty settings
         self.discharge_efficiency = 0.95
-        self.grid_import_penalty_cost = 0.03 # $/kWh penalty for using grid power
+        self.grid_import_penalty_cost = 0.00 # $/kWh penalty for using grid power
         self.full_battery_reward = 0.03  # $/kWh — use this value to encourage the battery to be full by the end of the solar day
         self.charge_maintain_reward = 0.01 / (self.forecast_hrs*self.steps_per_hr*self.battery_capacity) # $/kWh / interval reward for maintaining higher SOC throughout the day, currently equates to 1c total over the whole day
         self.demand_tarrif = demand_tarrif # True if the selected site has a demand tarrif applied

@@ -4,6 +4,7 @@
 * Fixed bug with GoodWe buying too much power.
 * Fixed bug with SigEnergy not exporting and charging simultaneously.
 * Removed grid import penalty. 
+* Changed sigenergy states to suit v2.0 integration update
 
 ## 0.9.0
 * Improved EV charging logic. 

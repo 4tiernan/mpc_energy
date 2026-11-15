@@ -410,12 +410,15 @@ class AmberAPI:
         
         if(self.data == None or partial_update == False):
             [general_price_forecast, feed_in_price_forecast] = self.get_forecast(next_intervals=24, resolution=30)
+            # Fresh forecast returns PriceForecast objects -- extract .price
+            general_max_price = max((pf.price for pf in general_price_forecast[:24]), default=0)
+            feed_in_max_price = max((pf.price for pf in feed_in_price_forecast[:24]), default=0)
         else:
             general_price_forecast = self.data.general_extrapolated_forecast
             feed_in_price_forecast = self.data.feedIn_extrapolated_forecast
-
-        general_max_price = max((pf.price for pf in general_price_forecast[:24]), default=0) #Only get the max price for the next 12 hours as after 12 hrs the forecast is just a projection of past prices and not a true forecast.
-        feed_in_max_price = max((pf.price for pf in feed_in_price_forecast[:24]), default=0)
+            # Extrapolated forecasts are plain numeric lists -- use values directly
+            general_max_price = max(general_price_forecast[:24], default=0)
+            feed_in_max_price = max(feed_in_price_forecast[:24], default=0)
 
         if(estimate and self.data != None): # if prices are an estimate, just pass the old not estimated prices through
             general_price = self.data.general_price

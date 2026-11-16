@@ -84,7 +84,7 @@ class MPC:
 
         # Reward and penalty settings
         self.discharge_efficiency = 0.95
-        self.grid_import_penalty_cost = 0.03 # $/kWh penalty for using grid power
+        self.grid_import_penalty_cost = 0.00 # $/kWh penalty for using grid power
         self.full_battery_reward = 0.03  # $/kWh — use this value to encourage the battery to be full by the end of the solar day
         self.charge_maintain_reward = 0.01 / (self.forecast_hrs*self.steps_per_hr*self.battery_capacity) # $/kWh / interval reward for maintaining higher SOC throughout the day, currently equates to 1c total over the whole day
         self.demand_tarrif = demand_tarrif # True if the selected site has a demand tarrif applied
@@ -102,12 +102,15 @@ class MPC:
         self.sell_price_uncertainty_discount_per_hour = 1    # -%/hr applied to future sell prices
         self.max_price_uncertainty_adjustment = 30           # Cap the absolute buy/sell adjustment (+/-30%)
 
-        if(self.retailer == "flow" or self.retailer == "generic"):
+        if(self.retailer == "flow"):
+            self.buy_price_uncertainty_premium_per_hour = -0.01      # +%/hr applied to future buy prices (testing a negative number to encourge buying as late as possible to rely less on load forecast)
+            self.sell_price_uncertainty_discount_per_hour = 0.5 # Flow sell prices are known with certainty
+            self.max_price_uncertainty_adjustment = 20           # Cap the absolute buy/sell adjustment (+/-30%)
+            #self.charge_maintain_reward = 0 # Remove the charge maintain reward to prioritise immediate arbitrage with known prices, as there is no uncertainty discount on the sell price to encourage near-term sales.
+        if(self.retailer == "generic"):
             self.buy_price_uncertainty_premium_per_hour = -0.01      # +%/hr applied to future buy prices (testing a negative number to encourge buying as late as possible to rely less on load forecast)
             self.sell_price_uncertainty_discount_per_hour = 0 # Flow sell prices are known with certainty
             self.max_price_uncertainty_adjustment = 1           # Cap the absolute buy/sell adjustment (+/-30%)
-            #self.charge_maintain_reward = 0 # Remove the charge maintain reward to prioritise immediate arbitrage with known prices, as there is no uncertainty discount on the sell price to encourage near-term sales.
-
             logger.debug(f"{self.retailer} retailer detected: Disabling sell price uncertainty discount and charge maintain reward to prioritise immediate arbitrage with known prices.")
 
         logger.debug(f"Forecast uncertainty: Buy premium: {self.buy_price_uncertainty_premium_per_hour} %/hr, Sell discount: {self.sell_price_uncertainty_discount_per_hour} %/hr, Max adjustment: {self.max_price_uncertainty_adjustment} %")
@@ -851,9 +854,11 @@ class MPC:
 
         if grid_net_list[0] > self.power_threshold: # If we are importing power, use the current grid price as the effective price
             effective_price = general_price_list[0]
+            logger.debug(f"Effective price calculated from current import price: {effective_price:.4f} $/kWh (grid_net={grid_net_list[0]:.4f} kW, prices_buy[0]={general_price_list[0]:.4f}).")
             return effective_price
         elif grid_net_list[0] < -self.power_threshold: # If we are exporting power, use the current feed in price as the effective price
             effective_price = feedIn_price_list[0]
+            logger.debug(f"Effective price calculated from current feed-in price: {effective_price:.4f} $/kWh (grid_net={grid_net_list[0]:.4f} kW, prices_sell[0]={feedIn_price_list[0]:.4f}).")
             return effective_price
 
         # Find the next significant grid interaction (>= 0.5 kWh) to set the price
@@ -863,21 +868,28 @@ class MPC:
             i = interaction["start_idx"]
             if interaction["is_import"]:
                 effective_price = general_price_list[i]
+                logger.debug(f"Effective price calculated from next significant import: {effective_price:.4f} $/kWh (index={i}, prices_buy[{i}]={general_price_list[i]:.4f}, grid_net[0]={grid_net_list[0]:.4f} kW).")
             else:
                 # If the current feed in price is higher than the future feed in price, 
                 # use the current feed in price as the effective price.
                 effective_price = max(feedIn_price_list[0], feedIn_price_list[i])
+                logger.debug(f"Effective price calculated from next significant export: {effective_price:.4f} $/kWh (index={i}, current prices_sell[0]={feedIn_price_list[0]:.4f}, future prices_sell[{i}]={feedIn_price_list[i]:.4f}, grid_net[0]={grid_net_list[0]:.4f} kW).")
         else:
             # If no significant grid interaction is found, check for solar curtailment
             effective_price = general_price_list[0] # Default to current grid price
+            calculation_reason = "no significant grid interaction; current import price used"
             for i in range(len(grid_net_list)):
                 if solar_used_list[i] < solar_forecast_list[i] - self.power_threshold:
                     effective_price = 0
+                    calculation_reason = f"solar curtailment detected at index {i}; set to zero"
                     break
+            logger.debug(f"Effective price calculated from fallback: {effective_price:.4f} $/kWh ({calculation_reason}, prices_buy[0]={general_price_list[0]:.4f}).")
         
         # If solar is negligible and we are using the battery, constrain the effective price to be at least the battery minimum export cost to avoid using the battery when it's not profitable to do so. 
         if solar_used_list[0] < self.power_threshold and effective_price < self.battery_min_export_cost: 
+            previous_effective_price = effective_price
             effective_price = self.battery_min_export_cost
+            logger.debug(f"Effective price raised to battery discharge cost: {effective_price:.4f} $/kWh (previous={previous_effective_price:.4f}, battery_min_export_cost={self.battery_min_export_cost:.4f}).")
 
         return effective_price # Return the determined effective price
     

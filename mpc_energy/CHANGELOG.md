@@ -1,3 +1,11 @@
+## 0.10.0
+* Changed Generic TOU retailer to native 5 minute time windows.
+* Added support for new flow pricing.
+* Fixed bug with GoodWe buying too much power.
+* Fixed bug with SigEnergy not exporting and charging simultaneously.
+* Removed grid import penalty. 
+* Changed sigenergy states to suit v2.0 integration update
+
 ## 0.9.0
 * Improved EV charging logic. 
 * Stopped effective price from going to zero overnight.

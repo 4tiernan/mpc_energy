@@ -460,8 +460,8 @@ class GoodWePlant(BasePlant):
         self.working_mode = self.ControlMode.GRID_IMPORT
         self.check_control_limits(
             working_mode=self.working_mode,
-            control_mode="import_ac",
-            ems_limit=grid_import_limit, # Battery Import Limit
+            control_mode="buy_power",
+            ems_limit=grid_import_limit, 
             export_limit=self.max_export_power
         )
 
